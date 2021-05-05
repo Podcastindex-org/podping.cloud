@@ -1,0 +1,19 @@
+[package]
+name = "podping"
+version = "0.1.0"
+authors = ["Dave Jones"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = { version = "0.3.6", default-features = false, features = ["async-await"] }
+hyper = { version = "0.14", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
+serde = {version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+route-recognizer = "0.2"
+bytes = "0.5"
+async-trait = "0.1"
+url = "2.2.1"
+rusqlite = "0.25.1"
