@@ -47,7 +47,7 @@ def send_notification(custom_json, server_account='', wif=''):
         HIVE_POSTING_KEY
         """
 
-    operation_id = 'hive-hydra'
+    operation_id = 'podping'
 
     try:
         if server_account == '':
