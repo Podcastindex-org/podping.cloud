@@ -9,27 +9,19 @@ from beem.account import Account
 from beem.blockchain import Blockchain
 
 USE_TEST_NODE = os.getenv("USE_TEST_NODE", 'False').lower() in ('true', '1', 't')
-TELEGRAM_ALERTS = True
 WATCHED_OPERATION_IDS = ['podping','hive-hydra']
 TEST_NODE = ['http://testnet.openhive.network:8091']
 
-if USE_TEST_NODE:
-    t_key = os.getenv('TELEGRAM_BOT_KEY_TEST')
-else:
-    t_key = os.getenv('TELEGRAM_BOT_KEY')
 
 logging.basicConfig(level=logging.INFO,
                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
 
 if USE_TEST_NODE:
+    hive = Hive(node=TEST_NODE)
     logging.info('---------------> Using Test Node ' + TEST_NODE[0])
 else:
-    logging.info('---------------> Using Main Hive Chain ')
-
-if USE_TEST_NODE:
-    hive = Hive(node=TEST_NODE)
-else:
     hive = Hive()
+    logging.info('---------------> Using Main Hive Chain ')
 
 
 def get_allowed_accounts(acc_name) -> bool:
