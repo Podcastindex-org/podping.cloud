@@ -1,8 +1,6 @@
 import json
 import logging
 import os
-import queue
-import threading
 from datetime import datetime, timedelta
 from time import sleep
 
