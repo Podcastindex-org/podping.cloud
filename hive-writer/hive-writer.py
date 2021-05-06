@@ -6,7 +6,8 @@ import threading
 import socketserver
 
 # Testnet instead of main Hive
-USE_TEST_NODE = True
+# BOL: Switching off TestNet, we should test on Hive for now.
+USE_TEST_NODE = False
 TEST_NODE = ['http://testnet.openhive.network:8091']
 
 logging.basicConfig(level=logging.INFO,
