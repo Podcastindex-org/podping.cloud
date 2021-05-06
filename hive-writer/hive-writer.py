@@ -6,7 +6,8 @@ import threading
 import socketserver
 
 # Testnet instead of main Hive
-USE_TEST_NODE = True
+# BOL: Switching off TestNet, we should test on Hive for now.
+USE_TEST_NODE = False
 TEST_NODE = ['http://testnet.openhive.network:8091']
 
 logging.basicConfig(level=logging.INFO,
@@ -46,7 +47,7 @@ def send_notification(custom_json, server_account='', wif=''):
         HIVE_POSTING_KEY
         """
 
-    account_id = 'hive-hydra'
+    operation_id = 'podping'
 
     try:
         if server_account == '':
@@ -62,7 +63,7 @@ def send_notification(custom_json, server_account='', wif=''):
             h = Hive(keys=wif)
 
 
-        tx = h.custom_json(id=account_id, json_data= custom_json,
+        tx = h.custom_json(id=operation_id, json_data= custom_json,
                             required_posting_auths=[server_account])
 
         trx_id = tx['trx_id']
@@ -77,7 +78,7 @@ def send_notification(custom_json, server_account='', wif=''):
 
 
 if __name__ == "__main__":
-    HOST, PORT = "localhost", 5000
+    HOST, PORT = "localhost", 5001
 
     # Create the server, binding to localhost on port 9999
     server = socketserver.TCPServer((HOST, PORT), MyTCPHandler)
