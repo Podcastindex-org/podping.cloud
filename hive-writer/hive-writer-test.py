@@ -3,8 +3,12 @@
 
 # Changed the range number for how many times you want to hit the server
 import socket
+import time
 
-for n in range(10):
+start = time.perf_counter()
+
+for n in range(1000):
+
     # Create a client socket
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # Connect to the server
@@ -18,3 +22,5 @@ for n in range(10):
     print(dataFromServer.decode())
 
     clientSocket.close()
+
+print('Time taken: ' + str(time.perf_counter() - start) )
