@@ -1,19 +1,11 @@
 
 #----- A simple TCP client program in Python using send() function -----
 
+# Changed the range number for how many times you want to hit the server
 import socket
-
-
-
-
-
-
-
-
 
 for n in range(10):
     # Create a client socket
-
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # Connect to the server
     clientSocket.connect(("127.0.0.1",9999))
