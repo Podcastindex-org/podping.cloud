@@ -91,7 +91,7 @@ def send_notification_worker():
         args = items[1:]
         start = time.perf_counter()
         trx_id, success = func(*args)
-        # Limit the rate to 1 post ever 2 seconds, this will mostly avoid
+        # Limit the rate to 1 post every 2 seconds, this will mostly avoid
         # multiple updates in a single Hive block.
         duration = time.perf_counter() - start
         if duration < 2.0:
