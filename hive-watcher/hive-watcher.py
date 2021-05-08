@@ -97,9 +97,9 @@ def scan_live(report_freq = None):
             current_block_num = str(blockchain.get_current_block_num())
             timestamp = str(post['timestamp'])
             output_status(timestamp, pings, count_posts, current_block_num=current_block_num)
-            logging.info(str(post['timestamp']) + " Count: " + str(count_posts) + " block_num: " + str(current_block_num))
             start_time =post['timestamp'].replace(tzinfo=None)
             count_posts = 0
+            pings = 0
 
         if allowed_op_id(post['id']):
             if  (set(post['required_posting_auths']) & set(allowed_accounts)):
@@ -168,10 +168,10 @@ def scan_history(timed= None, report_freq = None):
 def main() -> None:
     """ Main file """
     """ scan_history will look back over the last 1 hour reporting every 15 minute chunk """
-    scan_history(1, 15)
+    scan_history(0, 15)
     """ scan_live will resume live scanning the chain and report every 5 minutes or when
         a notification arrives """
-    scan_live(5)
+    scan_live(1)
 
 
 
