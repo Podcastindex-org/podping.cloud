@@ -104,6 +104,7 @@ def scan_live(report_freq = None):
         if allowed_op_id(post['id']):
             if  (set(post['required_posting_auths']) & set(allowed_accounts)):
                 output(post)
+                pings += 1
 
         if time_dif > timedelta(hours=1):
             # Refetch the allowed_accounts every hour in case we add one.
