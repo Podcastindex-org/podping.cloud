@@ -58,6 +58,14 @@ def output(post) -> None:
         data['test_node'] = True
     logging.info('Feed Updated - ' + str(data.get('timestamp')) + ' - ' + data.get('trx_id') + ' - ' + data.get('url'))
 
+def output_status(timestamp, pings, count_posts, time_to_now='', current_block_num='') -> None:
+    """ Writes out a status update at with some count data """
+    if time_to_now:
+        logging.info(f'{timestamp} PodPings: {pings} - Count: {count_posts} - Time Delta: {time_to_now}')
+
+    else:
+        logging.info(f'{timestamp} PodPings: {pings} - Count: {count_posts} - Current BlockNum: {current_block_num}')
+
 
 def scan_live(report_freq = None):
     """ watches the stream from the Hive blockchain """
@@ -80,12 +88,15 @@ def scan_live(report_freq = None):
 
     start_time = datetime.utcnow()
     count_posts = 0
+    pings = 0
 
     for post in stream:
         count_posts +=1
         time_dif = post['timestamp'].replace(tzinfo=None) - start_time
         if time_dif > report_freq:
-            current_block_num = blockchain.get_current_block_num()
+            current_block_num = str(blockchain.get_current_block_num())
+            timestamp = str(post['timestamp'])
+            output_status(timestamp, pings, count_posts, current_block_num=current_block_num)
             logging.info(str(post['timestamp']) + " Count: " + str(count_posts) + " block_num: " + str(current_block_num))
             start_time =post['timestamp'].replace(tzinfo=None)
             count_posts = 0
@@ -93,6 +104,7 @@ def scan_live(report_freq = None):
         if allowed_op_id(post['id']):
             if  (set(post['required_posting_auths']) & set(allowed_accounts)):
                 output(post)
+                pings += 1
 
         if time_dif > timedelta(hours=1):
             # Refetch the allowed_accounts every hour in case we add one.
@@ -120,6 +132,7 @@ def scan_history(timed= None, report_freq = None):
     blockchain = Blockchain(mode="head", blockchain_instance=hive)
     start_time = datetime.utcnow() - timed
     count_posts = 0
+    pings = 0
     block_num = blockchain.get_estimated_block_num(start_time)
 
     logging.info('Started catching up')
@@ -132,13 +145,16 @@ def scan_history(timed= None, report_freq = None):
         time_to_now = datetime.utcnow() - post_time
         count_posts += 1
         if time_dif > report_freq:
-            logging.info(str(post['timestamp']) + " Count: " + str(count_posts) + " Time Delta: " + str(time_to_now))
+            timestamp = str(post['timestamp'])
+            output_status(timestamp, pings, count_posts, time_to_now)
             start_time =post['timestamp'].replace(tzinfo=None)
             count_posts = 0
+            pings = 0
 
         if allowed_op_id(post['id']):
-            if  (set(post['required_posting_auths']) & set(allowed_accounts)):
+            if (set(post['required_posting_auths']) & set(allowed_accounts)):
                 output(post)
+                pings += 1
 
         if time_to_now < timedelta(seconds=2):
             logging.info('block_num: ' + str(post['block_num']))
