@@ -29,7 +29,7 @@ def get_allowed_accounts(acc_name) -> bool:
         and only react to these accounts """
 
     if USE_TEST_NODE:
-        return ['learn-to-code','hive-hydra','hivehydra','flyingboy']
+        return ['learn-to-code','hive-hydra','hivehydra','flyingboy','blocktvnews']
 
     hiveaccount = Account(acc_name, blockchain_instance=hive, lazy=True)
     try:
