@@ -25,7 +25,7 @@ if USE_TEST_NODE:
 else:
     nodelist = NodeList()
     nodelist.update_nodes()
-    hive = Hive()
+    hive = Hive(node = nodelist.get_hive_nodes())
 
 app_description = """PodPing - Watch the Hive Blockchain for notifications of new Podcast Episodes
 \n\n
@@ -42,17 +42,23 @@ my_parser = argparse.ArgumentParser(prog='hive-watcher',
 # my_parser.add_argument('-q', '--quiet',
 #                        action=)
 
-my_parser.add_argument('-s',
-                       '--scan',
+my_parser.add_argument('-o',
+                       '--old',
                        action='store', type=int, required=False,
-                       default=1,
-                       help='Time in minutes to look back up the chain for pings')
+                       default=0,
+                       help='Time in minutes to look back up the chain for old pings')
 
 my_parser.add_argument('-r',
                        '--reports',
                        action='store', type=int, required=False,
                        default=5,
                        help='Time in minutes between periodic status reports, use 0 for no periodic reports')
+
+my_parser.add_argument('-s', '--socket',
+                       action='store', type=str, required=False,
+                       default= None,
+                       help='<IP-Address>:<port> Socket to send each new url to')
+
 
 
 
@@ -62,8 +68,8 @@ def get_allowed_accounts(acc_name='podping') -> bool:
 
     # Switching to a simpler authentication system. Only podpings from accounts which
     # the PODPING Hive account FOLLOWS will be watched.
-    h = Hive(node=['https://api.hive.blog'])    # Some apis not working for this call
-    master_account = Account(acc_name, blockchain_instance=h, lazy=True)
+
+    master_account = Account(acc_name, blockchain_instance=hive, lazy=True)
     allowed = master_account.get_following()
     return allowed
 
@@ -112,7 +118,7 @@ def output_socket(post, clientSocket) -> None:
     data = json.loads(post.get('json'))
     url = data.get('url')
     if url:
-        clientSocket.send(url.encode())
+        clientSocket.send((url).encode())
 
     # Do we need to receive from the socket?
 
@@ -153,6 +159,8 @@ def scan_live(report_freq = None, reports = True):
         if allowed_op_id(post['id']):
             if  (set(post['required_posting_auths']) & set(allowed_accounts)):
                 output(post)
+                if myArgs['socket']:
+                    output_socket(post, clientSocket)
                 pings += 1
 
         if time_dif > timedelta(hours=1):
@@ -215,10 +223,19 @@ def scan_history(timed= None, report_freq = None, reports = True):
     logging.info('Finished catching up at block_num: ' + str(post['block_num']) + ' in '+ str(scan_time))
 
 
+args = my_parser.parse_args()
+myArgs = vars(args)
+
+if myArgs['socket']:
+    ip_port = myArgs['socket'].split(':')
+    ip_address = ip_port[0]
+    port = int(ip_port[1])
+    clientSocket = socket(AF_INET, SOCK_STREAM)
+    clientSocket.connect((ip_address,port))
+
 def main() -> None:
     """ Main file """
-    args = my_parser.parse_args()
-    myArgs = vars(args)
+
 
     """ do we want periodic reports? """
     if myArgs['reports'] == 0:
@@ -230,13 +247,8 @@ def main() -> None:
         else:
             logging.info('---------------> Using Main Hive Chain ')
 
-    if myArgs['socket']:
-        clientSocket = socket(AF_INET, SOCK_STREAM)
-        clientSocket.connect((myArgs['ip_address'],myArgs['port']))
-
-
     """ scan_history will look back over the last 1 hour reporting every 15 minute chunk """
-    if myArgs['scan'] != 0 :
+    if myArgs['old'] != 0 :
         scan_history(myArgs['scan'], 15, reports)
 
     """ scan_live will resume live scanning the chain and report every 5 minutes or when
