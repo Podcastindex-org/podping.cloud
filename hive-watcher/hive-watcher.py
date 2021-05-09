@@ -1,5 +1,6 @@
 import json
 import logging
+import argparse
 import os
 from datetime import datetime, timedelta
 from time import sleep
@@ -18,11 +19,34 @@ logging.basicConfig(level=logging.INFO,
 
 if USE_TEST_NODE:
     hive = Hive(node=TEST_NODE)
-    logging.info('---------------> Using Test Node ' + TEST_NODE[0])
 else:
     hive = Hive()
-    logging.info('---------------> Using Main Hive Chain ')
 
+
+# Argument Parser
+my_parser = argparse.ArgumentParser(prog='hive-watcher',
+                                    usage='%(prog)s [options]',
+                                    description="PodPing - Watch the Hive Blockchain for notifications of new Podcast Episodes")
+
+my_parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
+
+my_parser.add_argument('-s',
+                       '--scan',
+                       action='store', type=int, required=False,
+                       default=1,
+                       help='Time in hours to look back up the chain for pings')
+
+my_parser.add_argument('-r',
+                       '--reports',
+                       action='store', type=int, required=False,
+                       default=5,
+                       help='Time in minutes between periodic status reports, use 0 for no periodic reports')
+
+
+# my_parser.add_argument('-h',
+#                        '--help',
+#                        action='help',
+#                        help='Shows Help')
 
 def get_allowed_accounts(acc_name='podping') -> bool:
     """ get a list of all accounts allowed to post by acc_name (podping)
@@ -55,6 +79,17 @@ def allowed_op_id(operation_id):
     else:
         return False
 
+def send_to_socket(post, clientSocket) -> None:
+    """ Take in a post and a socket and send the url to a socket """
+    data = json.loads(post.get('json'))
+    url = data.get('url')
+    if url:
+        clientSocket.send(url.encode())
+
+    # Do we need to receive from the socket?
+
+
+
 def output(post) -> None:
     """ Prints out the post and extracts the custom_json """
     data = json.loads(post.get('json'))
@@ -74,11 +109,8 @@ def output_status(timestamp, pings, count_posts, time_to_now='', current_block_n
         logging.info(f'{timestamp} PodPings: {pings} - Count: {count_posts} - Current BlockNum: {current_block_num}')
 
 
-def scan_live(report_freq = None):
+def scan_live(report_freq = None, reports = True):
     """ watches the stream from the Hive blockchain """
-
-    if not report_freq:
-        report_freq = timedelta(minutes=5)
 
     if type(report_freq) == int:
         report_freq = timedelta(minutes=report_freq)
@@ -86,7 +118,8 @@ def scan_live(report_freq = None):
 
     blockchain = Blockchain(mode="head", blockchain_instance=hive)
     current_block_num = blockchain.get_current_block_num()
-    logging.info('Watching live from block_num: ' + str(current_block_num))
+    if reports:
+        logging.info('Watching live from block_num: ' + str(current_block_num))
 
     # If you want instant confirmation, you need to instantiate
     # class:beem.blockchain.Blockchain with mode="head",
@@ -100,13 +133,14 @@ def scan_live(report_freq = None):
     for post in stream:
         count_posts +=1
         time_dif = post['timestamp'].replace(tzinfo=None) - start_time
-        if time_dif > report_freq:
-            current_block_num = str(blockchain.get_current_block_num())
-            timestamp = str(post['timestamp'])
-            output_status(timestamp, pings, count_posts, current_block_num=current_block_num)
-            start_time =post['timestamp'].replace(tzinfo=None)
-            count_posts = 0
-            pings = 0
+        if reports:
+            if time_dif > report_freq:
+                current_block_num = str(blockchain.get_current_block_num())
+                timestamp = str(post['timestamp'])
+                output_status(timestamp, pings, count_posts, current_block_num=current_block_num)
+                start_time =post['timestamp'].replace(tzinfo=None)
+                count_posts = 0
+                pings = 0
 
         if allowed_op_id(post['id']):
             if  (set(post['required_posting_auths']) & set(allowed_accounts)):
@@ -117,7 +151,7 @@ def scan_live(report_freq = None):
             # Refetch the allowed_accounts every hour in case we add one.
             allowed_accounts = get_allowed_accounts()
 
-def scan_history(timed= None, report_freq = None):
+def scan_history(timed= None, report_freq = None, reports = True):
     """ Scans back in history timed time delta ago, reporting with report_freq
         if timed is an int, treat it as hours, if report_freq is int, treat as min """
     scan_start_time = datetime.utcnow()
@@ -141,8 +175,8 @@ def scan_history(timed= None, report_freq = None):
     count_posts = 0
     pings = 0
     block_num = blockchain.get_estimated_block_num(start_time)
-
-    logging.info('Started catching up')
+    if reports:
+        logging.info('Started catching up')
     stream = blockchain.stream(opNames=['custom_json'], start = block_num,
                                max_batch_size = 50,
                                raw_ops=False, threading=False)
@@ -151,12 +185,13 @@ def scan_history(timed= None, report_freq = None):
         time_dif = post_time - start_time
         time_to_now = datetime.utcnow() - post_time
         count_posts += 1
-        if time_dif > report_freq:
-            timestamp = str(post['timestamp'])
-            output_status(timestamp, pings, count_posts, time_to_now)
-            start_time =post['timestamp'].replace(tzinfo=None)
-            count_posts = 0
-            pings = 0
+        if reports:
+            if time_dif > report_freq:
+                timestamp = str(post['timestamp'])
+                output_status(timestamp, pings, count_posts, time_to_now)
+                start_time =post['timestamp'].replace(tzinfo=None)
+                count_posts = 0
+                pings = 0
 
         if allowed_op_id(post['id']):
             if (set(post['required_posting_auths']) & set(allowed_accounts)):
@@ -174,13 +209,30 @@ def scan_history(timed= None, report_freq = None):
 
 def main() -> None:
     """ Main file """
+    args = my_parser.parse_args()
+    myArgs = vars(args)
+
+    """ do we want periodic reports? """
+    if myArgs['reports'] == 0:
+        reports = False
+    else:
+        reports = True
+        if USE_TEST_NODE:
+            logging.info('---------------> Using Test Node ' + TEST_NODE[0])
+        else:
+            logging.info('---------------> Using Main Hive Chain ')
+
+
     """ scan_history will look back over the last 1 hour reporting every 15 minute chunk """
-    scan_history(1, 15)
+    if myArgs['scan'] != 0 :
+        scan_history(myArgs['scan'], 15, reports)
+
     """ scan_live will resume live scanning the chain and report every 5 minutes or when
         a notification arrives """
-    scan_live(1)
+    scan_live(myArgs['reports'],reports)
 
 
 
 if __name__ == "__main__":
+
     main()
