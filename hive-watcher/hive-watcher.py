@@ -168,7 +168,7 @@ def scan_history(timed= None, report_freq = None):
 def main() -> None:
     """ Main file """
     """ scan_history will look back over the last 1 hour reporting every 15 minute chunk """
-    scan_history(0, 15)
+    scan_history(1, 15)
     """ scan_live will resume live scanning the chain and report every 5 minutes or when
         a notification arrives """
     scan_live(1)
