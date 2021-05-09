@@ -24,10 +24,17 @@ else:
     logging.info('---------------> Using Main Hive Chain ')
 
 
-def get_allowed_accounts(acc_name) -> bool:
-    """ get a list of all accounts allowed to post by acc_name (podcastindex)
+def get_allowed_accounts(acc_name='podping') -> bool:
+    """ get a list of all accounts allowed to post by acc_name (podping)
         and only react to these accounts """
 
+    # Switching to a simpler authentication system. Only podpings from accounts which
+    # the PODPING Hive account FOLLOWS will be watched.
+    master_account = Account(acc_name, blockchain_instance=hive, lazy=True)
+    allowed = master_account.get_following()
+    return allowed
+
+    # Depreciated OLD method which was silly. Will remove later
     if USE_TEST_NODE:
         return ['learn-to-code','hive-hydra','hivehydra','flyingboy','blocktvnews']
 
@@ -75,7 +82,7 @@ def scan_live(report_freq = None):
 
     if type(report_freq) == int:
         report_freq = timedelta(minutes=report_freq)
-    allowed_accounts = get_allowed_accounts('podcastindex')
+    allowed_accounts = get_allowed_accounts()
 
     blockchain = Blockchain(mode="head", blockchain_instance=hive)
     current_block_num = blockchain.get_current_block_num()
@@ -108,7 +115,7 @@ def scan_live(report_freq = None):
 
         if time_dif > timedelta(hours=1):
             # Refetch the allowed_accounts every hour in case we add one.
-            allowed_accounts = get_allowed_accounts('podcastindex')
+            allowed_accounts = get_allowed_accounts()
 
 def scan_history(timed= None, report_freq = None):
     """ Scans back in history timed time delta ago, reporting with report_freq
@@ -127,7 +134,7 @@ def scan_history(timed= None, report_freq = None):
     if type(report_freq) == int:
         report_freq = timedelta(minutes=report_freq)
 
-    allowed_accounts = get_allowed_accounts('podcastindex')
+    allowed_accounts = get_allowed_accounts()
 
     blockchain = Blockchain(mode="head", blockchain_instance=hive)
     start_time = datetime.utcnow() - timed
