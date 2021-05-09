@@ -3,9 +3,12 @@ import logging
 import argparse
 import os
 from datetime import datetime, timedelta
+from socket import socket, AF_INET, SOCK_STREAM
 from time import sleep
 
 from beem import Hive
+from beem import nodelist
+from beem.nodelist import NodeList
 from beem.account import Account
 from beem.blockchain import Blockchain
 
@@ -20,21 +23,30 @@ logging.basicConfig(level=logging.INFO,
 if USE_TEST_NODE:
     hive = Hive(node=TEST_NODE)
 else:
+    nodelist = NodeList()
+    nodelist.update_nodes()
     hive = Hive()
 
+app_description = """PodPing - Watch the Hive Blockchain for notifications of new Podcast Episodes
+\n\n
+This code will run until terminated reporting every notification of a new Podcast Episode sent to the Hive blockchain by any PodPing servers.
 
-# Argument Parser
+With default arguments it will print to the StdOut a log of each new URL that has updated interspersed with summary lines every 5 minutes that list the number of PodPings and the number of other 'custom_json' operations seen on the blockchain. This interval can be set with the --reports command line."""
+
 my_parser = argparse.ArgumentParser(prog='hive-watcher',
                                     usage='%(prog)s [options]',
-                                    description="PodPing - Watch the Hive Blockchain for notifications of new Podcast Episodes")
+                                    description= app_description,
+                                    epilog='')
 
-my_parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
+
+# my_parser.add_argument('-q', '--quiet',
+#                        action=)
 
 my_parser.add_argument('-s',
                        '--scan',
                        action='store', type=int, required=False,
                        default=1,
-                       help='Time in hours to look back up the chain for pings')
+                       help='Time in minutes to look back up the chain for pings')
 
 my_parser.add_argument('-r',
                        '--reports',
@@ -43,10 +55,6 @@ my_parser.add_argument('-r',
                        help='Time in minutes between periodic status reports, use 0 for no periodic reports')
 
 
-# my_parser.add_argument('-h',
-#                        '--help',
-#                        action='help',
-#                        help='Shows Help')
 
 def get_allowed_accounts(acc_name='podping') -> bool:
     """ get a list of all accounts allowed to post by acc_name (podping)
@@ -54,7 +62,8 @@ def get_allowed_accounts(acc_name='podping') -> bool:
 
     # Switching to a simpler authentication system. Only podpings from accounts which
     # the PODPING Hive account FOLLOWS will be watched.
-    master_account = Account(acc_name, blockchain_instance=hive, lazy=True)
+    h = Hive(node=['https://api.hive.blog'])    # Some apis not working for this call
+    master_account = Account(acc_name, blockchain_instance=h, lazy=True)
     allowed = master_account.get_following()
     return allowed
 
@@ -79,16 +88,6 @@ def allowed_op_id(operation_id):
     else:
         return False
 
-def send_to_socket(post, clientSocket) -> None:
-    """ Take in a post and a socket and send the url to a socket """
-    data = json.loads(post.get('json'))
-    url = data.get('url')
-    if url:
-        clientSocket.send(url.encode())
-
-    # Do we need to receive from the socket?
-
-
 
 def output(post) -> None:
     """ Prints out the post and extracts the custom_json """
@@ -104,9 +103,18 @@ def output_status(timestamp, pings, count_posts, time_to_now='', current_block_n
     """ Writes out a status update at with some count data """
     if time_to_now:
         logging.info(f'{timestamp} PodPings: {pings} - Count: {count_posts} - Time Delta: {time_to_now}')
-
     else:
         logging.info(f'{timestamp} PodPings: {pings} - Count: {count_posts} - Current BlockNum: {current_block_num}')
+
+
+def output_socket(post, clientSocket) -> None:
+    """ Take in a post and a socket and send the url to a socket """
+    data = json.loads(post.get('json'))
+    url = data.get('url')
+    if url:
+        clientSocket.send(url.encode())
+
+    # Do we need to receive from the socket?
 
 
 def scan_live(report_freq = None, reports = True):
@@ -160,10 +168,10 @@ def scan_history(timed= None, report_freq = None, reports = True):
         report_freq = timedelta(minutes=5)
 
     if not timed:
-        timed = timedelta(hours=1)
+        timed = timedelta(minutes=1)
 
     if type(timed) == int:
-        timed = timedelta(hours=timed)
+        timed = timedelta(minutes=timed)
 
     if type(report_freq) == int:
         report_freq = timedelta(minutes=report_freq)
@@ -221,6 +229,10 @@ def main() -> None:
             logging.info('---------------> Using Test Node ' + TEST_NODE[0])
         else:
             logging.info('---------------> Using Main Hive Chain ')
+
+    if myArgs['socket']:
+        clientSocket = socket(AF_INET, SOCK_STREAM)
+        clientSocket.connect((myArgs['ip_address'],myArgs['port']))
 
 
     """ scan_history will look back over the last 1 hour reporting every 15 minute chunk """
