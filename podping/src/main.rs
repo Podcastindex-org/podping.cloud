@@ -8,6 +8,13 @@ use route_recognizer::Params;
 use router::Router;
 use std::sync::Arc;
 use hyper::server::conn::AddrStream;
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::channel;
+use std::sync::mpsc;
+use std::thread;
+use handler::Ping;
+
+use eventual::*;
 
 mod handler;
 mod router;
@@ -23,6 +30,46 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() {
+    // First thread owns sender
+    thread::spawn(move || {
+        let timer = Timer::new();
+        let ticks = timer.interval_ms(3000).iter();
+        for _ in ticks {
+            let pinglist = handler::get_pings_from_queue();
+            match pinglist {
+                Ok(pings) => {
+                    if pings.len() > 0 {
+                        println!("\nFlushing the queue...");
+                    }
+                    for ping in pings {
+                        //Attempt to write the url to hive
+                        match handler::hive_notify(ping.url.as_str()) {
+                            Ok(result) => {
+                                println!("  {}", result);
+                                //If the write was successful, remove this url from the queue
+                                match handler::delete_ping_from_queue(ping.url.clone()) {
+                                    Ok(_) => {
+                                        println!("  Removed {} from the queue.", ping.url.clone());
+                                    },
+                                    Err(_) => {
+                                        eprintln!("  Failed to remove {} from the queue.", ping.url.clone());                                            
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                eprintln!("  {}", e);
+                            }
+                        }
+                    }
+                },
+                Err(_) => {
+                    println!("  Queue is empty.");
+                }
+            }
+
+        }
+    });
+
     let some_state = "state".to_string();
 
     let mut router: Router = Router::new();
@@ -47,7 +94,18 @@ async fn main() {
     let server = Server::bind(&addr).serve(new_service);
     println!("Listening on http://{}", addr);
     let _ = server.await;
+
+    //Create an inter-thread communications channel
+    //let (sender, receiver) = channel();
 }
+
+// pub fn listen(tx: Sender<()>) {
+//     let timer = Timer::new();
+//     let ticks = timer.interval_ms(3000).iter();
+//     for _ in ticks {
+//         handler::get_pings_from_queue();
+//     }
+// }
 
 async fn route(
     router: Arc<Router>,
