@@ -26,7 +26,8 @@ if USE_TEST_NODE:
 else:
     nodelist = NodeList()
     nodelist.update_nodes()
-    hive = Hive(node = nodelist.get_hive_nodes())
+    # hive = Hive(node = nodelist.get_hive_nodes())
+    hive = Hive()
 
 app_description = """PodPing - Watch the Hive Blockchain for notifications of new Podcast Episodes
 \n\n
@@ -74,7 +75,11 @@ def get_allowed_accounts(acc_name='podping') -> bool:
     # Switching to a simpler authentication system. Only podpings from accounts which
     # the PODPING Hive account FOLLOWS will be watched.
 
-    master_account = Account(acc_name, blockchain_instance=hive, lazy=False)
+    # This is giving an error if I don't specify api server exactly.
+    #TODO reported as Issue on Beem library https://github.com/holgern/beem/issues/301
+    h = Hive(node='https://api.hive.blog')
+
+    master_account = Account(acc_name, blockchain_instance=h, lazy=False)
     allowed = master_account.get_following()
     return allowed
 
@@ -114,7 +119,7 @@ def output(post) -> None:
 
 def output_status(timestamp, pings, count_posts, time_to_now='', current_block_num='') -> None:
     """ Writes out a status update at with some count data """
-    if myArgs.get('quiet'):
+    if (not myArgs.get('reports')) and myArgs.get('quiet'):
         return None
     if time_to_now:
         logging.info(f'{timestamp} PodPings: {pings} - Count: {count_posts} - Time Delta: {time_to_now}')
