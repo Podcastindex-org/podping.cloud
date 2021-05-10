@@ -16,7 +16,7 @@ from beem.blockchain import Blockchain
 USE_TEST_NODE = os.getenv("USE_TEST_NODE", 'False').lower() in ('true', '1', 't')
 WATCHED_OPERATION_IDS = ['podping','hive-hydra']
 TEST_NODE = ['http://testnet.openhive.network:8091']
-
+total_pings = 0
 
 logging.basicConfig(level=logging.INFO,
                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
@@ -49,14 +49,14 @@ my_parser.add_argument('-o',
                        action='store', type=int, required=False,
                        metavar='',
                        default=0,
-                       help='Time in minutes to look back up the chain for old pings (default is 0)')
+                       help='Time in HOURS to look back up the chain for old pings (default is 0)')
 
 my_parser.add_argument('-r',
                        '--reports',
                        action='store', type=int, required=False,
                        metavar='',
                        default=5,
-                       help='Time in minutes between periodic status reports, use 0 for no periodic reports')
+                       help='Time in MINUTES between periodic status reports, use 0 for no periodic reports')
 
 my_parser.add_argument('-s', '--socket',
                        action='store', type=str, required=False,
@@ -122,9 +122,9 @@ def output_status(timestamp, pings, count_posts, time_to_now='', current_block_n
     if (not myArgs.get('reports')) and myArgs.get('quiet'):
         return None
     if time_to_now:
-        logging.info(f'{timestamp} PodPings: {pings} - Count: {count_posts} - Time Delta: {time_to_now}')
+        logging.info(f'{timestamp} Podpings: {pings:4,} / {total_pings:7,} - Count: {count_posts} - BlockNum: {current_block_num} - Time Delta: {time_to_now}')
     else:
-        logging.info(f'{timestamp} PodPings: {pings} - Count: {count_posts} - Current BlockNum: {current_block_num}')
+        logging.info(f'{timestamp} Podpings: {pings:,4} / {total_pings:,7} - Count: {count_posts} - BlockNum: {current_block_num}')
 
 
 def output_to_socket(post, clientSocket) -> None:
@@ -147,7 +147,7 @@ def output_to_socket(post, clientSocket) -> None:
 
 def scan_live(report_freq = None, reports = True):
     """ watches the stream from the Hive blockchain """
-
+    global total_pings
     if type(report_freq) == int:
         report_freq = timedelta(minutes=report_freq)
     allowed_accounts = get_allowed_accounts()
@@ -184,6 +184,7 @@ def scan_live(report_freq = None, reports = True):
                 if myArgs['socket']:
                     output_to_socket(post, clientSocket)
                 pings += 1
+                total_pings += 1
 
         if time_dif > timedelta(hours=1):
             # Refetch the allowed_accounts every hour in case we add one.
@@ -192,16 +193,21 @@ def scan_live(report_freq = None, reports = True):
 def scan_history(timed= None, report_freq = None, reports = True):
     """ Scans back in history timed time delta ago, reporting with report_freq
         if timed is an int, treat it as hours, if report_freq is int, treat as min """
+    global total_pings
+    # Very first transaction from Dave Testing:
+    # 2021-05-10 13:51:58,353 INFO root MainThread : Feed Updated - 2021-05-07 20:58:33+00:00 - f0affd194524a6e0171d65d29d5c501865f0bd72 - https://feeds.transistor.fm/retail-remix
+
+
     scan_start_time = datetime.utcnow()
 
     if not report_freq:
         report_freq = timedelta(minutes=5)
 
     if not timed:
-        timed = timedelta(minutes=1)
+        timed = timedelta(hours=1)
 
     if type(timed) == int:
-        timed = timedelta(minutes=timed)
+        timed = timedelta(hours=timed)
 
     if type(report_freq) == int:
         report_freq = timedelta(minutes=report_freq)
@@ -226,7 +232,8 @@ def scan_history(timed= None, report_freq = None, reports = True):
         if reports:
             if time_dif > report_freq:
                 timestamp = str(post['timestamp'])
-                output_status(timestamp, pings, count_posts, time_to_now)
+                current_block_num = post['block_num']
+                output_status(timestamp, pings, count_posts, time_to_now, current_block_num=current_block_num)
                 start_time =post['timestamp'].replace(tzinfo=None)
                 count_posts = 0
                 pings = 0
@@ -235,6 +242,7 @@ def scan_history(timed= None, report_freq = None, reports = True):
             if (set(post['required_posting_auths']) & set(allowed_accounts)):
                 output(post)
                 pings += 1
+                total_pings += 1
 
         if time_to_now < timedelta(seconds=2):
             logging.info('block_num: ' + str(post['block_num']))
@@ -264,9 +272,10 @@ if myArgs['socket']:
     clientSocket = socket(AF_INET, SOCK_STREAM)
     open_socket()
 
+
+
 def main() -> None:
     """ Main file """
-
 
     """ do we want periodic reports? """
     if myArgs['reports'] == 0:
