@@ -219,7 +219,7 @@ def scan_history(param= None, report_freq = None, reports = True):
         block_num = param
         start_time = Block(block_num)['timestamp'].replace(tzinfo=None)
     else:
-        start_time = datetime.utcnow() - timed
+        start_time = datetime.utcnow() - param
         block_num = blockchain.get_estimated_block_num(start_time)
 
     if type(report_freq) == int:
