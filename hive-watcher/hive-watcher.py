@@ -3,6 +3,7 @@ import logging
 import argparse
 import os
 from datetime import datetime, timedelta
+from re import escape
 from socket import socket, AF_INET, SOCK_STREAM
 from time import sleep
 
@@ -45,17 +46,20 @@ my_parser = argparse.ArgumentParser(prog='hive-watcher',
 my_parser.add_argument('-o',
                        '--old',
                        action='store', type=int, required=False,
+                       metavar='',
                        default=0,
-                       help='Time in minutes to look back up the chain for old pings')
+                       help='Time in minutes to look back up the chain for old pings (default is 0)')
 
 my_parser.add_argument('-r',
                        '--reports',
                        action='store', type=int, required=False,
+                       metavar='',
                        default=5,
                        help='Time in minutes between periodic status reports, use 0 for no periodic reports')
 
 my_parser.add_argument('-s', '--socket',
                        action='store', type=str, required=False,
+                       metavar='',
                        default= None,
                        help='<IP-Address>:<port> Socket to send each new url to')
 
@@ -118,7 +122,12 @@ def output_socket(post, clientSocket) -> None:
     data = json.loads(post.get('json'))
     url = data.get('url')
     if url:
-        clientSocket.send((url).encode())
+        try:
+            clientSocket.send((url).encode())
+        except Exception as ex:
+            error_message = f'{ex} occurred {ex.__class__}'
+            logging.error(error_message)
+
 
     # Do we need to receive from the socket?
 
@@ -231,7 +240,11 @@ if myArgs['socket']:
     ip_address = ip_port[0]
     port = int(ip_port[1])
     clientSocket = socket(AF_INET, SOCK_STREAM)
-    clientSocket.connect((ip_address,port))
+    try:
+        clientSocket.connect((ip_address,port))
+    except Exception as ex:
+        error_message = f'{ex} occurred {ex.__class__}'
+        logging.error(error_message)
 
 def main() -> None:
     """ Main file """
@@ -249,7 +262,7 @@ def main() -> None:
 
     """ scan_history will look back over the last 1 hour reporting every 15 minute chunk """
     if myArgs['old'] != 0 :
-        scan_history(myArgs['scan'], 15, reports)
+        scan_history(myArgs['old'], 15, reports)
 
     """ scan_live will resume live scanning the chain and report every 5 minutes or when
         a notification arrives """
