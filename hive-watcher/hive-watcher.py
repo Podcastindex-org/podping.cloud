@@ -12,6 +12,7 @@ from beem import nodelist
 from beem.nodelist import NodeList
 from beem.account import Account
 from beem.blockchain import Blockchain
+from beem.block import Block
 
 USE_TEST_NODE = os.getenv("USE_TEST_NODE", 'False').lower() in ('true', '1', 't')
 WATCHED_OPERATION_IDS = ['podping','hive-hydra']
@@ -44,12 +45,20 @@ my_parser = argparse.ArgumentParser(prog='hive-watcher',
 # my_parser.add_argument('-q', '--quiet',
 #                        action=)
 
-my_parser.add_argument('-o',
+group_old = my_parser.add_argument_group()
+group_old.add_argument('-b', '--block',
+                       action='store', type=int, required=False,
+                       metavar='',
+                       help='Hive Block number to start replay at or use:')
+
+group_old.add_argument('-o',
                        '--old',
                        action='store', type=int, required=False,
                        metavar='',
                        default=0,
                        help='Time in HOURS to look back up the chain for old pings (default is 0)')
+
+
 
 my_parser.add_argument('-r',
                        '--reports',
@@ -190,40 +199,43 @@ def scan_live(report_freq = None, reports = True):
             # Refetch the allowed_accounts every hour in case we add one.
             allowed_accounts = get_allowed_accounts()
 
-def scan_history(timed= None, report_freq = None, reports = True):
+def scan_history(param= None, report_freq = None, reports = True):
     """ Scans back in history timed time delta ago, reporting with report_freq
         if timed is an int, treat it as hours, if report_freq is int, treat as min """
     global total_pings
     # Very first transaction from Dave Testing:
     # 2021-05-10 13:51:58,353 INFO root MainThread : Feed Updated - 2021-05-07 20:58:33+00:00 - f0affd194524a6e0171d65d29d5c501865f0bd72 - https://feeds.transistor.fm/retail-remix
 
-
     scan_start_time = datetime.utcnow()
 
     if not report_freq:
         report_freq = timedelta(minutes=5)
 
-    if not timed:
+    if not param:
         timed = timedelta(hours=1)
 
-    if type(timed) == int:
-        timed = timedelta(hours=timed)
+    blockchain = Blockchain(mode="head", blockchain_instance=hive)
+    if type(param) == int:
+        block_num = param
+        start_time = Block(block_num)['timestamp'].replace(tzinfo=None)
+    else:
+        start_time = datetime.utcnow() - timed
+        block_num = blockchain.get_estimated_block_num(start_time)
 
     if type(report_freq) == int:
         report_freq = timedelta(minutes=report_freq)
 
     allowed_accounts = get_allowed_accounts()
 
-    blockchain = Blockchain(mode="head", blockchain_instance=hive)
-    start_time = datetime.utcnow() - timed
     count_posts = 0
     pings = 0
-    block_num = blockchain.get_estimated_block_num(start_time)
+
     if reports:
         logging.info('Started catching up')
     stream = blockchain.stream(opNames=['custom_json'], start = block_num,
                                max_batch_size = 50,
                                raw_ops=False, threading=False)
+
     for post in stream:
         post_time = post['timestamp'].replace(tzinfo=None)
         time_dif = post_time - start_time
@@ -288,8 +300,13 @@ def main() -> None:
             logging.info('---------------> Using Main Hive Chain ')
 
     """ scan_history will look back over the last 1 hour reporting every 15 minute chunk """
-    if myArgs['old'] != 0 :
-        scan_history(myArgs['old'], myArgs['reports'], reports)
+    if myArgs['old'] or myArgs['block']:
+        if myArgs['block']:
+            param = myArgs['block']
+        else:
+            param = timedelta(hours = myArgs['old'])
+
+        scan_history(param, myArgs['reports'], reports)
 
     """ scan_live will resume live scanning the chain and report every 5 minutes or when
         a notification arrives """
