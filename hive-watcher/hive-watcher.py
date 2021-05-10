@@ -63,8 +63,9 @@ my_parser.add_argument('-s', '--socket',
                        default= None,
                        help='<IP-Address>:<port> Socket to send each new url to')
 
-
-
+group = my_parser.add_mutually_exclusive_group()
+group.add_argument('-q', '--quiet', action='store_true', help='Minimal output')
+group.add_argument('-v', '--verbose', action='store_true', help='Lots of output')
 
 def get_allowed_accounts(acc_name='podping') -> bool:
     """ get a list of all accounts allowed to post by acc_name (podping)
@@ -73,7 +74,7 @@ def get_allowed_accounts(acc_name='podping') -> bool:
     # Switching to a simpler authentication system. Only podpings from accounts which
     # the PODPING Hive account FOLLOWS will be watched.
 
-    master_account = Account(acc_name, blockchain_instance=hive, lazy=True)
+    master_account = Account(acc_name, blockchain_instance=hive, lazy=False)
     allowed = master_account.get_following()
     return allowed
 
@@ -101,6 +102,8 @@ def allowed_op_id(operation_id):
 
 def output(post) -> None:
     """ Prints out the post and extracts the custom_json """
+    if myArgs.get('quiet'):
+        return None
     data = json.loads(post.get('json'))
     data['required_posting_auths'] = post.get('required_posting_auths')
     data['trx_id'] = post.get('trx_id')
@@ -111,14 +114,18 @@ def output(post) -> None:
 
 def output_status(timestamp, pings, count_posts, time_to_now='', current_block_num='') -> None:
     """ Writes out a status update at with some count data """
+    if myArgs.get('quiet'):
+        return None
     if time_to_now:
         logging.info(f'{timestamp} PodPings: {pings} - Count: {count_posts} - Time Delta: {time_to_now}')
     else:
         logging.info(f'{timestamp} PodPings: {pings} - Count: {count_posts} - Current BlockNum: {current_block_num}')
 
 
-def output_socket(post, clientSocket) -> None:
+def output_to_socket(post, clientSocket) -> None:
     """ Take in a post and a socket and send the url to a socket """
+    if not(myArgs['socket']):
+        return None
     data = json.loads(post.get('json'))
     url = data.get('url')
     if url:
@@ -127,6 +134,7 @@ def output_socket(post, clientSocket) -> None:
         except Exception as ex:
             error_message = f'{ex} occurred {ex.__class__}'
             logging.error(error_message)
+            open_socket()
 
 
     # Do we need to receive from the socket?
@@ -169,7 +177,7 @@ def scan_live(report_freq = None, reports = True):
             if  (set(post['required_posting_auths']) & set(allowed_accounts)):
                 output(post)
                 if myArgs['socket']:
-                    output_socket(post, clientSocket)
+                    output_to_socket(post, clientSocket)
                 pings += 1
 
         if time_dif > timedelta(hours=1):
@@ -231,6 +239,15 @@ def scan_history(timed= None, report_freq = None, reports = True):
     scan_time = datetime.utcnow() - scan_start_time
     logging.info('Finished catching up at block_num: ' + str(post['block_num']) + ' in '+ str(scan_time))
 
+def open_socket():
+    """ If a socket errors out and will try to reopen it """
+    try:
+        clientSocket.connect((ip_address,port))
+    except Exception as ex:
+        error_message = f'{ex} occurred {ex.__class__}'
+        logging.error(error_message)
+
+
 
 args = my_parser.parse_args()
 myArgs = vars(args)
@@ -240,11 +257,7 @@ if myArgs['socket']:
     ip_address = ip_port[0]
     port = int(ip_port[1])
     clientSocket = socket(AF_INET, SOCK_STREAM)
-    try:
-        clientSocket.connect((ip_address,port))
-    except Exception as ex:
-        error_message = f'{ex} occurred {ex.__class__}'
-        logging.error(error_message)
+    open_socket()
 
 def main() -> None:
     """ Main file """
