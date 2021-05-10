@@ -79,7 +79,7 @@ def get_allowed_accounts(acc_name='podping') -> bool:
     #TODO reported as Issue on Beem library https://github.com/holgern/beem/issues/301
     h = Hive(node='https://api.hive.blog')
 
-    master_account = Account(acc_name, blockchain_instance=h, lazy=False)
+    master_account = Account(acc_name, blockchain_instance=h, lazy=True)
     allowed = master_account.get_following()
     return allowed
 
@@ -280,7 +280,7 @@ def main() -> None:
 
     """ scan_history will look back over the last 1 hour reporting every 15 minute chunk """
     if myArgs['old'] != 0 :
-        scan_history(myArgs['old'], 15, reports)
+        scan_history(myArgs['old'], myArgs['reports'], reports)
 
     """ scan_live will resume live scanning the chain and report every 5 minutes or when
         a notification arrives """
