@@ -1,0 +1,68 @@
+2021-05-10 14:21:05,331 INFO root MainThread : ---------------> Using Main Hive Chain
+2021-05-10 14:21:06,973 INFO root MainThread : Started catching up
+2021-05-10 14:21:19,690 INFO root MainThread : 2021-05-07 20:21:09+00:00 Podpings:    0 /       0 - Count: 35609 - BlockNum: 53690259 - Time Delta: 2 days, 15:00:10.690314
+2021-05-10 14:21:30,968 INFO root MainThread : 2021-05-07 21:21:12+00:00 Podpings:  144 /     144 - Count: 33426 - BlockNum: 53691457 - Time Delta: 2 days, 14:00:18.968239
+2021-05-10 14:21:42,855 INFO root MainThread : 2021-05-07 22:21:15+00:00 Podpings:  333 /     477 - Count: 34453 - BlockNum: 53692658 - Time Delta: 2 days, 13:00:27.855358
+2021-05-10 14:22:00,655 INFO root MainThread : 2021-05-07 23:21:18+00:00 Podpings:  261 /     738 - Count: 34319 - BlockNum: 53693858 - Time Delta: 2 days, 12:00:42.655663
+2021-05-10 14:22:13,743 INFO root MainThread : 2021-05-08 00:21:21+00:00 Podpings:  331 /   1,069 - Count: 34347 - BlockNum: 53695059 - Time Delta: 2 days, 11:00:52.742970
+2021-05-10 14:22:24,503 INFO root MainThread : 2021-05-08 01:21:24+00:00 Podpings:  279 /   1,348 - Count: 30559 - BlockNum: 53696259 - Time Delta: 2 days, 10:01:00.503563
+2021-05-10 14:22:34,195 INFO root MainThread : 2021-05-08 02:21:27+00:00 Podpings:  250 /   1,598 - Count: 25905 - BlockNum: 53697459 - Time Delta: 2 days, 9:01:07.195748
+2021-05-10 14:22:46,207 INFO root MainThread : 2021-05-08 03:21:30+00:00 Podpings:  252 /   1,850 - Count: 27628 - BlockNum: 53698658 - Time Delta: 2 days, 8:01:16.207141
+2021-05-10 14:22:55,849 INFO root MainThread : 2021-05-08 04:21:33+00:00 Podpings:  213 /   2,063 - Count: 27128 - BlockNum: 53699855 - Time Delta: 2 days, 7:01:22.849945
+2021-05-10 14:23:06,327 INFO root MainThread : 2021-05-08 05:21:36+00:00 Podpings:  160 /   2,223 - Count: 25938 - BlockNum: 53701055 - Time Delta: 2 days, 6:01:30.327767
+2021-05-10 14:23:16,064 INFO root MainThread : 2021-05-08 06:21:39+00:00 Podpings:  176 /   2,399 - Count: 26791 - BlockNum: 53702256 - Time Delta: 2 days, 5:01:37.064547
+2021-05-10 14:23:28,011 INFO root MainThread : 2021-05-08 07:21:42+00:00 Podpings:  122 /   2,521 - Count: 26471 - BlockNum: 53703455 - Time Delta: 2 days, 4:01:46.011340
+2021-05-10 14:23:38,989 INFO root MainThread : 2021-05-08 08:21:45+00:00 Podpings:  144 /   2,665 - Count: 27372 - BlockNum: 53704655 - Time Delta: 2 days, 3:01:53.989360
+2021-05-10 14:23:49,139 INFO root MainThread : 2021-05-08 09:21:48+00:00 Podpings:  136 /   2,801 - Count: 26339 - BlockNum: 53705855 - Time Delta: 2 days, 2:02:01.139313
+2021-05-10 14:24:01,390 INFO root MainThread : 2021-05-08 10:21:51+00:00 Podpings:  180 /   2,981 - Count: 26191 - BlockNum: 53707054 - Time Delta: 2 days, 1:02:10.390755
+2021-05-10 14:24:11,401 INFO root MainThread : 2021-05-08 11:21:54+00:00 Podpings:  134 /   3,115 - Count: 30031 - BlockNum: 53708252 - Time Delta: 2 days, 0:02:17.401477
+2021-05-10 14:24:26,441 INFO root MainThread : 2021-05-08 12:21:57+00:00 Podpings:  146 /   3,261 - Count: 34370 - BlockNum: 53709451 - Time Delta: 1 day, 23:02:29.441880
+2021-05-10 14:24:37,922 INFO root MainThread : 2021-05-08 13:22:00+00:00 Podpings:  209 /   3,470 - Count: 32476 - BlockNum: 53710651 - Time Delta: 1 day, 22:02:37.921998
+2021-05-10 14:24:47,935 INFO root MainThread : 2021-05-08 14:22:03+00:00 Podpings:  208 /   3,678 - Count: 27893 - BlockNum: 53711852 - Time Delta: 1 day, 21:02:44.935848
+2021-05-10 14:25:00,766 INFO root MainThread : 2021-05-08 15:22:06+00:00 Podpings:  202 /   3,880 - Count: 33209 - BlockNum: 53713052 - Time Delta: 1 day, 20:02:54.766135
+2021-05-10 14:25:14,855 INFO root MainThread : 2021-05-08 16:22:09+00:00 Podpings:  256 /   4,136 - Count: 34883 - BlockNum: 53714251 - Time Delta: 1 day, 19:03:05.855761
+2021-05-10 14:25:28,366 INFO root MainThread : 2021-05-08 17:22:12+00:00 Podpings:  258 /   4,394 - Count: 33187 - BlockNum: 53715451 - Time Delta: 1 day, 18:03:16.366507
+2021-05-10 14:25:42,711 INFO root MainThread : 2021-05-08 18:22:15+00:00 Podpings:  181 /   4,575 - Count: 33364 - BlockNum: 53716650 - Time Delta: 1 day, 17:03:27.711543
+2021-05-10 14:26:01,218 INFO root MainThread : 2021-05-08 19:22:18+00:00 Podpings:  243 /   4,818 - Count: 32554 - BlockNum: 53717851 - Time Delta: 1 day, 16:03:43.218190
+2021-05-10 14:26:15,328 INFO root MainThread : 2021-05-08 20:22:21+00:00 Podpings:  191 /   5,009 - Count: 34186 - BlockNum: 53719052 - Time Delta: 1 day, 15:03:54.328229
+2021-05-10 14:26:28,701 INFO root MainThread : 2021-05-08 21:22:24+00:00 Podpings:  206 /   5,215 - Count: 33296 - BlockNum: 53720250 - Time Delta: 1 day, 14:04:04.701902
+2021-05-10 14:26:41,369 INFO root MainThread : 2021-05-08 22:22:27+00:00 Podpings:  221 /   5,436 - Count: 32757 - BlockNum: 53721448 - Time Delta: 1 day, 13:04:14.369869
+2021-05-10 14:26:53,612 INFO root MainThread : 2021-05-08 23:22:30+00:00 Podpings:  207 /   5,643 - Count: 35759 - BlockNum: 53722647 - Time Delta: 1 day, 12:04:23.612931
+2021-05-10 14:27:07,854 INFO root MainThread : 2021-05-09 00:22:33+00:00 Podpings:  167 /   5,810 - Count: 35854 - BlockNum: 53723847 - Time Delta: 1 day, 11:04:34.854273
+2021-05-10 14:27:23,343 INFO root MainThread : 2021-05-09 01:22:36+00:00 Podpings:  188 /   5,998 - Count: 33811 - BlockNum: 53725046 - Time Delta: 1 day, 10:04:47.343065
+2021-05-10 14:27:35,378 INFO root MainThread : 2021-05-09 02:22:39+00:00 Podpings:  202 /   6,200 - Count: 33286 - BlockNum: 53726246 - Time Delta: 1 day, 9:04:56.378313
+2021-05-10 14:27:47,578 INFO root MainThread : 2021-05-09 03:22:42+00:00 Podpings:  192 /   6,392 - Count: 33315 - BlockNum: 53727444 - Time Delta: 1 day, 8:05:05.578539
+2021-05-10 14:27:58,640 INFO root MainThread : 2021-05-09 04:22:45+00:00 Podpings:  172 /   6,564 - Count: 30410 - BlockNum: 53728644 - Time Delta: 1 day, 7:05:13.640752
+2021-05-10 14:28:09,222 INFO root MainThread : 2021-05-09 05:22:48+00:00 Podpings:  165 /   6,729 - Count: 30703 - BlockNum: 53729844 - Time Delta: 1 day, 6:05:21.222775
+2021-05-10 14:28:21,075 INFO root MainThread : 2021-05-09 06:22:51+00:00 Podpings:  178 /   6,907 - Count: 30984 - BlockNum: 53731045 - Time Delta: 1 day, 5:05:30.075788
+2021-05-10 14:28:32,299 INFO root MainThread : 2021-05-09 07:22:54+00:00 Podpings:  212 /   7,119 - Count: 30113 - BlockNum: 53732246 - Time Delta: 1 day, 4:05:38.299067
+2021-05-10 14:28:43,838 INFO root MainThread : 2021-05-09 08:22:57+00:00 Podpings:  142 /   7,261 - Count: 29428 - BlockNum: 53733443 - Time Delta: 1 day, 3:05:46.838723
+2021-05-10 14:28:56,421 INFO root MainThread : 2021-05-09 09:23:00+00:00 Podpings:  158 /   7,419 - Count: 29823 - BlockNum: 53734642 - Time Delta: 1 day, 2:05:56.421091
+2021-05-10 14:29:06,323 INFO root MainThread : 2021-05-09 10:23:03+00:00 Podpings:  178 /   7,597 - Count: 26167 - BlockNum: 53735842 - Time Delta: 1 day, 1:06:03.323927
+2021-05-10 14:29:16,252 INFO root MainThread : 2021-05-09 11:23:06+00:00 Podpings:  183 /   7,780 - Count: 26335 - BlockNum: 53737043 - Time Delta: 1 day, 0:06:10.252032
+2021-05-10 14:29:27,984 INFO root MainThread : 2021-05-09 12:23:09+00:00 Podpings:  206 /   7,986 - Count: 28697 - BlockNum: 53738244 - Time Delta: 23:06:18.984185
+2021-05-10 14:29:38,759 INFO root MainThread : 2021-05-09 13:23:12+00:00 Podpings:  214 /   8,200 - Count: 30871 - BlockNum: 53739442 - Time Delta: 22:06:26.759210
+2021-05-10 14:29:50,309 INFO root MainThread : 2021-05-09 14:23:15+00:00 Podpings:  223 /   8,423 - Count: 31570 - BlockNum: 53740641 - Time Delta: 21:06:35.309532
+2021-05-10 14:30:04,134 INFO root MainThread : 2021-05-09 15:23:18+00:00 Podpings:  240 /   8,663 - Count: 34348 - BlockNum: 53741842 - Time Delta: 20:06:46.134563
+2021-05-10 14:30:18,164 INFO root MainThread : 2021-05-09 16:23:21+00:00 Podpings:  301 /   8,964 - Count: 33229 - BlockNum: 53743043 - Time Delta: 19:06:57.164588
+2021-05-10 14:30:31,167 INFO root MainThread : 2021-05-09 17:23:24+00:00 Podpings:  330 /   9,294 - Count: 33704 - BlockNum: 53744243 - Time Delta: 18:07:07.167139
+2021-05-10 14:30:45,316 INFO root MainThread : 2021-05-09 18:23:27+00:00 Podpings:  305 /   9,599 - Count: 34089 - BlockNum: 53745443 - Time Delta: 17:07:18.316856
+2021-05-10 14:30:59,533 INFO root MainThread : 2021-05-09 19:23:30+00:00 Podpings:  327 /   9,926 - Count: 36229 - BlockNum: 53746641 - Time Delta: 16:07:29.532981
+2021-05-10 14:31:13,775 INFO root MainThread : 2021-05-09 20:23:33+00:00 Podpings:  316 /  10,242 - Count: 35997 - BlockNum: 53747840 - Time Delta: 15:07:40.775290
+2021-05-10 14:31:27,221 INFO root MainThread : 2021-05-09 21:23:36+00:00 Podpings:  324 /  10,566 - Count: 34769 - BlockNum: 53749041 - Time Delta: 14:07:51.221843
+2021-05-10 14:31:39,917 INFO root MainThread : 2021-05-09 22:23:39+00:00 Podpings:  285 /  10,851 - Count: 32842 - BlockNum: 53750241 - Time Delta: 13:08:00.917255
+2021-05-10 14:31:53,170 INFO root MainThread : 2021-05-09 23:23:42+00:00 Podpings:  360 /  11,211 - Count: 35065 - BlockNum: 53751441 - Time Delta: 12:08:11.170186
+2021-05-10 14:32:05,696 INFO root MainThread : 2021-05-10 00:23:45+00:00 Podpings:  348 /  11,559 - Count: 34704 - BlockNum: 53752641 - Time Delta: 11:08:20.696407
+2021-05-10 14:32:17,390 INFO root MainThread : 2021-05-10 01:23:48+00:00 Podpings:  312 /  11,871 - Count: 32549 - BlockNum: 53753839 - Time Delta: 10:08:29.390720
+2021-05-10 14:32:29,859 INFO root MainThread : 2021-05-10 02:23:51+00:00 Podpings:  354 /  12,225 - Count: 29317 - BlockNum: 53755040 - Time Delta: 9:08:38.859189
+2021-05-10 14:32:42,174 INFO root MainThread : 2021-05-10 03:23:54+00:00 Podpings:  355 /  12,580 - Count: 26610 - BlockNum: 53756239 - Time Delta: 8:08:48.174102
+2021-05-10 14:32:54,541 INFO root MainThread : 2021-05-10 04:23:57+00:00 Podpings:  422 /  13,002 - Count: 28518 - BlockNum: 53757438 - Time Delta: 7:08:57.541220
+2021-05-10 14:33:06,340 INFO root MainThread : 2021-05-10 05:24:00+00:00 Podpings:  340 /  13,342 - Count: 29592 - BlockNum: 53758637 - Time Delta: 6:09:06.340544
+2021-05-10 14:33:17,520 INFO root MainThread : 2021-05-10 06:24:03+00:00 Podpings:  304 /  13,646 - Count: 27562 - BlockNum: 53759836 - Time Delta: 5:09:14.520591
+2021-05-10 14:33:29,985 INFO root MainThread : 2021-05-10 07:24:06+00:00 Podpings:  288 /  13,934 - Count: 27263 - BlockNum: 53761037 - Time Delta: 4:09:23.985483
+2021-05-10 14:33:40,432 INFO root MainThread : 2021-05-10 08:24:09+00:00 Podpings:  282 /  14,216 - Count: 27954 - BlockNum: 53762238 - Time Delta: 3:09:31.432686
+2021-05-10 14:33:49,905 INFO root MainThread : 2021-05-10 09:24:12+00:00 Podpings:  349 /  14,565 - Count: 27283 - BlockNum: 53763437 - Time Delta: 2:09:37.905867
+2021-05-10 14:34:00,585 INFO root MainThread : 2021-05-10 10:24:15+00:00 Podpings:  349 /  14,914 - Count: 28561 - BlockNum: 53764638 - Time Delta: 1:09:45.585404
+2021-05-10 14:34:23,996 INFO root MainThread : 2021-05-10 11:24:18+00:00 Podpings:  357 /  15,271 - Count: 28646 - BlockNum: 53765839 - Time Delta: 0:10:05.996486
+2021-05-10 14:35:19,726 INFO root MainThread : block_num: 53766058
+2021-05-10 14:35:19,726 INFO root MainThread : Finished catching up at block_num: 53766058 in 0:14:14.395339
