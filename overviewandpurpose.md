@@ -17,3 +17,5 @@ feed url has updated and be confident that it's the Hosting company (or self-hos
 
 Multiple podping servers in different global regions will be run to ensure that there is no single point of failure.  The "podping.cloud" host name will be 
 round-robin addressed to these servers.  Any of the servers can handle receiving and writing urls to the blockchain.
+
+The bottom line is that podcasters and hosting companies just send a GET request with the url to a single web address, and everyone else in the industry can see that updated within a few seconds with no subscribing (or re-subscribing) required by anyone.
