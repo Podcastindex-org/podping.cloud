@@ -14,6 +14,19 @@ TEST_NODE = ['http://testnet.openhive.network:8091']
 logging.basicConfig(level=logging.INFO,
                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
 
+
+server_account = os.getenv('HIVE_SERVER_ACCOUNT')
+
+wif = [os.getenv('HIVE_POSTING_KEY')]
+
+if USE_TEST_NODE:
+    hive = Hive(keys=wif,node=TEST_NODE)
+else:
+    hive = Hive(keys=wif)
+
+
+
+
 class MyTCPHandler(socketserver.BaseRequestHandler):
     """
     The RequestHandler class for our server.
@@ -42,7 +55,7 @@ def url_in(url):
     #emit('response', {'data': custom_json})
 
 
-def send_notification(custom_json, server_account='', wif=''):
+def send_notification(custom_json):
     """ Sends a custom_json to Hive
         Expects two env variables, Hive account name and posting key
         HIVE_SERVER_ACCOUNT
@@ -52,20 +65,7 @@ def send_notification(custom_json, server_account='', wif=''):
     operation_id = 'podping'
 
     try:
-        if server_account == '':
-            server_account = os.getenv('HIVE_SERVER_ACCOUNT')
-            pass
-        if wif == '':
-            wif = [os.getenv('HIVE_POSTING_KEY')]
-            pass
-
-        if USE_TEST_NODE:
-            h = Hive(keys=wif,node=TEST_NODE)
-        else:
-            h = Hive(keys=wif)
-
-
-        tx = h.custom_json(id=operation_id, json_data= custom_json,
+        tx = hive.custom_json(id=operation_id, json_data= custom_json,
                             required_posting_auths=[server_account])
 
         trx_id = tx['trx_id']
