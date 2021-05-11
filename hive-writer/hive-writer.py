@@ -192,7 +192,8 @@ if error_messages:
     error_messages.append("I'm sorry, Dave, I'm affraid I can't do that")
     logging.error("Startup of Podping status: I'm sorry, Dave, I'm affraid I can't do that.")
     exit_message = ' - '.join(error_messages)
-    # raise SystemExit(exit_message)
+    if not USE_TEST_NODE:
+        raise SystemExit(exit_message)
 
 
 logging.info("Startup of Podping status: SUCCESS! Hit the BOOST Button.")

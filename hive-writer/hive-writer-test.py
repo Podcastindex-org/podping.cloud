@@ -17,7 +17,7 @@ socket.connect("tcp://localhost:5555")
 
 start = time.perf_counter()
 #  Do 10 requests, waiting each time for a response
-for request in range(10):
+for request in range(3):
     print(f"Sending request {request} …")
     data = f"https://www.brianoflondon.me/{request}/podcast2/brians-forest-talks-exp.xml"
     socket.send(data.encode())
@@ -27,5 +27,3 @@ for request in range(10):
 
 
 print('Time taken: ' + str(time.perf_counter() - start) )
-
-
