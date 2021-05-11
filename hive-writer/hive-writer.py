@@ -1,7 +1,9 @@
 import logging
 import os
 import queue
-import socketserver
+from beemgraphenebase.types import Bool
+# import socketserver
+import zmq
 import threading
 import time
 
@@ -13,6 +15,7 @@ from beem.exceptions import AccountDoesNotExistsException, MissingKeyError
 # BOL: Switching off TestNet, we should test on Hive for now.
 USE_TEST_NODE = os.getenv("USE_TEST_NODE", 'False').lower() in ('true', '1', 't')
 TEST_NODE = ['http://testnet.openhive.network:8091']
+
 
 logging.basicConfig(level=logging.INFO,
                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
@@ -28,22 +31,22 @@ def get_allowed_accounts(acc_name='podping') -> bool:
     return allowed
 
 
-class MyTCPHandler(socketserver.BaseRequestHandler):
-    """
-    The RequestHandler class for our server.
+# class MyTCPHandler(socketserver.BaseRequestHandler):
+#     """
+#     The RequestHandler class for our server.
 
-    It is instantiated once per connection to the server, and must
-    override the handle() method to implement communication to the
-    client.
-    """
+#     It is instantiated once per connection to the server, and must
+#     override the handle() method to implement communication to the
+#     client.
+#     """
 
-    def handle(self):
-        # self.request is the TCP socket connected to the client
-        self.data = self.request.recv(1024).strip()
-        url = self.data.decode("utf-8")
-        logging.info("Received from {}: {}".format(self.client_address[0], url))
-        url_in(url)
-        self.request.sendall("OK".encode("utf-8"))
+#     def handle(self):
+#         # self.request is the TCP socket connected to the client
+#         self.data = self.request.recv(1024).strip()
+#         url = self.data.decode("utf-8")
+#         logging.info("Received from {}: {}".format(self.client_address[0], url))
+#         url_in(url)
+#         self.request.sendall("OK".encode("utf-8"))
 
 
 def url_in(url):
@@ -167,7 +170,7 @@ if acc:
         if not success:
             error_messages.append(error_message)
         logging.info('Testing Account Resource Credits.... 5s')
-        time.sleep(5)
+        # time.sleep(5)
         manabar_after = acc.get_rc_manabar()
         logging.info(f'Testing Account Resource Credits - after {manabar_after.get("current_pct"):.2f}%')
         cost = manabar.get('current_mana') - manabar_after.get('current_mana')
@@ -189,7 +192,7 @@ if error_messages:
     error_messages.append("I'm sorry, Dave, I'm affraid I can't do that")
     logging.error("Startup of Podping status: I'm sorry, Dave, I'm affraid I can't do that.")
     exit_message = ' - '.join(error_messages)
-    raise SystemExit(exit_message)
+    # raise SystemExit(exit_message)
 
 
 logging.info("Startup of Podping status: SUCCESS! Hit the BOOST Button.")
@@ -198,18 +201,23 @@ logging.info("Startup of Podping status: SUCCESS! Hit the BOOST Button.")
 # END OF STARTUP SEQUENCE RUNNING IN GLOBAL SCOPE
 # ---------------------------------------------------------------
 
+context = zmq.Context()
+socket = context.socket(zmq.REP)
+socket.bind("tcp://*:5555")
 
-if __name__ == "__main__":
-    HOST, PORT = "localhost", 9999
-
-    # Create the server, binding to localhost on port 9999
-    server = socketserver.TCPServer((HOST, PORT), MyTCPHandler)
-
-    # Activate the server; this will keep running until you
-    # interrupt the program with Ctrl-C
-    server.serve_forever()
 
 
 
-# if __name__ == '__main__':
-#     main()
+if __name__ == "__main__":
+    while True:
+        #  Wait for next request from client
+        url = socket.recv().decode('utf-8')
+        print(f"Received url: {url}")
+        custom_json = {'url': url}
+        trx_id, success = send_notification(custom_json)
+        #  Send reply back to client
+        if success:
+            answer = f"SUCCESS: {url} - {trx_id}"
+        else:
+            answer = f"FAILURE: {url} - {trx_id}"
+        socket.send(answer.encode('utf-8'))
