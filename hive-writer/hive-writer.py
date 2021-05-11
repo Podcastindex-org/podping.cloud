@@ -6,6 +6,7 @@ from beemgraphenebase.types import Bool
 import zmq
 import threading
 import time
+import json
 
 from beem import Hive
 from beem.account import Account
@@ -217,8 +218,14 @@ if __name__ == "__main__":
         custom_json = {'url': url}
         trx_id, success = send_notification(custom_json)
         #  Send reply back to client
+        answer ={
+            'url':url,
+            'trx_id':trx_id
+        }
         if success:
-            answer = f"SUCCESS: {url} - {trx_id}"
+            answer['message'] = 'success'
         else:
-            answer = f"FAILURE: {url} - {trx_id}"
-        socket.send(answer.encode('utf-8'))
+            answer['message'] = 'failure'
+
+        ans = json.dumps(answer, indent=2)
+        socket.send(ans.encode('utf-8'))
