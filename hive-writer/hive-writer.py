@@ -1,11 +1,11 @@
 import logging
-from beem import Hive
 import os
-import threading
 import queue
 import socketserver
+import threading
 import time
 
+from beem import Hive
 from beem.account import Account
 from beem.exceptions import AccountDoesNotExistsException, MissingKeyError
 
@@ -21,9 +21,8 @@ logging.basicConfig(level=logging.INFO,
 def get_allowed_accounts(acc_name='podping') -> bool:
     """ get a list of all accounts allowed to post by acc_name (podping)
         and only react to these accounts """
-    # This is giving an error if I don't specify api server exactly.
+    # Ignores test node.
     h = Hive(node='https://api.hive.blog')
-
     master_account = Account(acc_name, blockchain_instance=h, lazy=True)
     allowed = master_account.get_following()
     return allowed
@@ -105,6 +104,11 @@ def send_notification_worker():
         logging.info(f'Task time: {duration:0.2f} - Queue size: ' + str(hive_q.qsize()))
         logging.info(f'Finished a task: {trx_id} - {success}')
 
+
+# ---------------------------------------------------------------
+# START OF STARTUP SEQUENCE RUNNING IN GLOBAL SCOPE
+# ---------------------------------------------------------------
+
 threading.Thread(target=send_notification_worker, daemon=True).start()
 
 
@@ -168,7 +172,7 @@ if acc:
         logging.info(f'Testing Account Resource Credits - after {manabar_after.get("current_pct"):.2f}%')
         cost = manabar.get('current_mana') - manabar_after.get('current_mana')
         capacity = manabar_after.get('current_mana') / cost
-        logging.info(f'Capacity for further transactions : {capacity:.1f}')
+        logging.info(f'Capacity for further podpings : {capacity:.1f}')
         custom_json['capacity'] = f'{capacity:.1f}'
         custom_json['message'] = 'Podping startup complete'
         error_message , success = send_notification(custom_json, 'podping-startup')
@@ -189,6 +193,10 @@ if error_messages:
 
 
 logging.info("Startup of Podping status: SUCCESS! Hit the BOOST Button.")
+
+# ---------------------------------------------------------------
+# END OF STARTUP SEQUENCE RUNNING IN GLOBAL SCOPE
+# ---------------------------------------------------------------
 
 
 if __name__ == "__main__":
