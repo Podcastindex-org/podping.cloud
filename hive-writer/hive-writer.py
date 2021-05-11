@@ -50,14 +50,7 @@ def get_allowed_accounts(acc_name='podping') -> bool:
 #         self.request.sendall("OK".encode("utf-8"))
 
 
-def url_in(url):
-    """ Send a URL and I'll post it to Hive """
-    custom_json = {'url': url}
-    hive_q.put( (send_notification, custom_json ))
-    # trx_id, success = send_notification(custom_json=custom_json)
-    # custom_json['trx_id'] = trx_id
-    # custom_json['success'] = success
-    #emit('response', {'data': custom_json})
+
 
 
 def send_notification(custom_json, operation_id ='podping'):
@@ -66,8 +59,6 @@ def send_notification(custom_json, operation_id ='podping'):
         HIVE_SERVER_ACCOUNT
         HIVE_POSTING_KEY
         """
-
-
     try:
         tx = hive.custom_json(id=operation_id, json_data= custom_json,
                             required_posting_auths=[server_account])
@@ -206,6 +197,12 @@ logging.info("Startup of Podping status: SUCCESS! Hit the BOOST Button.")
 context = zmq.Context()
 socket = context.socket(zmq.REP)
 socket.bind("tcp://*:5555")
+
+
+def url_in(url):
+    """ Send a URL and I'll post it to Hive """
+    custom_json = {'url': url}
+    hive_q.put( (send_notification, custom_json ))
 
 
 
