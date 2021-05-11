@@ -7,7 +7,7 @@ import time
 
 start = time.perf_counter()
 
-for n in range(2):
+for n in range(1):
 
     # Create a client socket
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
