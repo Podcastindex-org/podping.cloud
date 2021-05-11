@@ -257,6 +257,9 @@ def scan_history(param= None, report_freq = None, reports = True):
                 total_pings += 1
 
         if time_to_now < timedelta(seconds=2):
+            timestamp = str(post['timestamp'])
+            current_block_num = post['block_num']
+            output_status(timestamp, pings, count_posts, time_to_now, current_block_num=current_block_num)
             logging.info('block_num: ' + str(post['block_num']))
             # Break out of the for loop we've caught up.
             break
