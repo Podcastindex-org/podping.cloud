@@ -49,7 +49,7 @@ def old_data(start_line=0):
             message = socket.recv_json()
             print('Time taken: ' + str(time.perf_counter() - start) )
             print("Received reply: " + json.dumps(message,indent=2))
-            time.sleep(10)
+            time.sleep(30)
             line = f.readline()
             line_num +=1
             print(line_num)
@@ -57,4 +57,4 @@ def old_data(start_line=0):
 
 
 if __name__ == "__main__":
-    old_data(513)
+    old_data(720)
