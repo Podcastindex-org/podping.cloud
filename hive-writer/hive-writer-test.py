@@ -9,18 +9,38 @@ import json
 
 import zmq
 
-context = zmq.Context()
+# context = zmq.Context()
 
 #  Socket to talk to server
-print("Connecting to hello world server…")
-socket = context.socket(zmq.REQ)
-socket.connect("tcp://192.168.0.245:5555")
+# print("Connecting to hello world server…")
+# socket = context.socket(zmq.REQ)
+# socket.connect("tcp://192.168.0.245:5555")
+
+def old_socket():
+
+    for n in range(10):
+            # Create a client socket
+        clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Connect to the server
+        clientSocket.connect(("127.0.0.1",9999))
+        # Send data to server
+        data = f"https://www.brianoflondon.me/{n}/podcast2/brians-forest-talks-exp.xml"
+        clientSocket.send(data.encode())
+        # Receive data from server
+        dataFromServer = clientSocket.recv(1024)
+        # Print to the console
+        print(dataFromServer.decode())
+
+    clientSocket.close()
+
+
+
 
 def loop_test():
     """ Run a simple loop test on the hive-writer program """
     start = time.perf_counter()
     #  Do 10 requests, waiting each time for a response
-    for request in range(10):
+    for request in range(2):
         print(f"Sending request {request} …")
         data = f"https://www.brianoflondon.me/podcast2/brians-forest-talks-exp.xml?q={request}"
         socket.send(data.encode())
@@ -57,4 +77,6 @@ def old_data(start_line=0):
 
 
 if __name__ == "__main__":
-    old_data(720)
+    # old_data(720)
+    # loop_test()
+    old_socket()

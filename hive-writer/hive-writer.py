@@ -2,7 +2,7 @@ import logging
 import os
 import queue
 from beemgraphenebase.types import Bool
-# import socketserver
+import socketserver
 import zmq
 import threading
 import time
@@ -29,6 +29,40 @@ logging.basicConfig(level=logging.INFO,
                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
 
 
+# ---------------------------------------------------------------
+# BASIC SOCKETS
+# ---------------------------------------------------------------
+class MyTCPHandler(socketserver.BaseRequestHandler):
+    """
+    The RequestHandler class for our server.
+
+    It is instantiated once per connection to the server, and must
+    override the handle() method to implement communication to the
+    client.
+    """
+
+    def handle(self):
+        # self.request is the TCP socket connected to the client
+        self.data = self.request.recv(1024).strip()
+        url = self.data.decode("utf-8")
+        logging.info("Received from {}: {}".format(self.client_address[0], url))
+        trx_id, success = url_in(url)
+        if success:
+            self.request.sendall("OK".encode("utf-8"))
+        else:
+            message = f'ERR - {trx_id}'
+            self.request.sendall(message.encode("utf-8"))
+
+
+def url_in(url):
+    """ Send a URL and I'll post it to Hive """
+    custom_json = {'url': url}
+    trx_id , success = send_notification(custom_json)
+    return trx_id, success
+
+
+
+
 def get_allowed_accounts(acc_name='podping') -> bool:
     """ get a list of all accounts allowed to post by acc_name (podping)
         and only react to these accounts """
@@ -46,7 +80,7 @@ def send_notification(custom_json, operation_id ='podping'):
         HIVE_POSTING_KEY
         """
     try:
-        # # Artifically create errors
+        # Artifically create errors <-----------------------------------
         # if operation_id == 'podping':
         #     r = randint(1,5)
         #     if r == 1:
@@ -192,15 +226,15 @@ logging.info("Startup of Podping status: SUCCESS! Hit the BOOST Button.")
 # END OF STARTUP SEQUENCE RUNNING IN GLOBAL SCOPE
 # ---------------------------------------------------------------
 
-context = zmq.Context()
-socket = context.socket(zmq.REP)
-socket.bind("tcp://*:5555")
+# context = zmq.Context()
+# socket = context.socket(zmq.REP)
+# socket.bind("tcp://*:5555")
 
 
-def url_in(url):
-    """ Send a URL and I'll post it to Hive """
-    custom_json = {'url': url}
-    hive_q.put( (send_notification, custom_json ))
+# def url_in(url):
+#     """ Send a URL and I'll post it to Hive """
+#     custom_json = {'url': url}
+#     hive_q.put( (send_notification, custom_json ))
 
 # Global used for tracking the number of failures we get in recursive retry
 peak_fail_count = 0
@@ -245,10 +279,22 @@ def failure_retry(url, failure_count = 0):
 
 
 if __name__ == "__main__":
-    failure_count = 0
-    while True :
-        #  Wait for next request from client
-        url = socket.recv().decode('utf-8')
-        answer, failure_count = failure_retry(url)
-        ans = json.dumps(answer, indent=2)
-        socket.send(ans.encode('utf-8'))
+    HOST, PORT = "localhost", 9999
+
+    # Create the server, binding to localhost on port 9999
+    server = socketserver.TCPServer((HOST, PORT), MyTCPHandler)
+
+    # Activate the server; this will keep running until you
+    # interrupt the program with Ctrl-C
+    server.serve_forever()
+
+
+
+
+    # failure_count = 0
+    # while True :
+    #     #  Wait for next request from client
+    #     url = socket.recv().decode('utf-8')
+    #     answer, failure_count = failure_retry(url)
+    #     ans = json.dumps(answer, indent=2)
+    #     socket.send(ans.encode('utf-8'))
