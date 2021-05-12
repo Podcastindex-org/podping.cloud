@@ -46,10 +46,11 @@ def send_notification(custom_json, operation_id ='podping'):
         HIVE_POSTING_KEY
         """
     try:
-        if operation_id == 'podping':
-            r = randint(1,5)
-            if r == 1:
-                raise Exception('What a mess')
+        # # Artifically create errors
+        # if operation_id == 'podping':
+        #     r = randint(1,5)
+        #     if r == 1:
+        #         raise Exception('What a mess')
         tx = hive.custom_json(id=operation_id, json_data= custom_json,
                             required_posting_auths=[server_account])
         trx_id = tx['trx_id']
