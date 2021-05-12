@@ -7,6 +7,7 @@ import zmq
 import threading
 import time
 import json
+from random import randint
 
 from beem import Hive
 from beem.account import Account
@@ -38,27 +39,6 @@ def get_allowed_accounts(acc_name='podping') -> bool:
     return allowed
 
 
-# class MyTCPHandler(socketserver.BaseRequestHandler):
-#     """
-#     The RequestHandler class for our server.
-
-#     It is instantiated once per connection to the server, and must
-#     override the handle() method to implement communication to the
-#     client.
-#     """
-
-#     def handle(self):
-#         # self.request is the TCP socket connected to the client
-#         self.data = self.request.recv(1024).strip()
-#         url = self.data.decode("utf-8")
-#         logging.info("Received from {}: {}".format(self.client_address[0], url))
-#         url_in(url)
-#         self.request.sendall("OK".encode("utf-8"))
-
-
-
-
-
 def send_notification(custom_json, operation_id ='podping'):
     """ Sends a custom_json to Hive
         Expects two env variables, Hive account name and posting key
@@ -66,6 +46,10 @@ def send_notification(custom_json, operation_id ='podping'):
         HIVE_POSTING_KEY
         """
     try:
+        if operation_id == 'podping':
+            r = randint(1,5)
+            if r == 1:
+                raise Exception('What a mess')
         tx = hive.custom_json(id=operation_id, json_data= custom_json,
                             required_posting_auths=[server_account])
         trx_id = tx['trx_id']
@@ -92,25 +76,25 @@ def send_notification(custom_json, operation_id ='podping'):
 
 #Adding a Queue system to the Hive send_notification section
 
-hive_q = queue.Queue()
+# hive_q = queue.Queue()
 
 
-def send_notification_worker():
-    """ Opens and watches a queue and sends notifications to Hive one by one """
-    while True:
-        items = hive_q.get()
-        func = items[0]
-        args = items[1:]
-        start = time.perf_counter()
-        trx_id, success = func(*args)
-        # Limit the rate to 1 post every 2 seconds, this will mostly avoid
-        # multiple updates in a single Hive block.
-        duration = time.perf_counter() - start
-        if duration < 2.0:
-            time.sleep(2.0-duration)
-        hive_q.task_done()
-        logging.info(f'Task time: {duration:0.2f} - Queue size: ' + str(hive_q.qsize()))
-        logging.info(f'Finished a task: {trx_id} - {success}')
+# def send_notification_worker():
+#     """ Opens and watches a queue and sends notifications to Hive one by one """
+#     while True:
+#         items = hive_q.get()
+#         func = items[0]
+#         args = items[1:]
+#         start = time.perf_counter()
+#         trx_id, success = func(*args)
+#         # Limit the rate to 1 post every 2 seconds, this will mostly avoid
+#         # multiple updates in a single Hive block.
+#         duration = time.perf_counter() - start
+#         if duration < 2.0:
+#             time.sleep(2.0-duration)
+#         hive_q.task_done()
+#         logging.info(f'Task time: {duration:0.2f} - Queue size: ' + str(hive_q.qsize()))
+#         logging.info(f'Finished a task: {trx_id} - {success}')
 
 
 # ---------------------------------------------------------------
@@ -146,6 +130,7 @@ except Exception as ex:
     logging.error(error_messages[-1])
     exit_message = ' - '.join(error_messages)
     raise SystemExit(exit_message)
+
 
 acc = None
 try:
@@ -192,7 +177,6 @@ if acc:
         logging.error(error_messages[-1])
 
 
-
 if error_messages:
     error_messages.append("I'm sorry, Dave, I'm affraid I can't do that")
     logging.error("Startup of Podping status: I'm sorry, Dave, I'm affraid I can't do that.")
@@ -217,9 +201,12 @@ def url_in(url):
     custom_json = {'url': url}
     hive_q.put( (send_notification, custom_json ))
 
+# Global used for tracking the number of failures we get in recursive retry
+peak_fail_count = 0
 
 def failure_retry(url, failure_count = 0):
     """ Recursion... see recursion """
+    global peak_fail_count
     if failure_count > 0:
         logging.error(f"Waiting {HALT_TIME[failure_count]}")
         time.sleep(HALT_TIME[failure_count])
@@ -236,17 +223,23 @@ def failure_retry(url, failure_count = 0):
     }
     if success:
         answer['message'] = 'success'
+        if peak_fail_count > 0:
+            answer['retries'] = peak_fail_count
         failure_count = 0
+        peak_fail_count = 0
         return answer, failure_count
     else:
-        answer['message'] = 'failure - server will retry'
         failure_count += 1
+        peak_fail_count += 1
+        answer['message'] = 'failure - server will retry'
         if failure_count > len(HALT_TIME):
             # Give up.
             error_message = f"I'm sorry Dave, I'm affraid I can't do that. Too many tries {failure_count}"
             logging.error(error_message)
             raise SystemExit(error_message)
-        answer = failure_retry(url, failure_count)
+        answer, failure_count = failure_retry(url, failure_count)
+        # Walk back up the recursion tree:
+        return answer, failure_count
 
 
 
