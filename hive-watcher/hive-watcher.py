@@ -20,7 +20,7 @@ TEST_NODE = ['http://testnet.openhive.network:8091']
 total_pings = 0
 
 logging.basicConfig(level=logging.INFO,
-                    format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
+                    format=f'%(asctime)s - %(levelname)s %(name)s %(threadName)s : -  %(message)s')
 
 if USE_TEST_NODE:
     hive = Hive(node=TEST_NODE)
