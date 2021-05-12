@@ -4,6 +4,7 @@
 # Changed the range number for how many times you want to hit the server
 import socket
 import time
+import json
 
 
 import zmq
@@ -13,7 +14,7 @@ context = zmq.Context()
 #  Socket to talk to server
 print("Connecting to hello world server…")
 socket = context.socket(zmq.REQ)
-socket.connect("tcp://localhost:5555")
+socket.connect("tcp://192.168.0.245:5555")
 
 def loop_test():
     """ Run a simple loop test on the hive-writer program """
@@ -43,9 +44,12 @@ def old_data(start_line=0):
         while line:
             data = line.split(' - ')
             url = data[5].rstrip()
+            start = time.perf_counter()
             socket.send(url.encode())
-            message = socket.recv()
-            time.sleep(29)
+            message = socket.recv_json()
+            print('Time taken: ' + str(time.perf_counter() - start) )
+            print("Received reply: " + json.dumps(message,indent=2))
+            time.sleep(.3)
             line = f.readline()
             line_num +=1
             print(line_num)
@@ -53,4 +57,4 @@ def old_data(start_line=0):
 
 
 if __name__ == "__main__":
-    old_data(31)
+    old_data(416)
