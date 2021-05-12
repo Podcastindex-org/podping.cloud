@@ -11,11 +11,17 @@ import json
 from beem import Hive
 from beem.account import Account
 from beem.exceptions import AccountDoesNotExistsException, MissingKeyError
+from beemapi.exceptions import UnhandledRPCError
 
 # Testnet instead of main Hive
 # BOL: Switching off TestNet, we should test on Hive for now.
 USE_TEST_NODE = os.getenv("USE_TEST_NODE", 'False').lower() in ('true', '1', 't')
 TEST_NODE = ['http://testnet.openhive.network:8091']
+
+# This is a global signal to shut down until RC's recover
+# Stores the RC cost of each operation to calculate an average
+HALT_THE_QUEUE = False
+HALT_TIME = [0,30,60,120,240,480,960]
 
 
 logging.basicConfig(level=logging.INFO,
@@ -62,8 +68,8 @@ def send_notification(custom_json, operation_id ='podping'):
     try:
         tx = hive.custom_json(id=operation_id, json_data= custom_json,
                             required_posting_auths=[server_account])
-
         trx_id = tx['trx_id']
+
         logging.info(f'Transaction sent: {trx_id}')
         return trx_id, True
 
@@ -71,6 +77,13 @@ def send_notification(custom_json, operation_id ='podping'):
         error_message = f'The provided key for @{server_account} is not valid'
         logging.error(error_message)
         return error_message, False
+    except UnhandledRPCError:
+        error_message = f'Most likely resource credit depletion'
+        logging.error(error_message)
+        HALT_THE_QUEUE = True
+        trx_id = error_message
+        return trx_id, False
+
     except Exception as ex:
         error_message = f'{ex} occurred {ex.__class__}'
         logging.error(error_message)
@@ -104,7 +117,7 @@ def send_notification_worker():
 # START OF STARTUP SEQUENCE RUNNING IN GLOBAL SCOPE
 # ---------------------------------------------------------------
 
-threading.Thread(target=send_notification_worker, daemon=True).start()
+# threading.Thread(target=send_notification_worker, daemon=True).start()
 
 
 error_messages = []
@@ -136,7 +149,7 @@ except Exception as ex:
 
 acc = None
 try:
-    acc = Account(server_account, blockchain_instance=hive, lazy=False)
+    acc = Account(server_account, blockchain_instance=hive, lazy=True)
     allowed = get_allowed_accounts()
     if not server_account in allowed:
         error_messages.append(f'Account @{server_account} not authorised to send Podpings')
@@ -162,7 +175,7 @@ if acc:
         if not success:
             error_messages.append(error_message)
         logging.info('Testing Account Resource Credits.... 5s')
-        # time.sleep(5)
+        time.sleep(5)
         manabar_after = acc.get_rc_manabar()
         logging.info(f'Testing Account Resource Credits - after {manabar_after.get("current_pct"):.2f}%')
         cost = manabar.get('current_mana') - manabar_after.get('current_mana')
@@ -205,24 +218,43 @@ def url_in(url):
     hive_q.put( (send_notification, custom_json ))
 
 
+def failure_retry(url, failure_count = 0):
+    """ Recursion... see recursion """
+    if failure_count > 0:
+        logging.error(f"Waiting {HALT_TIME[failure_count]}")
+        time.sleep(HALT_TIME[failure_count])
+        logging.info(f"RETRYING url: {url}")
+    else:
+        logging.info(f"Received url: {url}")
+
+    custom_json = {'url': url}
+    trx_id, success = send_notification(custom_json)
+    #  Send reply back to client
+    answer ={
+        'url':url,
+        'trx_id':trx_id
+    }
+    if success:
+        answer['message'] = 'success'
+        failure_count = 0
+        return answer, failure_count
+    else:
+        answer['message'] = 'failure - server will retry'
+        failure_count += 1
+        if failure_count > len(HALT_TIME):
+            # Give up.
+            error_message = f"I'm sorry Dave, I'm affraid I can't do that. Too many tries {failure_count}"
+            logging.error(error_message)
+            raise SystemExit(error_message)
+        answer = failure_retry(url, failure_count)
+
 
 
 if __name__ == "__main__":
-    while True:
+    failure_count = 0
+    while True :
         #  Wait for next request from client
         url = socket.recv().decode('utf-8')
-        print(f"Received url: {url}")
-        custom_json = {'url': url}
-        trx_id, success = send_notification(custom_json)
-        #  Send reply back to client
-        answer ={
-            'url':url,
-            'trx_id':trx_id
-        }
-        if success:
-            answer['message'] = 'success'
-        else:
-            answer['message'] = 'failure'
-
+        answer, failure_count = failure_retry(url)
         ans = json.dumps(answer, indent=2)
         socket.send(ans.encode('utf-8'))
