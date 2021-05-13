@@ -3,10 +3,6 @@ The server code that runs a podping.cloud node.
 
 <br>
 
-![Framework Overview 1](framework1.png)
-
-<br>
-
 ## Node Overview
 
 There are two main components of a podping.cloud node.  The first is a web HTTP front-end just called `podping` that accepts GET requests like so:
@@ -37,6 +33,14 @@ A separate thread runs in a loop every 3 seconds as a queue checker and does the
 5. If "ERR" is returned or an exception is raised, another attempt is made on the next cycle.
 
 The web front-end looks up incoming request 'Authorization' header tokens in the `auth.db` sqlite db to ensure they are valid before processing the incoming HTTP GET request.
+
+There is a dummy auth token in the `auth.db` that is ready to use for testing.  The token value is:
+
+<br>
+
+```text
+Blahblah^^12345678
+```
 
 <br>
 
@@ -72,3 +76,9 @@ This software is unstable and not ready for production.  Please do not use it ex
 
 The hive-writer agent requires permission keys that are not included in this repo.  They should be exported into your 
 shell environment before launching the script.
+
+<br>
+
+## The Podping Network Idea
+
+![Framework Overview 1](framework1.png)
