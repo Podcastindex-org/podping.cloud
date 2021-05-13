@@ -9,12 +9,12 @@ import json
 
 import zmq
 
-# context = zmq.Context()
+context = zmq.Context()
 
-#  Socket to talk to server
-# print("Connecting to hello world server…")
-# socket = context.socket(zmq.REQ)
-# socket.connect("tcp://192.168.0.245:5555")
+# Socket to talk to server
+print("Connecting to hello world server…")
+socket = context.socket(zmq.REQ)
+socket.connect("tcp://localhost:9999")
 
 def old_socket():
 
@@ -69,7 +69,7 @@ def old_data(start_line=0):
             message = socket.recv_json()
             print('Time taken: ' + str(time.perf_counter() - start) )
             print("Received reply: " + json.dumps(message,indent=2))
-            time.sleep(30)
+            time.sleep(60)
             line = f.readline()
             line_num +=1
             print(line_num)
@@ -77,6 +77,6 @@ def old_data(start_line=0):
 
 
 if __name__ == "__main__":
-    # old_data(720)
+    old_data(720)
     # loop_test()
     old_socket()

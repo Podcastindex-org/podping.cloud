@@ -1,18 +1,19 @@
+import json
 import logging
 import os
 import queue
-from beemgraphenebase.types import Bool
 import socketserver
-import zmq
 import threading
 import time
-import json
 from random import randint
+import argparse
 
+import zmq
 from beem import Hive
 from beem.account import Account
 from beem.exceptions import AccountDoesNotExistsException, MissingKeyError
 from beemapi.exceptions import UnhandledRPCError
+from beemgraphenebase.types import Bool
 
 # Testnet instead of main Hive
 # BOL: Switching off TestNet, we should test on Hive for now.
@@ -22,12 +23,49 @@ TEST_NODE = ['http://testnet.openhive.network:8091']
 # This is a global signal to shut down until RC's recover
 # Stores the RC cost of each operation to calculate an average
 HALT_THE_QUEUE = False
-HALT_TIME = [0,30,60,120,240,480,960]
+HALT_TIME = [0,3,9,12,30,60,120]
 
 
 logging.basicConfig(level=logging.INFO,
                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
 
+
+# ---------------------------------------------------------------
+# COMMAND LINE
+# ---------------------------------------------------------------
+
+app_description = """ PodPing - Runs as a server and writes a stream of URLs to the Hive Blockchain """
+
+
+my_parser = argparse.ArgumentParser(prog='hive-writer',
+                                    usage='%(prog)s [options]',
+                                    description= app_description,
+                                    epilog='')
+
+
+group_noise = my_parser.add_mutually_exclusive_group()
+group_noise.add_argument('-q', '--quiet', action='store_true', help='Minimal output')
+group_noise.add_argument('-v', '--verbose', action='store_true', help='Lots of output')
+
+my_parser.add_argument('-s', '--socket',
+                       action='store', type=int, required=False,
+                       metavar='',
+                       default= None,
+                       help='<port> Socket to listen on for each new url, returns either ')
+my_parser.add_argument('-z', '--zmq',
+                       action='store', type=int, required=False,
+                       metavar='',
+                       default= None,
+                       help='<port> for ZMQ to listen on for each new url, returns either ')
+
+my_parser.add_argument('-e', '--errors',
+                       action='store', type=int, required=False,
+                       metavar='',
+                       default=None,
+                       help='Deliberately force error rate of <int>%%')
+
+args = my_parser.parse_args()
+myArgs = vars(args)
 
 # ---------------------------------------------------------------
 # BASIC SOCKETS
@@ -47,6 +85,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         url = self.data.decode("utf-8")
         logging.info("Received from {}: {}".format(self.client_address[0], url))
         trx_id, success = url_in(url)
+        if not success:
+            logging.error(f"Result: {trx_id}")
         if success:
             self.request.sendall("OK".encode("utf-8"))
         else:
@@ -57,8 +97,6 @@ def url_in(url):
     custom_json = {'url': url}
     trx_id , success = send_notification(custom_json)
     return trx_id, success
-
-
 
 
 def get_allowed_accounts(acc_name='podping') -> bool:
@@ -79,10 +117,10 @@ def send_notification(custom_json, operation_id ='podping'):
         """
     try:
         # Artifically create errors <-----------------------------------
-        # if operation_id == 'podping':
-        #     r = randint(1,5)
-        #     if r == 1:
-        #         raise Exception('What a mess')
+        if operation_id == 'podping' and myArgs['errors']:
+            r = randint(1,100)
+            if r <= myArgs['errors']:
+                raise Exception(f'Infinite Improbability Error level of {r}% : Threshold set at {myArgs["errors"]}%')
         tx = hive.custom_json(id=operation_id, json_data= custom_json,
                             required_posting_auths=[server_account])
         trx_id = tx['trx_id']
@@ -111,7 +149,6 @@ def send_notification(custom_json, operation_id ='podping'):
 
 # hive_q = queue.Queue()
 
-
 # def send_notification_worker():
 #     """ Opens and watches a queue and sends notifications to Hive one by one """
 #     while True:
@@ -131,102 +168,106 @@ def send_notification(custom_json, operation_id ='podping'):
 
 
 # ---------------------------------------------------------------
-# START OF STARTUP SEQUENCE RUNNING IN GLOBAL SCOPE
+# START OF STARTUP SEQUENCE
 # ---------------------------------------------------------------
+# GLOBAL:
+server_account = os.getenv('HIVE_SERVER_ACCOUNT')
+wif = [os.getenv('HIVE_POSTING_KEY')]
 
 # threading.Thread(target=send_notification_worker, daemon=True).start()
+def startup_sequence(ignore_errors= False) -> bool:
+    """ Run though a startup sequence connect to Hive and check env variables
+        Exit with error unless ignore_errors passed as True """
 
-
-error_messages = []
-# Set up Hive with error checking
-logging.info('Podping startup sequence initiated, please stand by, full bozo checks in operation...')
-server_account = os.getenv('HIVE_SERVER_ACCOUNT')
-if not server_account:
-    error_messages.append('No Hive account passed: HIVE_SERVER_ACCOUNT environment var must be set.')
-    logging.error(error_messages[-1])
-wif = [os.getenv('HIVE_POSTING_KEY')]
-if not wif:
-    error_messages.append('No Hive Posting Key passed: HIVE_POSTING_KEY environment var must be set.')
-    logging.error(error_messages[-1])
-
-try:
-    if USE_TEST_NODE:
-        hive = Hive(keys=wif,node=TEST_NODE)
-    else:
-        hive = Hive(keys=wif)
-
-except Exception as ex:
-    error_messages.append(f'{ex} occurred {ex.__class__}')
-    error_messages.append(f'Can not connect to Hive, probably bad key')
-    logging.error(error_messages[-1])
-    error_messages.append("I'm sorry, Dave, I'm affraid I can't do that")
-    logging.error(error_messages[-1])
-    exit_message = ' - '.join(error_messages)
-    raise SystemExit(exit_message)
-
-
-acc = None
-try:
-    acc = Account(server_account, blockchain_instance=hive, lazy=True)
-    allowed = get_allowed_accounts()
-    if not server_account in allowed:
-        error_messages.append(f'Account @{server_account} not authorised to send Podpings')
+    global hive
+    global server_account, wif
+    error_messages = []
+    # Set up Hive with error checking
+    logging.info('Podping startup sequence initiated, please stand by, full bozo checks in operation...')
+    if not server_account:
+        error_messages.append('No Hive account passed: HIVE_SERVER_ACCOUNT environment var must be set.')
         logging.error(error_messages[-1])
 
-except AccountDoesNotExistsException:
-    error_messages.append(f'Hive account @{server_account} does not exist, check ENV vars and try again AccountDoesNotExistsException')
-    logging.error(error_messages[-1])
-except Exception as ex:
-    error_messages.append(f'{ex} occurred {ex.__class__}')
-    logging.error(error_messages[-1])
+    if not wif:
+        error_messages.append('No Hive Posting Key passed: HIVE_POSTING_KEY environment var must be set.')
+        logging.error(error_messages[-1])
 
-if acc:
-    try:    # Now post two custom json to test.
-        manabar = acc.get_rc_manabar()
-        logging.info(f'Testing Account Resource Credits - before {manabar.get("current_pct"):.2f}%')
-        custom_json = {
-            "server_account" : server_account,
-            "USE_TEST_NODE" : USE_TEST_NODE
-        }
-        error_message , success = send_notification(custom_json, 'podping-startup')
+    try:
+        if USE_TEST_NODE:
+            hive = Hive(keys=wif,node=TEST_NODE)
+        else:
+            hive = Hive(keys=wif)
 
-        if not success:
-            error_messages.append(error_message)
-        logging.info('Testing Account Resource Credits.... 5s')
-        time.sleep(5)
-        manabar_after = acc.get_rc_manabar()
-        logging.info(f'Testing Account Resource Credits - after {manabar_after.get("current_pct"):.2f}%')
-        cost = manabar.get('current_mana') - manabar_after.get('current_mana')
-        capacity = manabar_after.get('current_mana') / cost
-        logging.info(f'Capacity for further podpings : {capacity:.1f}')
-        custom_json['capacity'] = f'{capacity:.1f}'
-        custom_json['message'] = 'Podping startup complete'
-        error_message , success = send_notification(custom_json, 'podping-startup')
-        if not success:
-            error_messages.append(error_message)
+    except Exception as ex:
+        error_messages.append(f'{ex} occurred {ex.__class__}')
+        error_messages.append(f'Can not connect to Hive, probably bad key')
+        logging.error(error_messages[-1])
+        error_messages.append("I'm sorry, Dave, I'm affraid I can't do that")
+        logging.error(error_messages[-1])
+        exit_message = ' - '.join(error_messages)
+        raise SystemExit(exit_message)
 
+
+    acc = None
+    try:
+        acc = Account(server_account, blockchain_instance=hive, lazy=True)
+        allowed = get_allowed_accounts()
+        if not server_account in allowed:
+            error_messages.append(f'Account @{server_account} not authorised to send Podpings')
+            logging.error(error_messages[-1])
+
+    except AccountDoesNotExistsException:
+        error_messages.append(f'Hive account @{server_account} does not exist, check ENV vars and try again AccountDoesNotExistsException')
+        logging.error(error_messages[-1])
     except Exception as ex:
         error_messages.append(f'{ex} occurred {ex.__class__}')
         logging.error(error_messages[-1])
 
+    if acc:
+        try:    # Now post two custom json to test.
+            manabar = acc.get_rc_manabar()
+            logging.info(f'Testing Account Resource Credits - before {manabar.get("current_pct"):.2f}%')
+            custom_json = {
+                "server_account" : server_account,
+                "USE_TEST_NODE" : USE_TEST_NODE
+            }
+            error_message , success = send_notification(custom_json, 'podping-startup')
 
-if error_messages:
-    error_messages.append("I'm sorry, Dave, I'm affraid I can't do that")
-    logging.error("Startup of Podping status: I'm sorry, Dave, I'm affraid I can't do that.")
-    exit_message = ' - '.join(error_messages)
-    if not USE_TEST_NODE:
-        raise SystemExit(exit_message)
+            if not success:
+                error_messages.append(error_message)
+            logging.info('Testing Account Resource Credits.... 5s')
+            time.sleep(2)
+            manabar_after = acc.get_rc_manabar()
+            logging.info(f'Testing Account Resource Credits - after {manabar_after.get("current_pct"):.2f}%')
+            cost = manabar.get('current_mana') - manabar_after.get('current_mana')
+            capacity = manabar_after.get('current_mana') / cost
+            logging.info(f'Capacity for further podpings : {capacity:.1f}')
+            custom_json['capacity'] = f'{capacity:.1f}'
+            custom_json['message'] = 'Podping startup complete'
+            error_message , success = send_notification(custom_json, 'podping-startup')
+            if not success:
+                error_messages.append(error_message)
+
+        except Exception as ex:
+            error_messages.append(f'{ex} occurred {ex.__class__}')
+            logging.error(error_messages[-1])
 
 
-logging.info("Startup of Podping status: SUCCESS! Hit the BOOST Button.")
+    if error_messages:
+        error_messages.append("I'm sorry, Dave, I'm affraid I can't do that")
+        logging.error("Startup of Podping status: I'm sorry, Dave, I'm affraid I can't do that.")
+        exit_message = ' - '.join(error_messages)
+        if (not USE_TEST_NODE) or ignore_errors:
+            raise SystemExit(exit_message)
 
-# ---------------------------------------------------------------
-# END OF STARTUP SEQUENCE RUNNING IN GLOBAL SCOPE
-# ---------------------------------------------------------------
+    logging.info("Startup of Podping status: SUCCESS! Hit the BOOST Button.")
+    return True
 
-# context = zmq.Context()
-# socket = context.socket(zmq.REP)
-# socket.bind("tcp://*:5555")
+    # ---------------------------------------------------------------
+    # END OF STARTUP SEQUENCE
+    # ---------------------------------------------------------------
+
+
 
 
 # def url_in(url):
@@ -275,24 +316,34 @@ def failure_retry(url, failure_count = 0):
         return answer, failure_count
 
 
+def main() -> None:
+    """ Main man what counts... """
+    startup_sequence()
+    if myArgs['socket']:
+        HOST, PORT = "localhost", myArgs['socket']
+        # Create the server, binding to localhost on port 9999
+        server = socketserver.TCPServer((HOST, PORT), MyTCPHandler)
+
+        # Activate the server; this will keep running until you
+        # interrupt the program with Ctrl-C
+        server.serve_forever()
+    elif myArgs['zmq']:
+        context = zmq.Context()
+        socket = context.socket(zmq.REP)
+        socket.bind(f"tcp://*:{myArgs['zmq']}")
+        failure_count = 0
+        while True :
+            #  Wait for next request from client
+            url = socket.recv().decode('utf-8')
+            answer, failure_count = failure_retry(url)
+            ans = json.dumps(answer, indent=2)
+            socket.send(ans.encode('utf-8'))
+    else:
+        logging.error("You've got to specify --socket or --zmq otherwise I can't listen!")
+
+
+
 
 if __name__ == "__main__":
-    HOST, PORT = "localhost", 9999
-
-    # Create the server, binding to localhost on port 9999
-    server = socketserver.TCPServer((HOST, PORT), MyTCPHandler)
-
-    # Activate the server; this will keep running until you
-    # interrupt the program with Ctrl-C
-    server.serve_forever()
-
-
-
-
-    # failure_count = 0
-    # while True :
-    #     #  Wait for next request from client
-    #     url = socket.recv().decode('utf-8')
-    #     answer, failure_count = failure_retry(url)
-    #     ans = json.dumps(answer, indent=2)
-    #     socket.send(ans.encode('utf-8'))
+    """ Hit it! """
+    main()
