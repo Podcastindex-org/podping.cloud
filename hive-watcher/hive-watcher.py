@@ -1,18 +1,17 @@
+import argparse
 import json
 import logging
-import argparse
 import os
 from datetime import datetime, timedelta
 from re import escape
-from socket import socket, AF_INET, SOCK_STREAM
+from socket import AF_INET, SOCK_STREAM, socket
 from time import sleep
 
-from beem import Hive
-from beem import nodelist
-from beem.nodelist import NodeList
+from beem import Hive, nodelist
 from beem.account import Account
-from beem.blockchain import Blockchain
 from beem.block import Block
+from beem.blockchain import Blockchain
+from beem.nodelist import NodeList
 
 USE_TEST_NODE = os.getenv("USE_TEST_NODE", 'False').lower() in ('true', '1', 't')
 WATCHED_OPERATION_IDS = ['podping','hive-hydra']
