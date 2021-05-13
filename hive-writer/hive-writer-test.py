@@ -69,7 +69,7 @@ def old_data(start_line=0):
             message = socket.recv_json()
             print('Time taken: ' + str(time.perf_counter() - start) )
             print("Received reply: " + json.dumps(message,indent=2))
-            time.sleep(0)
+            time.sleep(60)
             line = f.readline()
             line_num +=1
             print(line_num)
