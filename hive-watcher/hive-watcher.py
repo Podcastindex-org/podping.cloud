@@ -72,6 +72,10 @@ my_parser.add_argument('-s', '--socket',
                        default= None,
                        help='<IP-Address>:<port> Socket to send each new url to')
 
+my_parser.add_argument('-t', '--test',
+                       action='store_true', required=False,
+                       help="Use a test net API")
+
 group = my_parser.add_mutually_exclusive_group()
 group.add_argument('-q', '--quiet', action='store_true', help='Minimal output')
 group.add_argument('-v', '--verbose', action='store_true', help='Lots of output')
@@ -290,6 +294,11 @@ if myArgs['socket']:
 
 def main() -> None:
     """ Main file """
+    global hive
+    global USE_TEST_NODE
+    if myArgs['test']:
+        USE_TEST_NODE = True
+        hive = Hive(node=TEST_NODE)
 
     """ do we want periodic reports? """
     if myArgs['reports'] == 0:

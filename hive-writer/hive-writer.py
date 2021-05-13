@@ -321,7 +321,6 @@ def main() -> None:
     startup_sequence()
     if myArgs['socket']:
         HOST, PORT = "localhost", myArgs['socket']
-
         # Create the server, binding to localhost on port 9999
         server = socketserver.TCPServer((HOST, PORT), MyTCPHandler)
 
