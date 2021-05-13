@@ -1,10 +1,8 @@
 [package]
 name = "podping"
-version = "0.1.0"
+version = "0.1.4"
 authors = ["Dave Jones"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 futures = { version = "0.3.6", default-features = false, features = ["async-await"] }
@@ -17,3 +15,4 @@ bytes = "0.5"
 async-trait = "0.1"
 url = "2.2.1"
 rusqlite = "0.25.1"
+zmq = "0.9"
