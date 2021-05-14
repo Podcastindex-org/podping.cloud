@@ -9,83 +9,35 @@ use std::sync::Arc;
 use hyper::server::conn::AddrStream;
 use std::thread;
 use std::time;
-//use std::net::{TcpStream, Shutdown};
-//use std::time::Duration;
 
+
+//Globals ----------------------------------------------------------------------------------------------------
+const ZMQ_SOCKET_ADDR: &str = "tcp://127.0.0.1:5555";
 mod handler;
 mod router;
-
 type Response = hyper::Response<hyper::Body>;
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
+
+//Structs ----------------------------------------------------------------------------------------------------
 #[derive(Clone, Debug)]
 pub struct AppState {
     pub state_thing: String,
     pub remote_ip: String
 }
 
-const ZMQ_SOCKET_ADDR: &str = "tcp://127.0.0.1:5555";
+#[derive(Debug)]
+pub struct Context {
+    pub state: AppState,
+    pub req: Request<Body>,
+    pub params: Params,
+    body_bytes: Option<hyper::body::Bytes>,
+}
 
+
+//Functions --------------------------------------------------------------------------------------------------
 #[tokio::main]
 async fn main() {
-
-    //Plain socket version
-    // thread::spawn(move || {
-    //     // let mut stream: TcpStream;
-    //     // loop {
-    //     //     let newstream = TcpStream::connect("localhost:9999");
-    //     //     if newstream.is_err() {
-    //     //         eprintln!("Failed to connect to hive-writer socket");
-    //     //     } else {
-    //     //         stream = newstream.unwrap();
-    //     //         break;
-    //     //     }    
-    //     //     thread::sleep(time::Duration::from_secs(1));
-    //     // }
-
-    //     loop {
-    //         thread::sleep(time::Duration::from_secs(3));
-    //         println!("Start tickcheck...");            
-    //         let pinglist = handler::get_pings_from_queue();
-    //         match pinglist {
-    //             Ok(pings) => {
-    //                 println!("  Flushing the queue...");
-    //                 if pings.len() > 0 {
-    //                     println!("  Found {} feeds...", pings.len());
-    //                 }
-    //                 for ping in pings {
-    //                     //Attempt to write the url to hive
-    //                     // match handler::hive_notify(&mut stream, ping.url.as_str()) {
-    //                     match handler::hive_notify(ping.url.as_str()) {
-    //                         Ok(result) => {
-    //                             println!("  {}", result);
-    //                             //If the write was successful, remove this url from the queue
-    //                             match handler::delete_ping_from_queue(ping.url.clone()) {
-    //                                 Ok(_) => {
-    //                                     println!("  Removed {} from the queue.", ping.url.clone());
-    //                                 },
-    //                                 Err(_) => {
-    //                                     eprintln!("  Failed to remove {} from the queue.", ping.url.clone());                                            
-    //                                 }
-    //                             }
-    //                         },
-    //                         Err(e) => {
-    //                             eprintln!("  {}", e);
-    //                             break;
-    //                         }
-    //                     }
-
-    //                     //Back off a bit
-    //                     thread::sleep(time::Duration::from_secs(1));
-    //                 }
-    //             },
-    //             Err(_) => {
-    //                 println!("  Queue is empty.");
-    //             }
-    //         }
-    //         println!("  End tickcheck...");            
-    //     }
-    // });
     
     //ZMQ socket version
     let control_thread = thread::spawn(move || {
@@ -212,14 +164,6 @@ async fn route(
         .invoke(Context::new(app_state, req, found_handler.params))
         .await;
     Ok(resp)
-}
-
-#[derive(Debug)]
-pub struct Context {
-    pub state: AppState,
-    pub req: Request<Body>,
-    pub params: Params,
-    body_bytes: Option<hyper::body::Bytes>,
 }
 
 impl Context {
