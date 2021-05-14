@@ -7,9 +7,8 @@ use std::fmt;
 use std::net::{TcpStream};
 use std::io::{Write};
 use std::time::{SystemTime};
-//use std::time::Duration;
 use std::io::{BufRead, BufReader};
-//use async_std::io;
+
 
 //Globals ----------------------------------------------------------------------------------------------------
 const SQLITE_FILE_AUTH: &str = "auth.db";
@@ -46,8 +45,6 @@ pub async fn ping(ctx: Context) -> Response {
     };
 
     //println!("{:#?}", ctx);
-
-    //TODO: Need user-agent logging
 
     //Get query parameters
     let params: HashMap<String, String> = ctx.req.uri().query().map(|v| {
@@ -147,8 +144,6 @@ pub async fn ping(ctx: Context) -> Response {
                       .unwrap()
                 }
             }
-
-            //TODO: Perhaps do a HEAD check on the url here to check for problems like 404, 500
 
             //Queue the ping
             let ping_in = Ping {
@@ -293,63 +288,3 @@ pub fn hive_notify(url: &str) -> Result<String, Box<dyn Error>> {
         }
     }
 }
-
-// //Calls the hive-writer agent socket, sending a URL string and returns Ok if it worked, or an Error
-// pub fn hive_notify(stream: &mut TcpStream, url: &str) -> Result<String, Box<dyn Error>> {
-//     print!("  Writing: [{}] to Hive...", url);
-
-//     //stream.set_write_timeout(Some(Duration::new(10, 0)))?;
-//     match stream.write(url.as_bytes()) {
-//         Ok(_result) => {
-//             // stream.set_read_timeout(Some(Duration::new(2, 0)))?;
-//             // let mut reader = BufReader::new(stream);
-
-//             // let mut line = String::new();
-//             // let len = reader.read_line(&mut line)?;
-//             // //stream.shutdown(Shutdown::Both);
-//             // println!("Socket read: [{}]", line);
-//             // if len == 2 {
-//             //     //println!("Socket read: [{}]", line);
-//             //     return Ok("OK".to_string());
-//             // }
-//             // return Err(Box::new(HydraError(format!("Hive-writer returned an error.").into())));
-//             return Ok("OK".to_string());
-//         },
-//         Err(e) => {
-//             return Err(Box::new(HydraError(format!("Failed to write to hive-writer socket: {}", e).into())));
-//         }
-//     }
-
-// }
-
-// //Calls the hive-writer zmq socket, sending a URL string and returns Ok if it worked, or an Error
-// pub fn hive_notify(context: zmq::Context, url: &str) -> Result<String, Box<dyn Error>> {
-//     println!("Writing: [{}] to Hive...", url);
-
-//     let requester = context.socket(zmq::REQ).unwrap();  
-
-//     if let e = requester.connect(ZMQ_SOCKET_ADDR).is_err() {
-//         return Err(Box::new(HydraError(format!("Failed to connect to hive-write agent: {}", e).into())));
-//     }
-
-//     let url = url.as_bytes();
-//     requester.send(url, 0).unwrap();
-//     let message = requester.recv_msg(0).unwrap();
-//     println!(
-//         "Received reply {:#?} {:#?}",
-//         url,
-//         message.as_str().unwrap()
-//     );
-
-//     return Ok("OK".to_string());
-
-//     // match TcpStream::connect("localhost:9999") {
-//     //     Ok(mut stream) => {
-//     //         stream.write(url.as_bytes()).unwrap();
-//     //         Ok("OK".to_string())
-//     //     },
-//     //     Err(e) => {
-//     //         return Err(Box::new(HydraError(format!("Failed to connect to hive-write agent: {}", e).into())));
-//     //     }
-//     // }
-// }

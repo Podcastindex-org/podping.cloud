@@ -337,6 +337,7 @@ def main() -> None:
             url = socket.recv().decode('utf-8')
             answer, failure_count = failure_retry(url)
             ans = json.dumps(answer, indent=2)
+            ans = "OK"
             socket.send(ans.encode('utf-8'))
     else:
         logging.error("You've got to specify --socket or --zmq otherwise I can't listen!")
