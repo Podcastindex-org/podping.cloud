@@ -13,8 +13,8 @@ context = zmq.Context()
 
 # Socket to talk to server
 print("Connecting to hello world server…")
-socket = context.socket(zmq.REQ)
-socket.connect("tcp://localhost:9999")
+zsocket = context.socket(zmq.REQ)
+zsocket.connect("tcp://localhost:9999")
 
 def old_socket():
 
@@ -43,9 +43,9 @@ def loop_test():
     for request in range(2):
         print(f"Sending request {request} …")
         data = f"https://www.brianoflondon.me/podcast2/brians-forest-talks-exp.xml?q={request}"
-        socket.send(data.encode())
+        zsocket.send(data.encode())
         #  Get the reply.
-        message = socket.recv()
+        message = zsocket.recv()
         print("Received reply %s [ %s ]" % (request, message))
 
 
@@ -65,8 +65,8 @@ def old_data(start_line=0):
             data = line.split(' - ')
             url = data[5].rstrip()
             start = time.perf_counter()
-            socket.send(url.encode())
-            message = socket.recv_json()
+            zsocket.send(url.encode())
+            message = zsocket.recv_json()
             print('Time taken: ' + str(time.perf_counter() - start) )
             print("Received reply: " + json.dumps(message,indent=2))
             time.sleep(60)
@@ -79,4 +79,4 @@ def old_data(start_line=0):
 if __name__ == "__main__":
     old_data(720)
     # loop_test()
-    old_socket()
+    # old_socket()
