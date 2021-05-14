@@ -1,0 +1,10 @@
+[package]
+name = "stresser"
+version = "0.1.0"
+authors = ["Dave Jones"]
+edition = "2018"
+
+[dependencies]
+tokio = { version = "1.5", features = ["full"] }
+reqwest = { version = "0.11.3" }
+futures = "0.3"
