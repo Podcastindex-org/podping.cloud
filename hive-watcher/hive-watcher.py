@@ -134,9 +134,9 @@ def output_status(timestamp, pings, count_posts, time_to_now='', current_block_n
     if (not myArgs.get('reports')) and myArgs.get('quiet'):
         return None
     if time_to_now:
-        logging.info(f'{timestamp} Podpings: {pings:4,} / {total_pings:7,} - Count: {count_posts} - BlockNum: {current_block_num} - Time Delta: {time_to_now}')
+        logging.info(f'{timestamp} - Podpings: {pings:4,} / {total_pings:7,} - Count: {count_posts} - BlockNum: {current_block_num} - Time Delta: {time_to_now}')
     else:
-        logging.info(f'{timestamp} Podpings: {pings:4,} / {total_pings:7,} - Count: {count_posts} - BlockNum: {current_block_num}')
+        logging.info(f'{timestamp} - Podpings: {pings:4,} / {total_pings:7,} - Count: {count_posts} - BlockNum: {current_block_num}')
 
 
 def output_to_socket(post, clientSocket) -> None:
