@@ -368,9 +368,10 @@ def main() -> None:
             url_list = []
             start = time.perf_counter()
             if q_size < hive_q.qsize():
-                num_url_limit += 1
+                num_url_limit += num_url_limit // 2
             elif num_url_limit > 20:
-                num_url_limit -= 1
+                num_url_limit -= num_url_limit // 2
+                if num_url_limit < 20: num_url_limit = 20
 
             while (time.perf_counter() - start < 5) and (len(url_list) < num_url_limit ):
                 #  Wait for next request from client
