@@ -80,7 +80,7 @@ def old_data(start_line=0):
                 line_num +=1
                 print(line_num)
                 burst += 1
-            time.sleep(123+randint(1,10))
+            time.sleep(240+randint(1,10))
 
 
 

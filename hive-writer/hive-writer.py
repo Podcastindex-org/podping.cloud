@@ -21,7 +21,7 @@ from beemgraphenebase.types import Bool
 USE_TEST_NODE = os.getenv("USE_TEST_NODE", 'False').lower() in ('true', '1', 't')
 TEST_NODE = ['http://testnet.openhive.network:8091']
 CURRENT_PODPING_VERSION = "0.2"
-NOTIFICATION_REASON = ['feed_update','new_feed','host_change']
+NOTIFICATION_REASONS = ['feed_update','new_feed','host_change']
 
 # This is a global signal to shut down until RC's recover
 # Stores the RC cost of each operation to calculate an average
@@ -232,7 +232,7 @@ def send_notification(data, operation_id ='podping'):
         custom_json = {
             "version" : CURRENT_PODPING_VERSION,
             "num_urls" : num_urls,
-            "type" : NOTIFICATION_TYPE[0],
+            "reason" : NOTIFICATION_REASONS[0],
             "urls" : data
         }
     elif type(data) == str:
@@ -240,7 +240,7 @@ def send_notification(data, operation_id ='podping'):
         custom_json = {
             "version" : CURRENT_PODPING_VERSION,
             "num_urls" : 1,
-            "reason" : NOTIFICATION_REASON[0],
+            "reason" : NOTIFICATION_REASONS[0],
             "url" : data
         }
     elif type(data) == dict:
