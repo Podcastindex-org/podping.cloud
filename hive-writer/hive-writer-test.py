@@ -2,6 +2,7 @@
 #----- A simple TCP client program in Python using send() function -----
 
 # Changed the range number for how many times you want to hit the server
+from random import randint, random
 import socket
 import time
 import json
@@ -13,8 +14,8 @@ context = zmq.Context()
 
 # Socket to talk to server
 print("Connecting to hello world server…")
-socket = context.socket(zmq.REQ)
-socket.connect("tcp://localhost:9999")
+zsocket = context.socket(zmq.REQ)
+zsocket.connect("tcp://localhost:9999")
 
 def old_socket():
 
@@ -43,9 +44,9 @@ def loop_test():
     for request in range(2):
         print(f"Sending request {request} …")
         data = f"https://www.brianoflondon.me/podcast2/brians-forest-talks-exp.xml?q={request}"
-        socket.send(data.encode())
+        zsocket.send(data.encode())
         #  Get the reply.
-        message = socket.recv()
+        message = zsocket.recv()
         print("Received reply %s [ %s ]" % (request, message))
 
 
@@ -62,21 +63,28 @@ def old_data(start_line=0):
             start_line -= 1
             line_num +=1
         while line:
-            data = line.split(' - ')
-            url = data[5].rstrip()
-            start = time.perf_counter()
-            socket.send(url.encode())
-            message = socket.recv_json()
-            print('Time taken: ' + str(time.perf_counter() - start) )
-            print("Received reply: " + json.dumps(message,indent=2))
-            time.sleep(60)
-            line = f.readline()
-            line_num +=1
-            print(line_num)
+            burst = 0
+            max_send = randint(0,20) + 2
+            while burst < max_send:
+                data = line.split(' - ')
+                url = data[5].rstrip()
+                start = time.perf_counter()
+                zsocket.send(url.encode())
+                # message = zsocket.recv_json() DAVE changed response to ERR or OK plain text
+                message = zsocket.recv().decode()
+                print('Time taken: ' + str(time.perf_counter() - start) )
+                # print("Received reply: " + json.dumps(message,indent=2))
+                print(f"Received Reply: {message}")
+                # time.sleep(random()/5)
+                line = f.readline()
+                line_num +=1
+                print(line_num)
+                burst += 1
+            time.sleep(240+randint(1,10))
 
 
 
 if __name__ == "__main__":
-    old_data(720)
+    old_data(1)
     # loop_test()
-    old_socket()
+    # old_socket()
