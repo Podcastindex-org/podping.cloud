@@ -25,31 +25,44 @@ function handlePost(post) {
     if (operation.id !== 'podping')
         return;
 
-    let postJson = JSON.parse(operation.json)
-
-    let postingAuths = new Set(operation.required_posting_auths)
-
     // check if valid user
+    let postingAuths = new Set(operation.required_posting_auths)
     let accounts = new Set(validAccounts)
     let intersect = new Set()
     for (let x of accounts) {
         if (postingAuths.has(x))
             intersect.add(x);
     }
+    // if accounts don't overlap, skip post
     if (intersect.size === 0)
         return;
+
+    let postJson = JSON.parse(operation.json)
+
+    // only accept feed update types
+    let updateType = postJson.type
+    // old posts didn't include an update type so still accept them
+    if (updateType !== undefined && updateType !== "feed_update")
+        return;
+
+    let urls = postJson["urls"]
+    if (urls === undefined) {
+        urls = [postJson["url"]]
+    }
 
     let block = post.block
     let timestamp = post.timestamp
     let trx_id = post.trx_id
 
-    const message = `Feed updated - ${timestamp} - ${block} - ${trx_id} - ${postJson["url"]}`;
-    console.log(message)
-
     const list = document.getElementById("posts");
-    const item = document.createElement("li");
-    item.appendChild(document.createTextNode(message))
-    list.appendChild(item)
+    for (let url of urls) {
+        const message = `Feed updated - ${timestamp} - ${block} - ${trx_id} - ${url}`;
+        console.log(message)
+
+        const item = document.createElement("li");
+        item.appendChild(document.createTextNode(message))
+        list.appendChild(item)
+    }
 }
 
 client.database.call('get_following', [validAccounts[0], null, 'blog', 10])
