@@ -117,17 +117,29 @@ def allowed_op_id(operation_id):
         return False
 
 
-def output(post) -> None:
+def output(post) -> int:
     """ Prints out the post and extracts the custom_json """
-    if myArgs.get('quiet'):
-        return None
+
     data = json.loads(post.get('json'))
+    if myArgs.get('quiet'):
+        if data.get('num_urls'):
+            return data.get('num_urls')
+        else:
+            return 1
     data['required_posting_auths'] = post.get('required_posting_auths')
     data['trx_id'] = post.get('trx_id')
     data['timestamp'] = post.get('timestamp')
+
+    count = 0
     if USE_TEST_NODE:
         data['test_node'] = True
-    logging.info('Feed Updated - ' + str(data.get('timestamp')) + ' - ' + data.get('trx_id') + ' - ' + data.get('url'))
+    if data.get('url'):
+        logging.info('Feed Updated - ' + str(data.get('timestamp')) + ' - ' + data.get('trx_id') + ' - ' + data.get('url'))
+    elif data.get('urls'):
+        for url in data.get('urls'):
+            count += 1
+            logging.info('Feed Updated - ' + str(data.get('timestamp')) + ' - ' + data.get('trx_id') + ' - ' + url )
+    return count
 
 def output_status(timestamp, pings, count_posts, time_to_now='', current_block_num='') -> None:
     """ Writes out a status update at with some count data """
@@ -255,9 +267,9 @@ def scan_history(param= None, report_freq = None, reports = True):
 
         if allowed_op_id(post['id']):
             if (set(post['required_posting_auths']) & set(allowed_accounts)):
-                output(post)
-                pings += 1
-                total_pings += 1
+                count = output(post)
+                pings += count
+                total_pings += count
 
         if time_to_now < timedelta(seconds=2):
             timestamp = str(post['timestamp'])

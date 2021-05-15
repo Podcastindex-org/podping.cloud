@@ -1,3 +1,4 @@
+from datetime import timedelta
 import json
 import logging
 import os
@@ -19,6 +20,7 @@ from beemgraphenebase.types import Bool
 # BOL: Switching off TestNet, we should test on Hive for now.
 USE_TEST_NODE = os.getenv("USE_TEST_NODE", 'False').lower() in ('true', '1', 't')
 TEST_NODE = ['http://testnet.openhive.network:8091']
+CURRENT_PODPING_VERSION = "0.2"
 
 # This is a global signal to shut down until RC's recover
 # Stores the RC cost of each operation to calculate an average
@@ -68,113 +70,15 @@ args = my_parser.parse_args()
 myArgs = vars(args)
 
 # ---------------------------------------------------------------
-# BASIC SOCKETS
-# ---------------------------------------------------------------
-class MyTCPHandler(socketserver.BaseRequestHandler):
-    """
-    The RequestHandler class for our server.
-
-    It is instantiated once per connection to the server, and must
-    override the handle() method to implement communication to the
-    client.
-    """
-
-    def handle(self):
-        # self.request is the TCP socket connected to the client
-        self.data = self.request.recv(1024).strip()
-        url = self.data.decode("utf-8")
-        logging.info("Received from {}: {}".format(self.client_address[0], url))
-        trx_id, success = url_in(url)
-        if not success:
-            logging.error(f"Result: {trx_id}")
-        if success:
-            self.request.sendall("OK".encode("utf-8"))
-        else:
-            self.request.sendall("ERR".encode("utf-8"))
-
-def url_in(url):
-    """ Send a URL and I'll post it to Hive """
-    custom_json = {'url': url}
-    trx_id , success = send_notification(custom_json)
-    return trx_id, success
-
-
-def get_allowed_accounts(acc_name='podping') -> bool:
-    """ get a list of all accounts allowed to post by acc_name (podping)
-        and only react to these accounts """
-    # Ignores test node.
-    h = Hive(node='https://api.hive.blog')
-    master_account = Account(acc_name, blockchain_instance=h, lazy=True)
-    allowed = master_account.get_following()
-    return allowed
-
-
-def send_notification(custom_json, operation_id ='podping'):
-    """ Sends a custom_json to Hive
-        Expects two env variables, Hive account name and posting key
-        HIVE_SERVER_ACCOUNT
-        HIVE_POSTING_KEY
-        """
-    try:
-        # Artifically create errors <-----------------------------------
-        if operation_id == 'podping' and myArgs['errors']:
-            r = randint(1,100)
-            if r <= myArgs['errors']:
-                raise Exception(f'Infinite Improbability Error level of {r}% : Threshold set at {myArgs["errors"]}%')
-        tx = hive.custom_json(id=operation_id, json_data= custom_json,
-                            required_posting_auths=[server_account])
-        trx_id = tx['trx_id']
-
-        logging.info(f'Transaction sent: {trx_id}')
-        return trx_id, True
-
-    except MissingKeyError:
-        error_message = f'The provided key for @{server_account} is not valid'
-        logging.error(error_message)
-        return error_message, False
-    except UnhandledRPCError:
-        error_message = f'Most likely resource credit depletion'
-        logging.error(error_message)
-        HALT_THE_QUEUE = True
-        trx_id = error_message
-        return trx_id, False
-
-    except Exception as ex:
-        error_message = f'{ex} occurred {ex.__class__}'
-        logging.error(error_message)
-        trx_id = error_message
-        return trx_id, False
-
-#Adding a Queue system to the Hive send_notification section
-
-# hive_q = queue.Queue()
-
-# def send_notification_worker():
-#     """ Opens and watches a queue and sends notifications to Hive one by one """
-#     while True:
-#         items = hive_q.get()
-#         func = items[0]
-#         args = items[1:]
-#         start = time.perf_counter()
-#         trx_id, success = func(*args)
-#         # Limit the rate to 1 post every 2 seconds, this will mostly avoid
-#         # multiple updates in a single Hive block.
-#         duration = time.perf_counter() - start
-#         if duration < 2.0:
-#             time.sleep(2.0-duration)
-#         hive_q.task_done()
-#         logging.info(f'Task time: {duration:0.2f} - Queue size: ' + str(hive_q.qsize()))
-#         logging.info(f'Finished a task: {trx_id} - {success}')
-
-
-# ---------------------------------------------------------------
 # START OF STARTUP SEQUENCE
 # ---------------------------------------------------------------
 # GLOBAL:
 server_account = os.getenv('HIVE_SERVER_ACCOUNT')
 wif = [os.getenv('HIVE_POSTING_KEY')]
 
-# threading.Thread(target=send_notification_worker, daemon=True).start()
+# Adding a Queue system to the Hive send_notification section
+hive_q = queue.Queue()
+
 def startup_sequence(ignore_errors= False) -> bool:
     """ Run though a startup sequence connect to Hive and check env variables
         Exit with error unless ignore_errors passed as True """
@@ -242,6 +146,7 @@ def startup_sequence(ignore_errors= False) -> bool:
             cost = manabar.get('current_mana') - manabar_after.get('current_mana')
             capacity = manabar_after.get('current_mana') / cost
             logging.info(f'Capacity for further podpings : {capacity:.1f}')
+            custom_json['version'] = CURRENT_PODPING_VERSION
             custom_json['capacity'] = f'{capacity:.1f}'
             custom_json['message'] = 'Podping startup complete'
             error_message , success = send_notification(custom_json, 'podping-startup')
@@ -270,6 +175,128 @@ def startup_sequence(ignore_errors= False) -> bool:
 
 
 
+
+
+# ---------------------------------------------------------------
+# BASIC SOCKETS
+# ---------------------------------------------------------------
+class MyTCPHandler(socketserver.BaseRequestHandler):
+    """
+    The RequestHandler class for our server.
+
+    It is instantiated once per connection to the server, and must
+    override the handle() method to implement communication to the
+    client.
+    """
+
+    def handle(self):
+        # self.request is the TCP socket connected to the client
+        self.data = self.request.recv(1024).strip()
+        url = self.data.decode("utf-8")
+        logging.info("Received from {}: {}".format(self.client_address[0], url))
+        trx_id, success = url_in(url)
+        if not success:
+            logging.error(f"Result: {trx_id}")
+        if success:
+            self.request.sendall("OK".encode("utf-8"))
+        else:
+            self.request.sendall("ERR".encode("utf-8"))
+
+def url_in(url):
+    """ Send a URL and I'll post it to Hive """
+    custom_json = {'url': url}
+    trx_id , success = send_notification(custom_json)
+    return trx_id, success
+
+
+def get_allowed_accounts(acc_name='podping') -> bool:
+    """ get a list of all accounts allowed to post by acc_name (podping)
+        and only react to these accounts """
+    # Ignores test node.
+    h = Hive(node='https://api.hive.blog')
+    master_account = Account(acc_name, blockchain_instance=h, lazy=True)
+    allowed = master_account.get_following()
+    return allowed
+
+
+def send_notification(data, operation_id ='podping'):
+    """ Sends a custom_json to Hive
+        Expects two env variables, Hive account name and posting key
+        HIVE_SERVER_ACCOUNT
+        HIVE_POSTING_KEY
+        """
+    num_urls = 0
+    if type(data) == list:
+        num_urls = len(data)
+        custom_json = {
+            "version" : CURRENT_PODPING_VERSION,
+            "num_urls" : num_urls,
+            "urls" : data
+        }
+    elif type(data) == str:
+        num_urls = 1
+        custom_json = {
+            "version" : CURRENT_PODPING_VERSION,
+            "num_urls" : 1,
+            "url" : data
+        }
+    elif type(data) == dict:
+        custom_json = data
+    else:
+        logging.error(f'Unknown data type: {data}')
+
+    try:
+        # Artifically create errors <-----------------------------------
+        if operation_id == 'podping' and myArgs['errors']:
+            r = randint(1,100)
+            if r <= myArgs['errors']:
+                raise Exception(f'Infinite Improbability Error level of {r}% : Threshold set at {myArgs["errors"]}%')
+        tx = hive.custom_json(id=operation_id, json_data= custom_json,
+                            required_posting_auths=[server_account])
+        trx_id = tx['trx_id']
+
+        logging.info(f'Transaction sent: {trx_id} - Num urls: {num_urls}')
+        return trx_id, True
+
+    except MissingKeyError:
+        error_message = f'The provided key for @{server_account} is not valid'
+        logging.error(error_message)
+        return error_message, False
+    except UnhandledRPCError:
+        error_message = f'Most likely resource credit depletion'
+        logging.error(error_message)
+        HALT_THE_QUEUE = True
+        trx_id = error_message
+        return trx_id, False
+
+    except Exception as ex:
+        error_message = f'{ex} occurred {ex.__class__}'
+        logging.error(error_message)
+        trx_id = error_message
+        return trx_id, False
+
+
+
+def send_notification_worker():
+    """ Opens and watches a queue and sends notifications to Hive one by one """
+    while True:
+        items = hive_q.get()
+        func = items[0]
+        args = items[1:]
+        start = time.perf_counter()
+        trx_id, success = func(*args)
+        # Limit the rate to 1 post every 2 seconds, this will mostly avoid
+        # multiple updates in a single Hive block.
+        duration = time.perf_counter() - start
+        # if duration < 2.0:
+        #     time.sleep(2.0-duration)
+        hive_q.task_done()
+        logging.info(f'Task time: {duration:0.2f} - Queue size: ' + str(hive_q.qsize()))
+        logging.info(f'Finished a task: {trx_id["trx_id"]} - {success}')
+
+
+
+
 # def url_in(url):
 #     """ Send a URL and I'll post it to Hive """
 #     custom_json = {'url': url}
@@ -278,21 +305,20 @@ def startup_sequence(ignore_errors= False) -> bool:
 # Global used for tracking the number of failures we get in recursive retry
 peak_fail_count = 0
 
-def failure_retry(url, failure_count = 0):
+def failure_retry(url_list, failure_count = 0):
     """ Recursion... see recursion """
     global peak_fail_count
     if failure_count > 0:
         logging.error(f"Waiting {HALT_TIME[failure_count]}")
         time.sleep(HALT_TIME[failure_count])
-        logging.info(f"RETRYING url: {url}")
+        logging.info(f"RETRYING num_urls: {len(url_list)}")
     else:
-        logging.info(f"Received url: {url}")
+        logging.info(f"Received num_urls: {len(url_list)}")
 
-    custom_json = {'url': url}
-    trx_id, success = send_notification(custom_json)
+    trx_id, success = send_notification(url_list)
     #  Send reply back to client
     answer ={
-        'url':url,
+        'url':url_list,
         'trx_id':trx_id
     }
     if success:
@@ -311,10 +337,13 @@ def failure_retry(url, failure_count = 0):
             error_message = f"I'm sorry Dave, I'm affraid I can't do that. Too many tries {failure_count}"
             logging.error(error_message)
             raise SystemExit(error_message)
-        answer, failure_count = failure_retry(url, failure_count)
+        answer, failure_count = failure_retry(url_list, failure_count)
         # Walk back up the recursion tree:
         return answer, failure_count
 
+
+# Adding a Queue system to the Hive send_notification section
+threading.Thread(target=send_notification_worker, daemon=True).start()
 
 def main() -> None:
     """ Main man what counts... """
@@ -332,13 +361,25 @@ def main() -> None:
         socket = context.socket(zmq.REP)
         socket.bind(f"tcp://*:{myArgs['zmq']}")
         failure_count = 0
+        q_size = hive_q.qsize()
+        num_url_limit = 20
+        url_list = []
         while True :
-            #  Wait for next request from client
-            url = socket.recv().decode('utf-8')
-            answer, failure_count = failure_retry(url)
-            ans = json.dumps(answer, indent=2)
-            ans = "OK"
-            socket.send(ans.encode('utf-8'))
+            url_list = []
+            start = time.perf_counter()
+            if q_size < hive_q.qsize():
+                num_url_limit += 1
+            elif num_url_limit > 20:
+                num_url_limit -= 1
+
+            while (time.perf_counter() - start < 5) and (len(url_list) < num_url_limit ):
+                #  Wait for next request from client
+                url = socket.recv().decode('utf-8')
+                url_list.append(url)
+                ans = "OK"
+                socket.send(ans.encode('utf-8'))
+            hive_q.put( ( failure_retry, url_list) )
+
     else:
         logging.error("You've got to specify --socket or --zmq otherwise I can't listen!")
 

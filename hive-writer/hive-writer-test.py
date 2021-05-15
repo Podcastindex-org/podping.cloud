@@ -2,6 +2,7 @@
 #----- A simple TCP client program in Python using send() function -----
 
 # Changed the range number for how many times you want to hit the server
+from random import random
 import socket
 import time
 import json
@@ -66,10 +67,12 @@ def old_data(start_line=0):
             url = data[5].rstrip()
             start = time.perf_counter()
             zsocket.send(url.encode())
-            message = zsocket.recv_json()
+            # message = zsocket.recv_json() DAVE changed response to ERR or OK plain text
+            message = zsocket.recv().decode()
             print('Time taken: ' + str(time.perf_counter() - start) )
-            print("Received reply: " + json.dumps(message,indent=2))
-            time.sleep(60)
+            # print("Received reply: " + json.dumps(message,indent=2))
+            print(f"Received Reply: {message}")
+            time.sleep(random()/100)
             line = f.readline()
             line_num +=1
             print(line_num)
@@ -77,6 +80,6 @@ def old_data(start_line=0):
 
 
 if __name__ == "__main__":
-    old_data(720)
+    old_data(1)
     # loop_test()
     # old_socket()
