@@ -135,6 +135,7 @@ def output(post) -> int:
         data['test_node'] = True
     if data.get('url'):
         logging.info('Feed Updated - ' + str(data.get('timestamp')) + ' - ' + data.get('trx_id') + ' - ' + data.get('url'))
+        count = 1
     elif data.get('urls'):
         for url in data.get('urls'):
             count += 1
