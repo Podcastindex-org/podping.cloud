@@ -26,6 +26,7 @@ NOTIFICATION_REASONS = ['feed_update','new_feed','host_change']
 # This is a global signal to shut down until RC's recover
 # Stores the RC cost of each operation to calculate an average
 HALT_THE_QUEUE = False
+# HALT_TIME = [1,2,3]
 HALT_TIME = [0,3,9,12,30,60,120]
 
 
@@ -335,7 +336,7 @@ def failure_retry(url_list, failure_count = 0):
         failure_count += 1
         peak_fail_count += 1
         answer['message'] = 'failure - server will retry'
-        if failure_count > len(HALT_TIME):
+        if failure_count >= len(HALT_TIME):
             # Give up.
             error_message = f"I'm sorry Dave, I'm affraid I can't do that. Too many tries {failure_count}"
             logging.error(error_message)
