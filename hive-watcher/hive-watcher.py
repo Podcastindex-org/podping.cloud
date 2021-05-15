@@ -146,9 +146,9 @@ def output_status(timestamp, pings, count_posts, time_to_now='', current_block_n
     if (not myArgs.get('reports')) and myArgs.get('quiet'):
         return None
     if time_to_now:
-        logging.info(f'{timestamp} - Podpings: {pings:4,} / {total_pings:7,} - Count: {count_posts} - BlockNum: {current_block_num} - Time Delta: {time_to_now}')
+        logging.info(f'{timestamp} - Podpings: {pings:7,} / {total_pings:10,} - Count: {count_posts} - BlockNum: {current_block_num} - Time Delta: {time_to_now}')
     else:
-        logging.info(f'{timestamp} - Podpings: {pings:4,} / {total_pings:7,} - Count: {count_posts} - BlockNum: {current_block_num}')
+        logging.info(f'{timestamp} - Podpings: {pings:7,} / {total_pings:10,} - Count: {count_posts} - BlockNum: {current_block_num}')
 
 
 def output_to_socket(post, clientSocket) -> None:
@@ -204,11 +204,11 @@ def scan_live(report_freq = None, reports = True):
 
         if allowed_op_id(post['id']):
             if  (set(post['required_posting_auths']) & set(allowed_accounts)):
-                output(post)
+                count = output(post)
                 if myArgs['socket']:
                     output_to_socket(post, clientSocket)
-                pings += 1
-                total_pings += 1
+                pings += count
+                total_pings += count
 
         if time_dif > timedelta(hours=1):
             # Refetch the allowed_accounts every hour in case we add one.
