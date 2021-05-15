@@ -1844,3 +1844,75 @@
 2021-05-14 07:05:57,486 - INFO root MainThread : -  2021-05-14 07:05:54+00:00 - Podpings:   52 /  41,563 - Count: 2597 - BlockNum: 53875725
 2021-05-14 07:11:00,060 - INFO root MainThread : -  2021-05-14 07:10:57+00:00 - Podpings:   32 /  41,595 - Count: 2500 - BlockNum: 53875825
 2021-05-14 07:16:02,282 - INFO root MainThread : -  2021-05-14 07:16:00+00:00 - Podpings:   29 /  41,624 - Count: 2581 - BlockNum: 53875926
+2021-05-14 07:21:05,262 - INFO root MainThread : -  2021-05-14 07:21:03+00:00 - Podpings:   22 /  41,646 - Count: 2559 - BlockNum: 53876027
+2021-05-14 07:26:07,859 - INFO root MainThread : -  2021-05-14 07:26:06+00:00 - Podpings:   14 /  41,660 - Count: 2560 - BlockNum: 53876128
+2021-05-14 07:31:12,056 - INFO root MainThread : -  2021-05-14 07:31:09+00:00 - Podpings:   15 /  41,675 - Count: 2474 - BlockNum: 53876230
+2021-05-14 07:36:16,770 - INFO root MainThread : -  2021-05-14 07:36:12+00:00 - Podpings:   17 /  41,692 - Count: 2367 - BlockNum: 53876331
+2021-05-14 07:41:16,557 - INFO root MainThread : -  2021-05-14 07:41:15+00:00 - Podpings:   44 /  41,736 - Count: 2439 - BlockNum: 53876431
+2021-05-14 07:46:20,983 - INFO root MainThread : -  2021-05-14 07:46:18+00:00 - Podpings:   18 /  41,754 - Count: 2410 - BlockNum: 53876532
+2021-05-14 07:51:25,001 - INFO root MainThread : -  2021-05-14 07:51:21+00:00 - Podpings:   18 /  41,772 - Count: 2344 - BlockNum: 53876634
+2021-05-14 07:56:26,220 - INFO root MainThread : -  2021-05-14 07:56:24+00:00 - Podpings:   19 /  41,791 - Count: 2292 - BlockNum: 53876734
+2021-05-14 07:58:15,269 - WARNING beemapi.node MainThread : -  Error: Request Timeout
+2021-05-14 07:58:15,269 - WARNING beemapi.node MainThread : -  Retry RPC Call on node: https://api.hive.blog (1/5) 
+
+2021-05-14 07:58:15,269 - WARNING beemapi.node MainThread : -  Retrying in 0 seconds
+
+2021-05-14 08:01:28,315 - INFO root MainThread : -  2021-05-14 08:01:27+00:00 - Podpings:   36 /  41,827 - Count: 2576 - BlockNum: 53876835
+2021-05-14 08:06:33,418 - INFO root MainThread : -  2021-05-14 08:06:30+00:00 - Podpings:   23 /  41,850 - Count: 2487 - BlockNum: 53876935
+2021-05-14 08:11:36,787 - INFO root MainThread : -  2021-05-14 08:11:33+00:00 - Podpings:   14 /  41,864 - Count: 2299 - BlockNum: 53877036
+2021-05-14 08:16:38,691 - INFO root MainThread : -  2021-05-14 08:16:36+00:00 - Podpings:   18 /  41,882 - Count: 2542 - BlockNum: 53877137
+2021-05-14 08:21:41,288 - INFO root MainThread : -  2021-05-14 08:21:39+00:00 - Podpings:   13 /  41,895 - Count: 2258 - BlockNum: 53877238
+2021-05-14 08:26:45,426 - INFO root MainThread : -  2021-05-14 08:26:42+00:00 - Podpings:   18 /  41,913 - Count: 2289 - BlockNum: 53877340
+2021-05-14 08:31:47,646 - INFO root MainThread : -  2021-05-14 08:31:45+00:00 - Podpings:   23 /  41,936 - Count: 2424 - BlockNum: 53877439
+2021-05-14 08:36:52,151 - INFO root MainThread : -  2021-05-14 08:36:48+00:00 - Podpings:   10 /  41,946 - Count: 2257 - BlockNum: 53877541
+2021-05-14 08:41:54,954 - INFO root MainThread : -  2021-05-14 08:41:51+00:00 - Podpings:   18 /  41,964 - Count: 2364 - BlockNum: 53877641
+2021-05-14 08:46:55,279 - INFO root MainThread : -  2021-05-14 08:46:54+00:00 - Podpings:   20 /  41,984 - Count: 2242 - BlockNum: 53877742
+2021-05-14 08:51:58,834 - INFO root MainThread : -  2021-05-14 08:51:57+00:00 - Podpings:    8 /  41,992 - Count: 2253 - BlockNum: 53877843
+2021-05-14 08:57:01,164 - INFO root MainThread : -  2021-05-14 08:57:00+00:00 - Podpings:   20 /  42,012 - Count: 2231 - BlockNum: 53877944
+2021-05-14 09:02:06,529 - INFO root MainThread : -  2021-05-14 09:02:03+00:00 - Podpings:   56 /  42,068 - Count: 2578 - BlockNum: 53878046
+2021-05-14 09:07:09,076 - INFO root MainThread : -  2021-05-14 09:07:06+00:00 - Podpings:   39 /  42,107 - Count: 2540 - BlockNum: 53878146
+2021-05-14 09:12:10,996 - INFO root MainThread : -  2021-05-14 09:12:09+00:00 - Podpings:   28 /  42,135 - Count: 2408 - BlockNum: 53878247
+2021-05-14 09:17:13,388 - INFO root MainThread : -  2021-05-14 09:17:12+00:00 - Podpings:   15 /  42,150 - Count: 2421 - BlockNum: 53878348
+2021-05-14 09:22:18,982 - INFO root MainThread : -  2021-05-14 09:22:15+00:00 - Podpings:   24 /  42,174 - Count: 2358 - BlockNum: 53878450
+2021-05-14 09:27:21,064 - INFO root MainThread : -  2021-05-14 09:27:18+00:00 - Podpings:   16 /  42,190 - Count: 2265 - BlockNum: 53878550
+2021-05-14 09:32:23,525 - INFO root MainThread : -  2021-05-14 09:32:21+00:00 - Podpings:   21 /  42,211 - Count: 2265 - BlockNum: 53878651
+2021-05-14 09:37:25,753 - INFO root MainThread : -  2021-05-14 09:37:24+00:00 - Podpings:   19 /  42,230 - Count: 2204 - BlockNum: 53878752
+2021-05-14 09:42:29,723 - INFO root MainThread : -  2021-05-14 09:42:27+00:00 - Podpings:   12 /  42,242 - Count: 2158 - BlockNum: 53878853
+2021-05-14 09:47:31,946 - INFO root MainThread : -  2021-05-14 09:47:30+00:00 - Podpings:   24 /  42,266 - Count: 2112 - BlockNum: 53878954
+2021-05-14 09:52:34,539 - INFO root MainThread : -  2021-05-14 09:52:33+00:00 - Podpings:   21 /  42,287 - Count: 2186 - BlockNum: 53879055
+2021-05-14 09:57:39,847 - INFO root MainThread : -  2021-05-14 09:57:36+00:00 - Podpings:   22 /  42,309 - Count: 2246 - BlockNum: 53879156
+2021-05-14 10:02:43,233 - INFO root MainThread : -  2021-05-14 10:02:39+00:00 - Podpings:   64 /  42,373 - Count: 2489 - BlockNum: 53879258
+2021-05-14 10:07:43,710 - INFO root MainThread : -  2021-05-14 10:07:42+00:00 - Podpings:   26 /  42,399 - Count: 2519 - BlockNum: 53879358
+2021-05-14 10:12:47,607 - INFO root MainThread : -  2021-05-14 10:12:45+00:00 - Podpings:   23 /  42,422 - Count: 2327 - BlockNum: 53879459
+2021-05-14 10:17:50,432 - INFO root MainThread : -  2021-05-14 10:17:48+00:00 - Podpings:   27 /  42,449 - Count: 2439 - BlockNum: 53879560
+2021-05-14 10:22:53,359 - INFO root MainThread : -  2021-05-14 10:22:51+00:00 - Podpings:   23 /  42,472 - Count: 2362 - BlockNum: 53879661
+2021-05-14 10:27:55,605 - INFO root MainThread : -  2021-05-14 10:27:54+00:00 - Podpings:   28 /  42,500 - Count: 2250 - BlockNum: 53879762
+2021-05-14 10:33:01,425 - INFO root MainThread : -  2021-05-14 10:32:57+00:00 - Podpings:   20 /  42,520 - Count: 2212 - BlockNum: 53879864
+2021-05-14 10:38:03,506 - INFO root MainThread : -  2021-05-14 10:38:00+00:00 - Podpings:   30 /  42,550 - Count: 2353 - BlockNum: 53879963
+2021-05-14 10:43:06,742 - INFO root MainThread : -  2021-05-14 10:43:03+00:00 - Podpings:   22 /  42,572 - Count: 2384 - BlockNum: 53880064
+2021-05-14 10:48:08,899 - INFO root MainThread : -  2021-05-14 10:48:06+00:00 - Podpings:   22 /  42,594 - Count: 2431 - BlockNum: 53880163
+2021-05-14 10:53:11,743 - INFO root MainThread : -  2021-05-14 10:53:09+00:00 - Podpings:   19 /  42,613 - Count: 2390 - BlockNum: 53880264
+2021-05-14 10:58:14,196 - INFO root MainThread : -  2021-05-14 10:58:12+00:00 - Podpings:   21 /  42,634 - Count: 2317 - BlockNum: 53880365
+2021-05-14 11:03:17,118 - INFO root MainThread : -  2021-05-14 11:03:15+00:00 - Podpings:   57 /  42,691 - Count: 2492 - BlockNum: 53880466
+2021-05-14 11:08:22,489 - INFO root MainThread : -  2021-05-14 11:08:18+00:00 - Podpings:   19 /  42,710 - Count: 2596 - BlockNum: 53880568
+2021-05-14 11:13:22,670 - INFO root MainThread : -  2021-05-14 11:13:21+00:00 - Podpings:   23 /  42,733 - Count: 2382 - BlockNum: 53880668
+2021-05-14 11:18:28,061 - INFO root MainThread : -  2021-05-14 11:18:24+00:00 - Podpings:   22 /  42,755 - Count: 2300 - BlockNum: 53880770
+2021-05-14 11:23:30,260 - INFO root MainThread : -  2021-05-14 11:23:27+00:00 - Podpings:   20 /  42,775 - Count: 2463 - BlockNum: 53880870
+2021-05-14 11:28:32,984 - INFO root MainThread : -  2021-05-14 11:28:30+00:00 - Podpings:   27 /  42,802 - Count: 2647 - BlockNum: 53880971
+2021-05-14 11:33:36,620 - INFO root MainThread : -  2021-05-14 11:33:33+00:00 - Podpings:   25 /  42,827 - Count: 2547 - BlockNum: 53881072
+2021-05-14 11:38:39,905 - INFO root MainThread : -  2021-05-14 11:38:36+00:00 - Podpings:   33 /  42,860 - Count: 2607 - BlockNum: 53881173
+2021-05-14 11:43:42,291 - INFO root MainThread : -  2021-05-14 11:43:39+00:00 - Podpings:   21 /  42,881 - Count: 2597 - BlockNum: 53881274
+2021-05-14 11:48:45,526 - INFO root MainThread : -  2021-05-14 11:48:42+00:00 - Podpings:   18 /  42,899 - Count: 2580 - BlockNum: 53881375
+2021-05-14 11:53:48,476 - INFO root MainThread : -  2021-05-14 11:53:45+00:00 - Podpings:   18 /  42,917 - Count: 2557 - BlockNum: 53881476
+Traceback (most recent call last):
+  File "hive-watcher.py", line 330, in <module>
+    main()
+  File "hive-watcher.py", line 324, in main
+    scan_live(myArgs['reports'],reports)
+  File "hive-watcher.py", line 181, in scan_live
+    for post in stream:
+  File "/home/bol/python/podping.cloud/venv/lib/python3.7/site-packages/beem/blockchain.py", line 721, in stream
+    for block in self.blocks(**kwargs):
+  File "/home/bol/python/podping.cloud/venv/lib/python3.7/site-packages/beem/blockchain.py", line 572, in blocks
+    time.sleep(self.block_interval)
+KeyboardInterrupt
