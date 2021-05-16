@@ -22,6 +22,8 @@ USE_TEST_NODE = os.getenv("USE_TEST_NODE", 'False').lower() in ('true', '1', 't'
 TEST_NODE = ['http://testnet.openhive.network:8091']
 CURRENT_PODPING_VERSION = "0.2"
 NOTIFICATION_REASONS = ['feed_update','new_feed','host_change']
+HIVE_OPERPATION_PERIOD = 3  # 1 Hive operation per this period in
+MAX_URL_PER_CUSTOM_JSON = 130 # total json size must be below 8192 bytes
 
 # This is a global signal to shut down until RC's recover
 # Stores the RC cost of each operation to calculate an average
@@ -255,19 +257,22 @@ def send_notification(data, operation_id ='podping'):
             r = randint(1,100)
             if r <= myArgs['errors']:
                 raise Exception(f'Infinite Improbability Error level of {r}% : Threshold set at {myArgs["errors"]}%')
+
+        # Assert Exception:o.json.length() <= HIVE_CUSTOM_OP_DATA_MAX_LENGTH: Operation JSON must be less than 8192 bytes.
+        size_of_json = len(json.dumps(custom_json))
         tx = hive.custom_json(id=operation_id, json_data= custom_json,
                             required_posting_auths=[server_account])
         trx_id = tx['trx_id']
 
-        logging.info(f'Transaction sent: {trx_id} - Num urls: {num_urls}')
+        logging.info(f'Transaction sent: {trx_id} - Num urls: {num_urls} - Json size: {size_of_json}')
         return trx_id, True
 
     except MissingKeyError:
-        error_message = f'The provided key for @{server_account} is not valid'
+        error_message = f'The provided key for @{server_account} is not valid '
         logging.error(error_message)
         return error_message, False
-    except UnhandledRPCError:
-        error_message = f'Most likely resource credit depletion'
+    except UnhandledRPCError as ex:
+        error_message = f'{ex} occurred: {ex.__class__}'
         logging.error(error_message)
         HALT_THE_QUEUE = True
         trx_id = error_message
@@ -366,18 +371,12 @@ def main() -> None:
         socket.bind(f"tcp://*:{myArgs['zmq']}")
         failure_count = 0
         q_size = hive_q.qsize()
-        num_url_limit = 20
+        num_url_limit = MAX_URL_PER_CUSTOM_JSON
         url_list = []
         while True :
             url_list = []
             start = time.perf_counter()
-            if q_size < hive_q.qsize():
-                num_url_limit += num_url_limit // 2
-            elif num_url_limit > 20:
-                num_url_limit -= num_url_limit // 2
-                if num_url_limit < 20: num_url_limit = 20
-
-            while (time.perf_counter() - start < 5) and (len(url_list) < num_url_limit ):
+            while (time.perf_counter() - start < HIVE_OPERPATION_PERIOD) and (len(url_list) < num_url_limit ):
                 #  Wait for next request from client
                 url = socket.recv().decode('utf-8')
                 url_list.append(url)

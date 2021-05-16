@@ -2,7 +2,7 @@
 #----- A simple TCP client program in Python using send() function -----
 
 # Changed the range number for how many times you want to hit the server
-from random import randint, random
+from random import randint, random, choice
 import socket
 import time
 import json
@@ -58,13 +58,12 @@ def old_data(start_line=0):
     urls = []
     line_num = 0
     with open('/Users/gbishko/Documents/Python-iMac/PodcastIndex/podping.cloud/hive-writer/24hours.log') as f:
-        while start_line > 0:
+        while line_num <= start_line:
             line = f.readline()
-            start_line -= 1
             line_num +=1
         while line:
             burst = 0
-            max_send = randint(0,20) + 2
+            max_send = 500 # randint(200,220) + choice([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1001,202])
             while burst < max_send:
                 data = line.split(' - ')
                 url = data[5].rstrip()
@@ -80,11 +79,11 @@ def old_data(start_line=0):
                 line_num +=1
                 print(line_num)
                 burst += 1
-            time.sleep(240+randint(1,10))
+            # time.sleep(randint(0,10))
 
 
 
 if __name__ == "__main__":
-    old_data(1)
+    old_data(0)
     # loop_test()
     # old_socket()
