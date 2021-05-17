@@ -66,7 +66,7 @@ pub async fn ping(ctx: Context) -> Response {
     //Give a landing page if no parameters were given
     if params.len() == 0 {
         return hyper::Response::builder()
-        .status(StatusCode::BAD_REQUEST)
+        .status(StatusCode::OK)
         .body(format!("{}", HTML_LANDING_PAGE).into())
         .unwrap();
     }
@@ -175,6 +175,84 @@ pub async fn ping(ctx: Context) -> Response {
         }
     };
 
+}
+
+pub async fn publishers(ctx: Context) -> Response {
+    //println!("{:#?}", ctx);
+
+    //Get query parameters
+    let params: HashMap<String, String> = ctx.req.uri().query().map(|v| {
+        url::form_urlencoded::parse(v.as_bytes()).into_owned().collect()
+    }).unwrap_or_else(HashMap::new);
+
+    //println!("{:#?}", params);
+
+    //Get the real IP of the connecting client
+    match ctx.req.headers().get("cf-connecting-ip") {
+        Some(remote_ip) => {
+            println!("\nREQUEST[CloudFlare] - /publishers: {}", remote_ip.to_str().unwrap()); 
+        },
+        None => {
+            println!("\nREQUEST - /publishers: {}", ctx.state.remote_ip);
+        }
+    }
+
+    //Check the user-agent
+    match ctx.req.headers().get("user-agent") {
+        Some(ua_string) => {
+            println!("  User-Agent: {}", ua_string.to_str().unwrap()); 
+        },
+        None => {
+            return hyper::Response::builder()
+              .status(StatusCode::UNAUTHORIZED)
+              .body(format!("User-Agent header is required").into())
+              .unwrap()
+        }
+    }
+
+    //Give back a page with a plain list of publishers
+    let publist = get_publishers();
+    match publist {
+        Ok(publist) => {
+            let mut htmlpage: String = String::new();
+            for publisher in publist {
+                htmlpage.push_str(publisher.name.as_str());
+                htmlpage.push_str("\n");
+            }
+            return hyper::Response::builder()
+            .status(StatusCode::OK)
+            .body(format!("{}", htmlpage).into())
+            .unwrap()
+        },
+        Err(e) => {
+            eprintln!("Error getting publisher list: {}", e);
+            return hyper::Response::builder()
+              .status(StatusCode::NO_CONTENT)
+              .body(format!("Error getting publishers list.").into())
+              .unwrap()
+        }
+    }
+}
+
+//Returns a vector of Publisher structs from the auth db or an Error
+pub fn get_publishers() -> Result<Vec<Publisher>, Box<dyn Error>> {
+    let conn = Connection::open(SQLITE_FILE_AUTH)?;
+    let mut pubs: Vec<Publisher> = Vec::new();
+
+    let mut stmt = conn.prepare("SELECT name FROM publishers ORDER BY rowid ASC")?;
+    let rows = stmt.query_map([], |row| {
+        Ok(Publisher {
+            name: row.get(0)?
+        })
+    }).unwrap();
+
+    for pubrow in rows {
+        let publisher: Publisher = pubrow.unwrap();
+        //println!("  {:#?}", ping.url);
+        pubs.push(publisher);
+    }
+
+    Ok(pubs)
 }
 
 //Returns a vector of Ping structs from the queue or an Error

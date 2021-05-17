@@ -39,6 +39,10 @@ pub struct Context {
 #[tokio::main]
 async fn main() {
     
+    //TODO: Allow command line args to give a single publisher auth token which will override the "auth.db" check
+    //and just use that one each time.  This would be for single use inside a publisher where there would be no
+    //other publishers using the system.  This param could be passed to docker with an env
+
     //ZMQ socket version
     let control_thread = thread::spawn(move || {
         let mut context = zmq::Context::new();
@@ -51,10 +55,10 @@ async fn main() {
             eprintln!("  Failed to connect to the hive-writer socket.");
         }
 
-        //Spawn a queue checker threader.  Every 3 seconds, get all the pings from the Queue and attempt to write them 
+        //Spawn a queue checker threader.  Every 2 seconds, get all the pings from the Queue and attempt to write them 
         //to the socket that the Hive-writer should be listening on
         loop {
-            thread::sleep(time::Duration::from_secs(3));
+            thread::sleep(time::Duration::from_secs(2));
 
             println!("Start tickcheck...");            
 
@@ -109,7 +113,9 @@ async fn main() {
                             }
                         }
 
-                        println!("Done with socket.");
+                        println!("  Done sending and receiving.");
+                        println!("  Sleeping...");
+                        thread::sleep(time::Duration::from_secs(1));
                     }
                 },
                 Err(e) => {
@@ -122,7 +128,7 @@ async fn main() {
             eprintln!("Timer thread exiting.");
         }
 
-        println!("Queue checker thread exited.");
+        //println!("Queue checker thread exited.");
     });
 
  
@@ -131,6 +137,7 @@ async fn main() {
 
     let mut router: Router = Router::new();
     router.get("/", Box::new(handler::ping));
+    router.get("/publishers", Box::new(handler::publishers));
 
     let shared_router = Arc::new(router);
     let new_service = make_service_fn(move |conn: &AddrStream| {
