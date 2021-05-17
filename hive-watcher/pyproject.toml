@@ -10,7 +10,16 @@ python = "^3.7"
 beem = "^0.24.21"
 
 [tool.poetry.dev-dependencies]
+black = "^21.5b1"
+isort = "^5.8.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+target-version = ['py37', 'py38', 'py39']
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
