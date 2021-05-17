@@ -63,8 +63,8 @@ def old_data(start_line=0):
             line_num +=1
         while line:
             burst = 0
-            max_send = 500 # randint(200,220) + choice([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1001,202])
-            while burst < max_send:
+            max_send = randint(2,10) + choice([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,20,30])
+            while burst < max_send and line:
                 data = line.split(' - ')
                 url = data[5].rstrip()
                 start = time.perf_counter()
@@ -79,11 +79,12 @@ def old_data(start_line=0):
                 line_num +=1
                 print(line_num)
                 burst += 1
-            # time.sleep(randint(0,10))
+            time.sleep(randint(4,10))
 
 
 
 if __name__ == "__main__":
-    old_data(0)
+    for _ in range (5):
+        old_data(0)
     # loop_test()
     # old_socket()
