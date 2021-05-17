@@ -3,11 +3,10 @@ import json
 import logging
 import os
 from datetime import datetime, timedelta
-from re import escape
 from socket import AF_INET, SOCK_STREAM, socket
-from time import sleep
+from typing import Set
 
-from beem import Hive, nodelist
+from beem import Hive
 from beem.account import Account
 from beem.block import Block
 from beem.blockchain import Blockchain
@@ -80,7 +79,7 @@ group = my_parser.add_mutually_exclusive_group()
 group.add_argument('-q', '--quiet', action='store_true', help='Minimal output')
 group.add_argument('-v', '--verbose', action='store_true', help='Lots of output')
 
-def get_allowed_accounts(acc_name='podping') -> bool:
+def get_allowed_accounts(acc_name='podping') -> Set[Account]:
     """ get a list of all accounts allowed to post by acc_name (podping)
         and only react to these accounts """
 
@@ -92,22 +91,8 @@ def get_allowed_accounts(acc_name='podping') -> bool:
     h = Hive(node='https://api.hive.blog')
 
     master_account = Account(acc_name, blockchain_instance=h, lazy=True)
-    allowed = master_account.get_following()
-    return allowed
 
-    # Depreciated OLD method which was silly. Will remove later
-    if USE_TEST_NODE:
-        return ['learn-to-code','hive-hydra','hivehydra','flyingboy','blocktvnews']
-
-    hiveaccount = Account(acc_name, blockchain_instance=hive, lazy=True)
-    try:
-        allowed = hiveaccount['posting']['account_auths']
-        allowed = [x for (x,_) in allowed]
-
-    except Exception as ex:
-        allowed = []
-
-    return allowed
+    return set(master_account.get_following())
 
 def allowed_op_id(operation_id):
     """ Checks if the operation_id is in the allowed list """
@@ -175,6 +160,7 @@ def scan_live(report_freq = None, reports = True):
     global total_pings
     if type(report_freq) == int:
         report_freq = timedelta(minutes=report_freq)
+
     allowed_accounts = get_allowed_accounts()
 
     blockchain = Blockchain(mode="head", blockchain_instance=hive)
@@ -204,7 +190,7 @@ def scan_live(report_freq = None, reports = True):
                 pings = 0
 
         if allowed_op_id(post['id']):
-            if  (set(post['required_posting_auths']) & set(allowed_accounts)):
+            if set(post['required_posting_auths']) & allowed_accounts:
                 count = output(post)
                 if myArgs['socket']:
                     output_to_socket(post, clientSocket)
@@ -267,7 +253,7 @@ def scan_history(param= None, report_freq = None, reports = True):
                 pings = 0
 
         if allowed_op_id(post['id']):
-            if (set(post['required_posting_auths']) & set(allowed_accounts)):
+            if set(post['required_posting_auths']) & allowed_accounts:
                 count = output(post)
                 pings += count
                 total_pings += count
