@@ -11,7 +11,7 @@ There are two main components of a podping.cloud node.  The first is a web HTTP 
 GET https://podping.cloud/?url=https://feeds.example.org/podcast/rss
 ```
 
-The next component is `hive-writer` - a python script that listens on localhost port `9999` for incoming urls terminated by a newline character.  When it receives one, it attemps to write it as a custom JSON notification message to the Hive blockchain.
+The next component is `hive-writer` - a python script that listens on localhost port `5555` for incoming urls terminated by a newline character.  When it receives one, it attemps to write it as a custom JSON notification message to the Hive blockchain.
 
 <br>
 
@@ -27,7 +27,7 @@ The front-end accepts this request and does a few things:
 A separate thread runs in a loop every 3 seconds as a queue checker and does the following:
 
 1. Checks the `queue.db` database fetches 10 feeds at a time in FIFO order.
-2. Opens a tcp socket to the `hive-writer` listener on port `9999`.
+2. Opens a ZEROMQ tcp socket to the `hive-writer` listener on port `5555`.
 3. Sends the url string to `hive-writer` socket for processing and waits for "OK" to be returned.
 4. If "OK" is returned from the hive writer python script, the url is removed from `queue.db`.
 5. If "ERR" is returned or an exception is raised, another attempt is made on the next cycle.
@@ -40,6 +40,13 @@ There is a dummy auth token in the `auth.db` that is ready to use for testing.  
 
 ```text
 Blahblah^^12345678
+```
+
+In order to avoid running as a root user, please set the `PODPING_RUNAS_USER` environment variable to the non-root user you want the
+front-end executable to run as.  Something like this:
+
+```bash
+PODPING_RUNAS_USER="podping" ./target/release/podping
 ```
 
 <br>
