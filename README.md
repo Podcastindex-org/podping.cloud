@@ -148,6 +148,8 @@ The watcher script is how you see which podcast feed urls have signaled an updat
 
 The python script `hive-watcher.py` is more full featured - allowing for socket listening, and other options.
 
+<br>
+
 ### Simple Watcher (simple-watcher.py)
 
 This is the easiest way to get started watching the blockchain for feed updates.  Simply do the following:
@@ -163,6 +165,7 @@ Each time a feed update notification is detected on the blockchain, the full url
 You can watch this output as a way to signal your system to re-parse a podcast feed.  Or you can use it as a starting template to 
 develop a more customized script for your environment.  It's dead simple!
 
+<br>
 
 ## Running a Node
 
