@@ -11,7 +11,7 @@ use futures::stream::StreamExt;
 
 const AUTH_HEADER_TOKEN: &str = "Blahblah^^12345678";
 const PODPING_URL: &str = "http://localhost/?url=";
-const MAX_CONCURRENT: usize = 8;
+const MAX_CONCURRENT: usize = 20;
 
 
 fn read_lines(path: &str) -> std::io::Result<Vec<String>> {

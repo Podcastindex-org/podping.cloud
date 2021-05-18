@@ -9,7 +9,8 @@ use std::sync::Arc;
 use hyper::server::conn::AddrStream;
 use std::thread;
 use std::time;
-
+use std::env;
+use drop_root::set_user_group;
 
 //Globals ----------------------------------------------------------------------------------------------------
 const ZMQ_SOCKET_ADDR: &str = "tcp://127.0.0.1:5555";
@@ -39,22 +40,29 @@ pub struct Context {
 #[tokio::main]
 async fn main() {
     
+    //TODO: Allow command line args to give a single publisher auth token which will override the "auth.db" check
+    //and just use that one each time.  This would be for single use inside a publisher where there would be no
+    //other publishers using the system.  This param could be passed to docker with an env
+
+
     //ZMQ socket version
-    let control_thread = thread::spawn(move || {
-        let mut context = zmq::Context::new();
+    thread::spawn(move || {
+        let context = zmq::Context::new();
         let mut requester = context.socket(zmq::REQ).unwrap(); 
 
         //Set up and connect the socket
         //requester.set_rcvtimeo(500);
-        requester.set_linger(0);
+        if requester.set_linger(0).is_err() {
+            eprintln!("  Failed to set zmq to zero linger.");
+        }
         if requester.connect(ZMQ_SOCKET_ADDR).is_err() {
             eprintln!("  Failed to connect to the hive-writer socket.");
         }
 
-        //Spawn a queue checker threader.  Every 3 seconds, get all the pings from the Queue and attempt to write them 
+        //Spawn a queue checker threader.  Every 2 seconds, get all the pings from the Queue and attempt to write them 
         //to the socket that the Hive-writer should be listening on
         loop {
-            thread::sleep(time::Duration::from_secs(3));
+            thread::sleep(time::Duration::from_secs(2));
 
             println!("Start tickcheck...");            
 
@@ -98,10 +106,14 @@ async fn main() {
                             },
                             Err(e) => {                            
                                 eprintln!("  {}", e);                                    
-                                requester.disconnect(ZMQ_SOCKET_ADDR);
+                                if requester.disconnect(ZMQ_SOCKET_ADDR).is_err() {
+                                    eprintln!("  Failed to disconnect zmq socket.");
+                                }
                                 requester = context.socket(zmq::REQ).unwrap(); 
                                 //requester.set_rcvtimeo(500);
-                                requester.set_linger(0);
+                                if requester.set_linger(0).is_err() {
+                                    eprintln!("  Failed to set zmq to zero linger.");
+                                }
                                 if requester.connect(ZMQ_SOCKET_ADDR).is_err() {
                                     eprintln!("  Failed to re-connect to the hive-writer socket.");
                                 }
@@ -109,7 +121,9 @@ async fn main() {
                             }
                         }
 
-                        println!("Done with socket.");
+                        println!("  Done sending and receiving.");
+                        println!("  Sleeping...");
+                        thread::sleep(time::Duration::from_secs(1));
                     }
                 },
                 Err(e) => {
@@ -122,7 +136,7 @@ async fn main() {
             eprintln!("Timer thread exiting.");
         }
 
-        println!("Queue checker thread exited.");
+        //println!("Queue checker thread exited.");
     });
 
  
@@ -131,6 +145,7 @@ async fn main() {
 
     let mut router: Router = Router::new();
     router.get("/", Box::new(handler::ping));
+    router.get("/publishers", Box::new(handler::publishers));
 
     let shared_router = Arc::new(router);
     let new_service = make_service_fn(move |conn: &AddrStream| {
@@ -150,6 +165,25 @@ async fn main() {
     let addr = "0.0.0.0:80".parse().expect("address creation works");
     let server = Server::bind(&addr).serve(new_service);
     println!("Listening on http://{}", addr);
+
+    //If a "run as" user is set in the "PODPING_RUN_AS" environment variable, then switch to that user
+    //and drop root privileges after we've bound to the low range socket
+    match env::var("PODPING_RUNAS_USER") {
+        Ok(runas_user) => {
+            match set_user_group(runas_user.as_str(), "nogroup") {
+                Ok(_) => {
+                    println!("RunAs: {}", runas_user.as_str());
+                },
+                Err(e) => {
+                    eprintln!("RunAs Error: {} - Check that your PODPING_RUNAS_USER env var is set correctly.", e); 
+                }
+            }
+        },
+        Err(_) => {
+            eprintln!("ALERT: Use the PODPING_RUNAS_USER env var to avoid running as root.");
+        }
+    }
+
     let _ = server.await;
 }
 
