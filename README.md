@@ -142,7 +142,29 @@ The write operation usually takes about 0.8s. At present ```hive-writer``` is no
 
 <br>
 
-## Running
+## Blockchain Watcher (hive-watcher.py)
+
+The watcher script is how you see which podcast feed urls have signaled an update.  
+
+The python script `hive-watcher.py` is more full featured - allowing for socket listening, and other options.
+
+### Simple Watcher (simple-watcher.py)
+
+This is the easiest way to get started watching the blockchain for feed updates.  Simply do the following:
+
+1. Clone this repo.
+2. Switch to the `hive-watcher` sub-directory.
+3. Make sure python3 and pip3 are installed.
+4. Run `pip3 install beem`.
+5. Launch the watcher script like this: `python3 ./simple-watcher.py`
+
+Each time a feed update notification is detected on the blockchain, the full url of the feed is printed to STDOUT on a new line.
+
+You can watch this output as a way to signal your system to re-parse a podcast feed.  Or you can use it as a starting template to 
+develop a more customized script for your environment.  It's dead simple!
+
+
+## Running a Node
 
 First clone this repo.
 
