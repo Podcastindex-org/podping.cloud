@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # simple-watcher.py
 #
 # Simple version of Hive Podping watcher - no options, just runs
@@ -8,6 +9,7 @@
 
 from typing import Set
 import json
+import os
 
 import beem
 from beem.account import Account
@@ -33,7 +35,27 @@ def allowed_op_id(operation_id) -> bool:
         return True
     else:
         return False
-
+def write_to_error_log(lines):
+    # logging errors should never throw errors so:
+    try:
+        log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),"logs")
+        # Verify the log paths exist and create them if they don't
+        if not os.path.exists(log_dir):
+            os.path.mkdir(log_dir)
+        log_path = os.path.join(
+            log_dir,"errors-" + \
+            os.path.splitext(os.path.basename(os.path.abspath(__file__)))[0] + \
+            ".log"
+        )
+        if not os.path.exists(log_path):
+            open(log_path, 'w').close()
+        # Open for appending and write to log
+        f = open(log_path, "a")
+        f.write(lines)
+        f.close()
+    finally:
+        log_path = ''
+        log_dir = ''
 
 def main():
     """ Outputs URLs one by one as they appear on the Hive Podping stream """
@@ -50,17 +72,19 @@ def main():
     )
 
     for post in stream:
-        # Filter only on post ID from the list above.
-        if allowed_op_id(post["id"]):
-            # Filter by the accounts we have authorised to podping
-            if set(post["required_posting_auths"]) & allowed_accounts:
-                data = json.loads(post.get("json"))
-                if data.get("url"):
-                    print(data.date("url"))
-                elif data.get("urls"):
-                    for url in data.get("urls"):
-                        print(url)
-
+        try:
+             # Filter only on post ID from the list above.
+             if allowed_op_id(post["id"]):
+                 # Filter by the accounts we have authorised to podping
+                 if set(post["required_posting_auths"]) & allowed_accounts:
+                     data = json.loads(post.get("json"))
+                     if data.get("url"):
+                         print(data.date("url"))
+                     elif data.get("urls"):
+                         for url in data.get("urls"):
+                             print(url)
+        except: # catch *all* errors
+            write_to_error_log(sys.exc_info()[0])
 
 if __name__ == "__main__":
     # Runs until terminated with Ctrl-C
