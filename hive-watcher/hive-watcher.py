@@ -411,6 +411,9 @@ def main() -> None:
         "t",
     }
 
+    if my_args['test']:
+        use_test_node = True
+
     if use_test_node:
         hive = beem.Hive(node=TEST_NODE[0])
     else:
