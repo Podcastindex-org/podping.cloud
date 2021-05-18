@@ -44,6 +44,7 @@ def main():
     # class:beem.blockchain.Blockchain with mode="head",
     # otherwise, the call will wait until confirmed in an irreversible block.
     # noinspection PyTypeChecker
+    # Filter only for "custom_json" operations on Hive.
     stream = blockchain.stream(
         opNames=["custom_json"], raw_ops=False, threading=False, thread_num=4
     )
