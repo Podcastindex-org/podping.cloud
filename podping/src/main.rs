@@ -59,11 +59,12 @@ async fn main() {
             eprintln!("  Failed to connect to the hive-writer socket.");
         }
 
-        //Spawn a queue checker threader.  Every 2 seconds, get all the pings from the Queue and attempt to write them 
+        //Spawn a queue checker threader.  Every X seconds, get all the pings from the Queue and attempt to write them 
         //to the socket that the Hive-writer should be listening on
         loop {
-            thread::sleep(time::Duration::from_secs(2));
+            thread::sleep(time::Duration::from_secs(20));
 
+            println!("\n");
             println!("Start tickcheck...");            
 
             //Get the most recent X number of pings from the queue database
@@ -123,7 +124,7 @@ async fn main() {
 
                         println!("  Done sending and receiving.");
                         println!("  Sleeping...");
-                        thread::sleep(time::Duration::from_secs(1));
+                        thread::sleep(time::Duration::from_millis(300));
                     }
                 },
                 Err(e) => {
@@ -133,7 +134,7 @@ async fn main() {
 
             println!("  End tickcheck...");
 
-            eprintln!("Timer thread exiting.");
+            //eprintln!("Timer thread exiting.");
         }
 
         //println!("Queue checker thread exited.");
