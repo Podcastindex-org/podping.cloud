@@ -10,6 +10,8 @@
 from typing import Set
 import json
 import os
+import logging
+import sys
 
 import beem
 from beem.account import Account
@@ -29,33 +31,24 @@ def get_allowed_accounts(acc_name="podping") -> Set[str]:
 
     return set(master_account.get_following())
 
+
+
 def allowed_op_id(operation_id) -> bool:
     """Checks if the operation_id is in the allowed list"""
     if operation_id in WATCHED_OPERATION_IDS:
         return True
     else:
         return False
-def write_to_error_log(lines):
-    # logging errors should never throw errors so:
-    try:
+
+def configure_logging():
+    try: # logging errors should never throw errors so:
         log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),"logs")
-        # Verify the log paths exist and create them if they don't
         if not os.path.exists(log_dir):
             os.path.mkdir(log_dir)
-        log_path = os.path.join(
-            log_dir,"errors-" + \
-            os.path.splitext(os.path.basename(os.path.abspath(__file__)))[0] + \
-            ".log"
-        )
-        if not os.path.exists(log_path):
-            open(log_path, 'w').close()
-        # Open for appending and write to log
-        f = open(log_path, "a")
-        f.write(lines)
-        f.close()
-    finally:
-        log_path = ''
-        log_dir = ''
+        log_name = os.path.splitext(os.path.basename(os.path.abspath(__file__)))[0] + ".log"
+        logging.basicConfig(filename=os.path.join(log_dir,"errors-"+log_name), encoding='utf-8', level=logging.ERROR)
+    except:
+        logging.basicConfig(filename="errors-"+log_name, encoding='utf-8', level=logging.ERROR)
 
 def main():
     """ Outputs URLs one by one as they appear on the Hive Podping stream """
@@ -70,7 +63,7 @@ def main():
     stream = blockchain.stream(
         opNames=["custom_json"], raw_ops=False, threading=False, thread_num=4
     )
-
+    configure_logging()
     for post in stream:
         try:
              # Filter only on post ID from the list above.
@@ -84,7 +77,7 @@ def main():
                          for url in data.get("urls"):
                              print(url)
         except: # catch *all* errors
-            write_to_error_log(sys.exc_info()[0])
+            logging.error(sys.exc_info()[0])
 
 if __name__ == "__main__":
     # Runs until terminated with Ctrl-C
