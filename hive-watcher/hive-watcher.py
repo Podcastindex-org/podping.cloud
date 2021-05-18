@@ -22,17 +22,17 @@ class Pings:
     total_pings = 0
 
 
-app_description = """PodPing - Watch the Hive Blockchain for notifications of new 
+app_description = """PodPing - Watch the Hive Blockchain for notifications of new
 Podcast Episodes
 
 
-This code will run until terminated reporting every 
-notification of a new Podcast Episode sent to the Hive blockchain by any PodPing 
-servers. 
+This code will run until terminated reporting every
+notification of a new Podcast Episode sent to the Hive blockchain by any PodPing
+servers.
 
-With default arguments it will print to the StdOut a log of each new URL that has 
-updated interspersed with summary lines every 5 minutes that list the number of 
-PodPings and the number of other 'custom_json' operations seen on the blockchain. 
+With default arguments it will print to the StdOut a log of each new URL that has
+updated interspersed with summary lines every 5 minutes that list the number of
+PodPings and the number of other 'custom_json' operations seen on the blockchain.
 This interval can be set with the --reports command line.
 """
 
@@ -108,12 +108,9 @@ group.add_argument("-q", "--quiet", action="store_true", help="Minimal output")
 group.add_argument("-v", "--verbose", action="store_true", help="Lots of output")
 
 
-def get_allowed_accounts(acc_name="podping") -> Set[Account]:
+def get_allowed_accounts(acc_name="podping") -> Set[str]:
     """get a list of all accounts allowed to post by acc_name (podping)
     and only react to these accounts"""
-
-    # Switching to a simpler authentication system. Only podpings from accounts which
-    # the PODPING Hive account FOLLOWS will be watched.
 
     # This is giving an error if I don't specify api server exactly.
     # TODO reported as Issue on Beem library https://github.com/holgern/beem/issues/301
