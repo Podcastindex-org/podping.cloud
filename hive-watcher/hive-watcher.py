@@ -11,7 +11,6 @@ import beem
 from beem.account import Account
 from beem.block import Block
 from beem.blockchain import Blockchain
-from beem.nodelist import NodeList
 
 
 WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
@@ -415,9 +414,6 @@ def main() -> None:
     if use_test_node:
         hive = beem.Hive(node=TEST_NODE[0])
     else:
-        nodelist = NodeList()
-        nodelist.update_nodes()
-        # hive = Hive(node = nodelist.get_hive_nodes())
         hive = beem.Hive()
 
     """ do we want periodic reports? """
