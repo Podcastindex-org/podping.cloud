@@ -57,7 +57,7 @@ The python script `hive-writer.py` does the following:
 
 ### Enviornment
 
-In order to operate, ```hive-watcher``` must be given two ENV variables:
+In order to operate, ```hive-watcher``` must be given two ENV variables. The third ENV variable will use a test version of Hive which may or may not be available:
 ```
 "env": {
     "HIVE_SERVER_ACCOUNT" : "blocktvnews",
@@ -67,19 +67,27 @@ In order to operate, ```hive-watcher``` must be given two ENV variables:
 ```
 Hive accounts can be created with the tool [Hive On Board](https://hiveonboard.com?ref=brianoflondon). However, only *Podpings* from accounts which are approved by Podping and PodcastIndex will be recognised. The current authorised list can always be seen [here](https://peakd.com/@podping/following).
 
+The stream of *podpings* can be watched with the ```hive-watcher.py``` code. In addition there is a simplified version of this code ```simple-watcher.py``` which should be used to understand what is going on. There is javascript version in [hive-watcher.js](https://github.com/Podcastindex-org/podping.cloud/blob/main/hive-watcher-js/hive-watcher.js)
+
 
 ```
-usage: hive-writer [options]
+usage: hive-watcher [options]
 
-PodPing - Runs as a server and writes a stream of URLs to the Hive Blockchain.
+PodPing - Watch the Hive Blockchain for notifications of new Podcast Episodes This code will run until terminated reporting every notification of a new Podcast Episode sent to the Hive blockchain by any PodPing servers.
+
+With default arguments it will print to the StdOut a log of each new URL that has updated interspersed with summary lines every 5 minutes that list the number of PodPings and the number of other 'custom_json' operations seen on the blockchain. This interval can be set with the --reports command line.
 
 optional arguments:
-  -h, --help      show this help message and exit
-  -q, --quiet     Minimal output
-  -v, --verbose   Lots of output
-  -s , --socket   <port> Socket to listen on for each new url, returns either
-  -z , --zmq      <port> for ZMQ to listen on for each new url, returns either
-  -e , --errors   Deliberately force error rate of <int>%
+  -h, --help          show this help message and exit
+  -H, --history-only  Report history only and exit
+  -r , --reports      Time in MINUTES between periodic status reports, use 0 for no periodic reports
+  -s , --socket       <IP-Address>:<port> Socket to send each new url to
+  -t, --test          Use a test net API
+  -q, --quiet         Minimal output
+  -v, --verbose       Lots of output
+
+  -b , --block        Hive Block number to start replay at or use:
+  -o , --old          Time in HOURS to look back up the chain for old pings (default is 0)
 ```
 ### What it does
 
@@ -89,47 +97,77 @@ Depending on the user options ```--zmq <port>``` or ```--socket <port>``` it wil
 
 ```hive-writer``` will run through a series of checks including checking that the supplied Hive account and ```posting key``` are valid and can write to the blockchain. It will also check for enough ```Resource Credits```. Writing operations to Hive does not have a financial cost, but there are resource limits based on the value of the account writing to the chain.
 
-For the regular socket and the ZMQ socket, ```hive-watcher``` will listen for a new line terminated string. That will be writen to the Hive blockchain as a ```custom_json``` operation with ```id='podping'```. On the blockchain this [results in the following](https://hiveblocks.com/tx/22d0da53aada998de9b249fba473e47b79f31c65):
+For the regular socket and the ZMQ socket, ```hive-watcher``` will listen for a new line terminated string. Every 3s it will write to the Hive chain including multiple URLs if they arrive in that period. This will be writen to the Hive blockchain as a ```custom_json``` operation with ```id='podping'```. On the blockchain this [results in the following](https://hiveblocks.com/tx/22d0da53aada998de9b249fba473e47b79f31c65):
 
 ```
 {
-    "ref_block_num": 45343,
-    "ref_block_prefix": 950702189,
-    "expiration": "2021-05-13T09:59:30",
+    "ref_block_num": 57104,
+    "ref_block_prefix": 3291545262,
+    "expiration": "2021-05-18T09:09:36",
     "operations": [
         [
-        "custom_json",{
+            "custom_json",
+            {
                 "required_auths": [],
-                "required_posting_auths": ["hivehydra"],
+                "required_posting_auths": [
+                    "hivehydra"
+                ],
                 "id": "podping",
-                "json": "{"url":"https://feeds.buzzsprout.com/1556162.rss"}"
+                "json": {
+                    "version": "0.2",
+                    "num_urls": 2,
+                    "reason": "feed_update",
+                    "urls": [
+                        "https://rss.whooshkaa.com/rss/podcast/id/8209",
+                        "https://feeds.buzzsprout.com/262529.rss"
+                    ]
+                }
             }
         ]
     ],
     "extensions": [],
     "signatures": [
-        "2035ecf0d9f8c78f2b5d73bd551019408e2fbbbba2f8ded87aafc5b3a4692a45e666214ef11799a9e01abdb4ec8730c29858e5b7e25ad529757cfc8898632a1621"
+        "204521cdcd6edc9a4e7f3551b8e28d811be101b0f2c4251c2bd53ef8b1403c99bd166c234ab31368f9f3b3217b17bb27660202bcf8245029f9ca8687e03c903405"
     ],
-    "transaction_id": "22d0da53aada998de9b249fba473e47b79f31c65",
-    "block_num": 53850415,
-    "transaction_num": 22
+    "transaction_id": "63e8cacfc3622e166707e7307e0b728f9658b051",
+    "block_num": 53993248,
+    "transaction_num": 28
 }
 ```
 
-```hive-writer``` In the basic socket example, either ```OK``` or ```ERR``` are returned. The ```ZMQ``` version returns json data and will retry until it succeeds or fails 6 times.
-```
-Received reply: {
-  "url": "https://anchor.fm/s/2ad37c58/podcast/rss",
-  "trx_id": "6b185d559376c56a6131ea423782624919d2be49",
-  "message": "success"
-}
-```
+```hive-writer``` returns either ```OK``` or ```ERR```.
+
 
 The write operation usually takes about 0.8s. At present ```hive-writer``` is not multi-threaded for write operations however this could be done.
 
 <br>
 
-## Running
+## Blockchain Watcher (hive-watcher.py)
+
+The watcher script is how you see which podcast feed urls have signaled an update.  
+
+The python script `hive-watcher.py` is more full featured - allowing for socket listening, and other options.
+
+<br>
+
+### Simple Watcher (simple-watcher.py)
+
+This is the easiest way to get started watching the blockchain for feed updates.  Simply do the following:
+
+1. Clone this repo.
+2. Switch to the `hive-watcher` sub-directory.
+3. Make sure python3 and pip3 are installed.
+4. Run `pip3 install beem`.
+5. Launch the watcher script like this: `python3 ./simple-watcher.py`
+
+Each time a feed update notification is detected on the blockchain, the full url of the feed is printed to STDOUT on a new line.
+
+You can watch this output as a way to signal your system to re-parse a podcast feed.  Or you can use it as a starting template to 
+develop a more customized script for your environment.  It's dead simple!
+
+<br>
+
+## Running a Node
 
 First clone this repo.
 

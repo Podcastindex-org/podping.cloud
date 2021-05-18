@@ -148,7 +148,10 @@ def startup_sequence(ignore_errors= False) -> bool:
             manabar_after = acc.get_rc_manabar()
             logging.info(f'Testing Account Resource Credits - after {manabar_after.get("current_pct"):.2f}%')
             cost = manabar.get('current_mana') - manabar_after.get('current_mana')
-            capacity = manabar_after.get('current_mana') / cost
+            if cost == 0:   # skip this test if we're going to get ZeroDivision
+                capcity = 1000000
+            else:
+                capacity = manabar_after.get('current_mana') / cost
             logging.info(f'Capacity for further podpings : {capacity:.1f}')
             custom_json['version'] = CURRENT_PODPING_VERSION
             custom_json['capacity'] = f'{capacity:.1f}'
