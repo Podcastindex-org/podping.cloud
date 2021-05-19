@@ -7,7 +7,9 @@
 #
 # Version 0.1
 podping_data <- read.csv("data.csv")
+postscript(file="image-timestamp_delay.ps")
 plot(
         x=podping_data$timestamp_post,
         y=podping_data$timestamp_seen-podping_data$timestamp_post
 )
+dev.off()
