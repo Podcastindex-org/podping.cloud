@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Modeled after the simple-watcher.py V1.0
-# modified to print to STDOUT as a comma seperated value (.csv) stream
+# modified to write to csv file 'Data.csv'
 #
 # Simple version of Hive Podping watcher - no options, just runs
 # The only external library needed is "beem" - pip install beem
