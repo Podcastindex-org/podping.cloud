@@ -45,7 +45,7 @@ def configure_logging():
     log_name = os.path.splitext(os.path.basename(os.path.abspath(__file__)))[0] + ".log"
     try: # logging errors should never throw errors so:
         if not os.path.exists(log_dir):
-            os.path.mkdir(log_dir)
+            os.mkdir(log_dir)
         logging.basicConfig(filename=os.path.join(log_dir,"errors-"+log_name), encoding='utf-8', level=logging.ERROR)
     except:
         logging.basicConfig(filename="errors-"+log_name, encoding='utf-8', level=logging.ERROR)
