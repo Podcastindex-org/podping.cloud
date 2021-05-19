@@ -15,6 +15,7 @@ import logging
 import sys
 import time
 import datetime
+import csv
 
 import beem
 from beem.account import Account
@@ -53,6 +54,8 @@ def configure_logging():
             logging.basicConfig(filename="errors.log", encoding='utf-8', level=logging.ERROR)
 
 def main():
+    # setup file output
+    configure_logging()
     """ Outputs URLs one by one as they appear on the Hive Podping stream """
     allowed_accounts = get_allowed_accounts()
     hive = beem.Hive()
@@ -65,18 +68,44 @@ def main():
     stream = blockchain.stream(
         opNames=["custom_json"], raw_ops=False, threading=False, thread_num=4
     )
-    configure_logging()
+    post_row = []
+
     for post in stream:
         try:
              # Filter only on post ID from the list above.
              if allowed_op_id(post["id"]):
                  # Filter by the accounts we have authorised to podping
                  if set(post["required_posting_auths"]) & allowed_accounts:
-                     print(repr(time.time())+','+repr(post.get("timestamp").timestamp())+','+ \
-                         str(post.get("id"))+','+str(post.get("trx_id"))+','+repr(post.get("trx_num"))+','+ \
-                         repr(post.get("block_num"))+','+repr(post.get("required_auths"))+','+ \
-                         repr(post.get("required_posting_auths"))+','+'"'+repr(json.dumps(json.loads(post.get("json")), indent=4))+'"' \
-                     )
+                     # build a new custom dictionary from the post
+                     post_row={
+                         'timestamp_seen':repr(time.time()),
+                         'timestamp_post':repr(post.get("timestamp").timestamp()),
+                         'id':str(post.get("id")),
+                         'type':str(post.get("type")),
+                         'trx_id':str(post.get("trx_id")),
+                         'trx_num':repr(post.get("trx_num")),
+                         'block_num':repr(post.get("block_num")),
+                         'required_auths':repr(post.get("required_auths")),
+                         'required_posting_auths':repr(post.get("required_posting_auths")),
+                         'json':repr(json.dumps(json.loads(post.get("json")), indent=4))
+                     }
+                     # csv writer, see: https://docs.python.org/3/library/csv.html
+                     fieldnames = [
+                         'timestamp_seen','timestamp_post',
+                         'id','type','trx_id','trx_num','block_num',
+                         'required_auths','required_posting_auths','json'
+                     ]
+                     if os.path.isfile('data.csv') :
+                         with open('data.csv','a', newline='') as csvfile:
+                             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                             writer.writerow(post_row)
+                             csvfile.close
+                     else :
+                         with open('data.csv','w', newline='') as csvfile:
+                             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                             writer.writeheader()
+                             writer.writerow(post_row)
+                             csvfile.close
         except: # catch *all* errors
             logging.error(sys.exc_info()[0])
 

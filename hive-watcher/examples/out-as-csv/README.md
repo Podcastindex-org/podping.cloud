@@ -17,19 +17,21 @@ sudo apt install r-base r-base-core r-recommended
 Some automation - make these scripts executable
 - navigate to this example's folder and run:
 ```
-sudo chmod +x *.py *.sh *.R
+sudo chmod +x *.py *.R
 ```
 ## Collect data
 Then to begin or resume collecting data run:
 ```
-./run_watcher.sh 
+./hive-watcher-simple.py
 ```
 ## Visualize it
-To run the data visualization script run
+After running for awhile run the data visualization script with:
 ```
 ./visualize-data.R 
 ```
 
 ## Results
+What's the delay between the watcher and the posted time stamp on the hive blockchain?
+Here are some descriptive visualizations.
 ![Example Histogram](image-timestamp_delay_hist.png)
 ![Example Scatterplot](image-timestamp_delay.png)
