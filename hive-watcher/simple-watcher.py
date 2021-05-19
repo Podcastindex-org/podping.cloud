@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # simple-watcher.py
 #
 # Simple version of Hive Podping watcher - no options, just runs
@@ -9,9 +8,6 @@
 
 from typing import Set
 import json
-import os
-import logging
-import sys
 
 import beem
 from beem.account import Account
@@ -31,8 +27,6 @@ def get_allowed_accounts(acc_name="podping") -> Set[str]:
 
     return set(master_account.get_following())
 
-
-
 def allowed_op_id(operation_id) -> bool:
     """Checks if the operation_id is in the allowed list"""
     if operation_id in WATCHED_OPERATION_IDS:
@@ -40,15 +34,6 @@ def allowed_op_id(operation_id) -> bool:
     else:
         return False
 
-def configure_logging():
-    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),"logs")
-    log_name = os.path.splitext(os.path.basename(os.path.abspath(__file__)))[0] + ".log"
-    try: # logging errors should never throw errors so:
-        if not os.path.exists(log_dir):
-            os.mkdir(log_dir)
-        logging.basicConfig(filename=os.path.join(log_dir,"errors-"+log_name), encoding='utf-8', level=logging.ERROR)
-    except:
-        logging.basicConfig(filename="errors-"+log_name, encoding='utf-8', level=logging.ERROR)
 
 def main():
     """ Outputs URLs one by one as they appear on the Hive Podping stream """
@@ -63,21 +48,19 @@ def main():
     stream = blockchain.stream(
         opNames=["custom_json"], raw_ops=False, threading=False, thread_num=4
     )
-    configure_logging()
+
     for post in stream:
-        try:
-             # Filter only on post ID from the list above.
-             if allowed_op_id(post["id"]):
-                 # Filter by the accounts we have authorised to podping
-                 if set(post["required_posting_auths"]) & allowed_accounts:
-                     data = json.loads(post.get("json"))
-                     if data.get("url"):
-                         print(data.date("url"))
-                     elif data.get("urls"):
-                         for url in data.get("urls"):
-                             print(url)
-        except: # catch *all* errors
-            logging.error(sys.exc_info()[0])
+        # Filter only on post ID from the list above.
+        if allowed_op_id(post["id"]):
+            # Filter by the accounts we have authorised to podping
+            if set(post["required_posting_auths"]) & allowed_accounts:
+                data = json.loads(post.get("json"))
+                if data.get("url"):
+                    print(data.date("url"))
+                elif data.get("urls"):
+                    for url in data.get("urls"):
+                        print(url)
+
 
 if __name__ == "__main__":
     # Runs until terminated with Ctrl-C
