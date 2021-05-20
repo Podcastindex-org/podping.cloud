@@ -44,3 +44,12 @@ Hive Power gives that account increased Resource Credits, it also gives the acco
 ### Hive and Podping
 
 For the alpha and beta phases of Podping on Hive, the account being used by PodcastIndex to send the Podpings onto the Hive chain is called [@hivehydra](https://hive.ausbit.dev/@hivehydra). This account has around 1500 Hive Power (worth $600 at time of writing). This is sufficient. There is no cost for usage, however this stake is set aside for this purpose.
+
+
+## Future and Value for Value
+
+Podping is a new use of Hive and this is an experiment. Hive is operating far below its transaction capability right now and continuous development is still raising the capacity, even if Podping were to suddenly be used by the entire Podcasting industry, total daily transactions on the Hive chain wouldn't amount to 5% of current traffic.
+
+It may well be, in the spirit of Value for Value, PodcastIndex and Podping will chose to contribute to Hive by running a Witness Server and perhaps an API server. Additionally there may well be future modifications to the Hive API calls which will streamline and improve the way Podping works, especially with a view to making notifications easier to pick up on mobile devices.
+
+If your Podcasting application or project can make use of Podping, please feel free to support PodcastIndex and Podping in whatever way works for you.
