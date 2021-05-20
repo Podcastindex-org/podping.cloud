@@ -1,13 +1,17 @@
 # Hive
 ## Cost and sustainability
 
-You may be wondering how there seems to be no mention of the cost of using the Hive blockchain or how Podping is suddenly able to send 10's of 1,000's of transactions to a blockchain without mentioning some way of paying for this.
+You may be wondering how there seems to be no mention of the cost of using the Hive blockchain or how Podping is suddenly able to send tens of thousands of transactions to a blockchain without mentioning some way of paying for this.
 
 The only way to explain this properly is to understand a little about the background and workings of the Hive blockchain.
 
 ### About the Hive blockchain project
 
-Hive is an open source blockchain which was first developed to build a censorship resistant social media platform based on the shared infrastructure of a blockchain. To compare with a centralized website like Facebook or Twitter, the back end systems and databases for content and authentication are replaced with a continually growing blockchain. Updates to the chain (i.e. posts or comments or likes in the social media example) are verified by an array of "Witness" servers, each run by individuals or groups committed to the project. Multiple front ends exist for blogging and other uses:
+Hive is an open source blockchain which was first developed to build a censorship resistant social media platform based on the shared infrastructure of a blockchain.
+
+Hive has no single large backer or owner. The largest single known token holder has less than 3% of the supply. Stake in Hive (which drives the power to change algorithms is very widely distributed amongst thousands of individuals). There is no owning corporate structure though there are a number of business built on Hive.
+
+To compare with a centralized website like Facebook or Twitter, the back end systems and databases for content and authentication are replaced with a continually growing blockchain. Updates to the chain (i.e. posts or comments or likes in the social media example) are verified by an array of "Witness" servers, each run by individuals or groups committed to the project. Multiple front ends exist for blogging and other uses:
 
 - [Hive.blog](https://hive.blog/) - the core open source functionality of Hive is know as "Conderser" and Hive.blog runs this.
 
