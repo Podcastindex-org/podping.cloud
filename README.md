@@ -1,5 +1,6 @@
 # Podping.cloud
-The server code that runs a podping.cloud node.
+
+Podping is a blockchain based global notification system for podcasting.  Feed urls are written by the publisher to the blockchain within seconds of a new episode being published.  Anyone can monitor for those updates and only pull a copy of that feed when it shows up on the chain.
 
 <br>
 
