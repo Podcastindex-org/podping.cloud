@@ -9,7 +9,7 @@ The only way to explain this properly is to understand a little about the backgr
 
 Hive is an open source blockchain which was first developed to build a censorship resistant social media platform based on the shared infrastructure of a blockchain.
 
-Hive has no single large backer or owner. The largest single known token holder has less than 3% of the supply. Stake in Hive (which drives the power to change algorithms is very widely distributed amongst thousands of individuals). There is no owning corporate structure though there are a number of business built on Hive.
+Hive has no single large backer or owner. The largest single known token holder has less than 3% of the supply. Stake in Hive, which drives the power to change the algorithms, is very widely distributed amongst thousands of individuals. It takes consensus amongst many of these to make changes. Despite this, there is a very active development stream by a range of Developers who have earned the trust of the community. There is no owning corporate structure however there are a number of business built on Hive.
 
 To compare with a centralized website like Facebook or Twitter, the back end systems and databases for content and authentication are replaced with a continually growing blockchain. Updates to the chain (i.e. posts or comments or likes in the social media example) are verified by an array of "Witness" servers, each run by individuals or groups committed to the project. Multiple front ends exist for blogging and other uses:
 
@@ -24,6 +24,7 @@ To compare with a centralized website like Facebook or Twitter, the back end sys
 - [Splinterlands](https://splinterlands.com/) - One of the most popular blockchain based games with tradable cards and a full economy.
 
 And many more.... what these all have in common is using the authentication systems and back end storage of Hive. The back end of Hive consists of Witnesses and API servers
+
 ### Witnesses
 
 Witnesses are rewarded with the Hive cryptocurrency for processing each block and verifying that all the information in it was correctly submitted and signed by a valid Hive user account. Unlike "proof of work" blockchains such as Bitcoin or Ethereum, this verification process is as mathematically efficient as it can be, whilst still being cryptographically secure. This allows blocks to be produced and verified regularly every 3s by many witness computers without huge amounts of processing power, or other computing resources.
@@ -44,7 +45,7 @@ There is an internal cost to creating accounts on Hive and new accounts are cons
 
 The process of staking Hive is called powering up. Powered up Hive (Hive Power) can be powered down with a 13 week process in which 1/13 of the Hive is returned every week following a power down request.
 
-Hive Power gives that account increased Resource Credits, it also gives the account added weight when voting on content: that weight turns directly into financial payouts for the creators of content voted on and for the account holder (so called "curator rewards"). Witness positions are also determined by the weight of votes from users.
+Hive Power gives an account increased Resource Credits, it also gives the account added weight when voting on content: that weight turns directly into financial payouts for the creators of content voted on and for the account holder (so called "curator rewards"). Witness positions are also determined by the weight of votes from users.
 ### Hive and Podping
 
 For the alpha and beta phases of Podping on Hive, the account being used by PodcastIndex to send the Podpings onto the Hive chain is called [@hivehydra](https://hive.ausbit.dev/@hivehydra). This account has around 1500 Hive Power (worth $600 at time of writing). This is sufficient. There is no cost for usage, however this stake is set aside for this purpose.
