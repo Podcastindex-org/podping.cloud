@@ -1,4 +1,12 @@
+# editors #
+###########
 .vscode
 .idea/
 /venv
 .saved-info.txt
+
+# Specific Data Files #
+#######################
+/hive-watcher/examples/out-as-csv/data.csv
+/hive-watcher/examples/out-as-csv/data-unauthorized.csv
+/hive-watcher/examples/out-as-csv/data-not-podping_firehose.csv
