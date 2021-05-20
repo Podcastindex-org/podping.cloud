@@ -33,5 +33,5 @@ After running for awhile run the data visualization script with:
 ## Results
 What's the delay between the watcher and the posted time stamp on the hive blockchain?
 Here are some descriptive visualizations.
-![Example Histogram](image-timestamp_delay_hist.png)
-![Example Scatterplot](image-timestamp_delay.png)
+![Example Histogram](stats/image-timestamp_delay_hist.png)
+![Example Scatterplot](stats/image-timestamp_delay.png)

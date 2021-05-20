@@ -53,6 +53,38 @@ def configure_logging():
         except:
             logging.basicConfig(filename="errors.log", encoding='utf-8', level=logging.ERROR)
 
+def write_post_to_csv(post,filepath_data):
+    fieldnames = [
+        'timestamp_seen','timestamp_post',
+        'id','type','trx_id','trx_num','block_num',
+        'required_auths','required_posting_auths','json'
+    ]
+    # build a new custom dictionary from the post
+    post_row={
+        'timestamp_seen':repr(time.time()),
+        'timestamp_post':repr(post.get("timestamp").timestamp()),
+        'id':str(post.get("id")),
+        'type':str(post.get("type")),
+        'trx_id':str(post.get("trx_id")),
+        'trx_num':repr(post.get("trx_num")),
+        'block_num':repr(post.get("block_num")),
+        'required_auths':repr(post.get("required_auths")),
+        'required_posting_auths':repr(post.get("required_posting_auths")),
+        'json':repr(json.dumps(json.loads(post.get("json")), indent=4))
+    }
+    # csv writer, see: https://docs.python.org/3/library/csv.html
+    if os.path.isfile(filepath_data) :
+        with open(filepath_data,'a', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writerow(post_row)
+            csvfile.close
+    else :
+        with open(filepath_data,'w', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerow(post_row)
+            csvfile.close
+
 def main():
     # setup file output
     configure_logging()
@@ -68,44 +100,17 @@ def main():
     stream = blockchain.stream(
         opNames=["custom_json"], raw_ops=False, threading=False, thread_num=4
     )
-    post_row = []
-
     for post in stream:
         try:
-             # Filter only on post ID from the list above.
-             if allowed_op_id(post["id"]):
-                 # Filter by the accounts we have authorised to podping
-                 if set(post["required_posting_auths"]) & allowed_accounts:
-                     # build a new custom dictionary from the post
-                     post_row={
-                         'timestamp_seen':repr(time.time()),
-                         'timestamp_post':repr(post.get("timestamp").timestamp()),
-                         'id':str(post.get("id")),
-                         'type':str(post.get("type")),
-                         'trx_id':str(post.get("trx_id")),
-                         'trx_num':repr(post.get("trx_num")),
-                         'block_num':repr(post.get("block_num")),
-                         'required_auths':repr(post.get("required_auths")),
-                         'required_posting_auths':repr(post.get("required_posting_auths")),
-                         'json':repr(json.dumps(json.loads(post.get("json")), indent=4))
-                     }
-                     # csv writer, see: https://docs.python.org/3/library/csv.html
-                     fieldnames = [
-                         'timestamp_seen','timestamp_post',
-                         'id','type','trx_id','trx_num','block_num',
-                         'required_auths','required_posting_auths','json'
-                     ]
-                     if os.path.isfile('data.csv') :
-                         with open('data.csv','a', newline='') as csvfile:
-                             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                             writer.writerow(post_row)
-                             csvfile.close
-                     else :
-                         with open('data.csv','w', newline='') as csvfile:
-                             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                             writer.writeheader()
-                             writer.writerow(post_row)
-                             csvfile.close
+            # Filter only on post ID from the list above.
+            if allowed_op_id(post["id"]):
+                # Filter by the accounts we have authorised to podping
+                if set(post["required_posting_auths"]) & allowed_accounts:
+                    write_post_to_csv(post,'data.csv')
+                else : # Write out the same data to the data-unauthorized.csv file...
+                    write_post_to_csv(post,'data-unauthorized.csv')
+            else : # the firehose - all other hive 'custom json' posts to data-not-podping_firehose.csv
+                write_post_to_csv(post,'data-not-podping_firehose.csv')
         except: # catch *all* errors
             logging.error(sys.exc_info()[0])
 
