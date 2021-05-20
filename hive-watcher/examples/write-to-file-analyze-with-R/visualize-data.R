@@ -217,5 +217,6 @@ message(
   " UTC to ",
   as.character(anytime(max(podping_data$timestamp_seen),asUTC = TRUE)),
   " UTc \n\t Watched for ",
-  time_length_display
+  time_length_display,
+  "\n#podping #Stats"
 )
