@@ -31,7 +31,7 @@ minutes_watching <- (
 # for a vector image could use: postscript(file="image-timestamp_delay.ps")
 time_stamp_delays <- podping_data$timestamp_seen-podping_data$timestamp_post
 png(file="stats/image-timestamp_delay.png",
-    width=600, height=600)
+    width=600, height=900)
 plot(
   x=podping_data$timestamp_post,
   y=time_stamp_delays,
@@ -39,7 +39,7 @@ plot(
 )
 dev.off()
 png(file="stats/image-timestamp_delay_hist.png",
-    width=600, height=600)
+    width=600, height=900)
 hist(
   time_stamp_delays,
   main="Histogram of watcher delay in seconds"
@@ -48,7 +48,7 @@ dev.off()
 
 time_stamp_delays <- not_podping_data$timestamp_seen-not_podping_data$timestamp_post
 png(file="stats/image-timestamp_delay-non-podping.png",
-    width=600, height=600)
+    width=600, height=900)
 plot(
   x=not_podping_data$timestamp_post,
   y=time_stamp_delays,
@@ -56,7 +56,7 @@ plot(
 )
 dev.off()
 png(file="stats/image-timestamp_delay_hist-non-podping.png",
-    width=600, height=600)
+    width=600, height=900)
 hist(
   time_stamp_delays,
   main="Histogram of watcher delay in seconds - non-podping posts"
@@ -65,29 +65,34 @@ dev.off()
 
 # Posts per minute #
 ####################
-podping_data$posix_time_post <- podping_data$timestamp_post %>%
-  anytime() %>%
-  as.POSIXct()
-# create bins
-by_mins_podpings <- cut.POSIXt(podping_data$posix_time_post,"1 mins")
-podping_data_mins <- split(podping_data$block_num, by_mins_podpings)
-per_min_chart_data <- lapply(podping_data_mins,FUN=length)
-per_min_chart_data_frame <- cbind(
-  as.data.frame(anytime(names(per_min_chart_data))),
-  as.data.frame(unlist(per_min_chart_data))
-)
-names(per_min_chart_data_frame) <- c("time_bin","frequency")
-png(file="stats/posts_per_minute.png",
-    width=600, height=600)
-plot(
-  x=per_min_chart_data_frame$time_bin,
-  y=per_min_chart_data_frame$frequency,
-  type = "l",
-  xlab="Time",
-  ylab="Posts / Minute",
-  main="Post Frequency"
-)
-dev.off()
+write_plot_posts_per_min <- function(data_vals, chart_title) {
+  data_vals$posix_time_post <- data_vals$timestamp_post %>%
+    anytime() %>%
+    as.POSIXct()
+  # create bins
+  by_mins_podpings <- cut.POSIXt(data_vals$posix_time_post,"1 mins")
+  podping_data_mins <- split(data_vals$block_num, by_mins_podpings)
+  per_min_chart_data <- lapply(podping_data_mins,FUN=length)
+  per_min_chart_data_frame <- cbind(
+    as.data.frame(anytime(names(per_min_chart_data))),
+    as.data.frame(unlist(per_min_chart_data))
+  )
+  names(per_min_chart_data_frame) <- c("time_bin","frequency")
+  png(file=paste0("stats/",chart_title,".png"),
+      width=600, height=900)
+  plot(
+    x=per_min_chart_data_frame$time_bin,
+    y=per_min_chart_data_frame$frequency,
+    type = "l",
+    xlab="Time",
+    ylab="Posts / Minute",
+    main=paste0(chart_title, "Post Frequency")
+  )
+  dev.off()
+}
+# could filter data to specific time frames...
+write_plot_posts_per_min(podping_data,"podping_posts_per_minute")
+write_plot_posts_per_min(not_podping_data,"Not_podping_posts_per_minute")
 
 # podping_data
 ######################
