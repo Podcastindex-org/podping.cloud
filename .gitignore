@@ -5,8 +5,13 @@
 /venv
 .saved-info.txt
 
-# Specific Data Files #
-#######################
-/hive-watcher/examples/out-as-csv/data.csv
-/hive-watcher/examples/out-as-csv/data-unauthorized.csv
-/hive-watcher/examples/out-as-csv/data-not-podping_firehose.csv
+# Example Specific Files #
+##########################
+/hive-watcher/examples/write-to-csv-analyze-with-R/data*
+### R ###
+# History files
+/hive-watcher/examples/write-to-csv-analyze-with-R/.Rhistory
+# Session Data files
+/hive-watcher/examples/write-to-csv-analyze-with-R/.RData
+# User-specific files
+/hive-watcher/examples/write-to-csv-analyze-with-R/.Ruserdata
