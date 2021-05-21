@@ -52,7 +52,7 @@ The last thing the [visualize-data.R](visualize-data.R) script does is write as 
 
 ```
 Podping hive "custom json" post summary:
-    Post count is 2710 (2.95 posts/min)
+  	Post count is 2710 (2.95 posts/min)
     Total urls posted is 12128 of wich 6258 are unique
         (average of 4.48 urls/post)
     All 'other' hive post count is 458672 (500 posts/min)
@@ -61,6 +61,5 @@ Podping hive "custom json" post summary:
     Watched for 15 hours 17 minutes and 20.15 seconds
 #podping #Stats
 ```
-
 # Projects based on this example
 - On github -> [podping-stats](https://github.com/seakintruth/podping-stats) for (planned) further development of these scripts into a mastodon toot bot about these statistics, and/or visualization dashboards on websites.
