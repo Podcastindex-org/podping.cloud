@@ -26,14 +26,9 @@ Then to begin or resume collecting data run:
 ```
 ./hive-watcher-write-to-csv.py
 ```
-Or use the much prefered
-```
-./hive-watcher-write-to-feather.py
-```
- The data-not-podping_firehose.csv file is 205MB after 15 hours of watching the hive API.
 
 ## Visualize it
-After running for awhile run the data visualization script with:
+After running for awhile... in another terminal run the data visualization script with:
 ```
 ./visualize-data.R 
 ```
