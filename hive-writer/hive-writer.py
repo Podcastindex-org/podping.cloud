@@ -238,7 +238,7 @@ def send_notification(data, operation_id ='podping'):
     num_urls = 0
 
     if type(data) == list:
-        # De duplicate the URL list by passing it through a set
+        # De duplicate the URL list by passing it through an ordered dict (preserves order)
         data = list(OrderedDict.fromkeys(data))
         num_urls = len(data)
         custom_json = {
