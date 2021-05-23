@@ -68,9 +68,8 @@ def old_data(start_line=0):
                 data = line.split(' - ')
                 url = data[5].rstrip()
                 start = time.perf_counter()
-                for n in range(4):
-                    zsocket.send(url.encode())
-                    message = zsocket.recv().decode()
+                zsocket.send(url.encode())
+                message = zsocket.recv().decode()
                 print('Time taken: ' + str(time.perf_counter() - start) )
                 # print("Received reply: " + json.dumps(message,indent=2))
                 print(f"Received Reply: {message}")
@@ -84,7 +83,7 @@ def old_data(start_line=0):
 
 
 if __name__ == "__main__":
-    for _ in range (5):
-        old_data(0)
-    # loop_test()
+    # for _ in range (5):
+    #     old_data(0)
+    loop_test()
     # old_socket()
