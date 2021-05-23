@@ -68,9 +68,9 @@ def old_data(start_line=0):
                 data = line.split(' - ')
                 url = data[5].rstrip()
                 start = time.perf_counter()
-                zsocket.send(url.encode())
-                # message = zsocket.recv_json() DAVE changed response to ERR or OK plain text
-                message = zsocket.recv().decode()
+                for n in range(4):
+                    zsocket.send(url.encode())
+                    message = zsocket.recv().decode()
                 print('Time taken: ' + str(time.perf_counter() - start) )
                 # print("Received reply: " + json.dumps(message,indent=2))
                 print(f"Received Reply: {message}")
