@@ -228,7 +228,9 @@ def scan_live(
     # otherwise, the call will wait until confirmed in an irreversible block.
     # noinspection PyTypeChecker
     stream = blockchain.stream(
-        opNames=["custom_json"], raw_ops=False, threading=False, thread_num=4
+        opNames=["custom_json"],
+        raw_ops=False,
+        threading=False
     )
 
     start_time = datetime.utcnow()
@@ -460,7 +462,7 @@ def main() -> None:
             hive, my_args["reports"], reports, quiet=quiet, client_socket=client_socket
         )
     else:
-        logging.info("history_only is set. existing")
+        logging.info("history_only is set. exiting")
 
 
 if __name__ == "__main__":

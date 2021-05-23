@@ -21,8 +21,14 @@ from beemgraphenebase.types import Bool
 # BOL: Switching off TestNet, we should test on Hive for now.
 USE_TEST_NODE = os.getenv("USE_TEST_NODE", 'False').lower() in ('true', '1', 't')
 TEST_NODE = ['http://testnet.openhive.network:8091']
-CURRENT_PODPING_VERSION = "0.2"
-NOTIFICATION_REASONS = ['feed_update','new_feed','host_change']
+CURRENT_PODPING_VERSION = 2
+NOTIFICATION_REASONS = {
+    'feed_update' : 1,
+    'new_feed' : 2,
+    'host_change' : 3
+}
+
+
 HIVE_OPERATION_PERIOD = 3       # 1 Hive operation per this period in
 MAX_URL_PER_CUSTOM_JSON = 130   # total json size must be below 8192 bytes
 
@@ -154,7 +160,7 @@ def startup_sequence(ignore_errors= False) -> bool:
             else:
                 capacity = manabar_after.get('current_mana') / cost
             logging.info(f'Capacity for further podpings : {capacity:.1f}')
-            custom_json['version'] = CURRENT_PODPING_VERSION
+            custom_json['v'] = CURRENT_PODPING_VERSION
             custom_json['capacity'] = f'{capacity:.1f}'
             custom_json['message'] = 'Podping startup complete'
             error_message , success = send_notification(custom_json, 'podping-startup')
@@ -242,17 +248,17 @@ def send_notification(data, operation_id ='podping'):
         data = list(OrderedDict.fromkeys(data))
         num_urls = len(data)
         custom_json = {
-            # "version" : CURRENT_PODPING_VERSION,
+            "v" : CURRENT_PODPING_VERSION,
             "num_urls" : num_urls,
-            # "reason" : NOTIFICATION_REASONS[0],
+            "r" : NOTIFICATION_REASONS["feed_update"],
             "urls" : data
         }
     elif type(data) == str:
         num_urls = 1
         custom_json = {
-            # "version" : CURRENT_PODPING_VERSION,
+            "v" : CURRENT_PODPING_VERSION,
             "num_urls" : 1,
-            # "reason" : NOTIFICATION_REASONS[0],
+            "r" : NOTIFICATION_REASONS["feed_update"],
             "url" : data
         }
     elif type(data) == dict:
