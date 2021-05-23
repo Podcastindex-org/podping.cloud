@@ -242,17 +242,17 @@ def send_notification(data, operation_id ='podping'):
         data = list(OrderedDict.fromkeys(data))
         num_urls = len(data)
         custom_json = {
-            "version" : CURRENT_PODPING_VERSION,
+            # "version" : CURRENT_PODPING_VERSION,
             "num_urls" : num_urls,
-            "reason" : NOTIFICATION_REASONS[0],
+            # "reason" : NOTIFICATION_REASONS[0],
             "urls" : data
         }
     elif type(data) == str:
         num_urls = 1
         custom_json = {
-            "version" : CURRENT_PODPING_VERSION,
+            # "version" : CURRENT_PODPING_VERSION,
             "num_urls" : 1,
-            "reason" : NOTIFICATION_REASONS[0],
+            # "reason" : NOTIFICATION_REASONS[0],
             "url" : data
         }
     elif type(data) == dict:
