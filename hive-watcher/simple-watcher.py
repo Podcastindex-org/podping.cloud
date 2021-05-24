@@ -56,7 +56,7 @@ def main():
             if set(post["required_posting_auths"]) & allowed_accounts:
                 data = json.loads(post.get("json"))
                 if data.get("url"):
-                    print(data.date("url"))
+                    print(data.get("url"))
                 elif data.get("urls"):
                     for url in data.get("urls"):
                         print(url)
@@ -64,4 +64,4 @@ def main():
 
 if __name__ == "__main__":
     # Runs until terminated with Ctrl-C
-    main() 
+    main()
