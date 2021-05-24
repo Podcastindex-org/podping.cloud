@@ -82,6 +82,14 @@ my_parser.add_argument(
 )
 
 my_parser.add_argument(
+    "-u",
+    "--urls_only",
+    action="store_true",
+    required=False,
+    help=("Just output the urls on a single line, nothing else")
+)
+
+my_parser.add_argument(
     "-r",
     "--reports",
     action="store",
@@ -137,7 +145,11 @@ def allowed_op_id(operation_id) -> bool:
         return False
 
 
-def output(post, quiet=False, use_test_node=False, diagnostic=False) -> int:
+def output(post,
+           quiet=False,
+           use_test_node=False,
+           diagnostic=False,
+           urls_only=False) -> int:
     """Prints out the post and extracts the custom_json"""
 
     data = json.loads(post.get("json"))
@@ -150,12 +162,20 @@ def output(post, quiet=False, use_test_node=False, diagnostic=False) -> int:
             json.dumps(data, indent=2)
         )
 
-
     if quiet:
         if data.get("num_urls"):
             return data.get("num_urls")
         else:
             return 1
+
+    if urls_only:
+        if data.get("url"):
+            print(data.get("url"))
+            return 1
+        elif data.get("urls"):
+            for url in data.get("urls"):
+                print(url)
+            return data.get("num_urls")
 
     data["required_posting_auths"] = post.get("required_posting_auths")
     data["trx_id"] = post.get("trx_id")
@@ -231,7 +251,8 @@ def scan_live(
     use_test_node=False,
     client_socket: Optional[socket] = None,
     quiet=False,
-    diagnostic=False
+    diagnostic=False,
+    urls_only=False
 ):
     """watches the stream from the Hive blockchain"""
     report_timedelta = timedelta(minutes=report_freq)
@@ -278,7 +299,7 @@ def scan_live(
 
         if allowed_op_id(post["id"]):
             if set(post["required_posting_auths"]) & allowed_accounts:
-                count = output(post, quiet, use_test_node)
+                count = output(post, quiet, use_test_node, urls_only=urls_only)
                 if client_socket:
                     output_to_socket(post, client_socket)
                 pings += count
@@ -301,7 +322,8 @@ def scan_history(
     reports=True,
     use_test_node=False,
     quiet=False,
-    diagnostic=False
+    diagnostic=False,
+    urls_only=False,
 ):
     """Scans back in history timed time delta ago, reporting with report_freq
     if timed is an int, treat it as hours, if report_freq is int, treat as min"""
@@ -371,31 +393,34 @@ def scan_history(
 
         if allowed_op_id(post["id"]):
             if set(post["required_posting_auths"]) & allowed_accounts:
-                count = output(post, quiet, use_test_node)
+                count = output(post, quiet, use_test_node, urls_only=urls_only)
                 pings += count
                 Pings.total_pings += count
 
         if diagnostic:
             if post["id"] in DIAGNOSTIC_OPERATION_IDS:
-                output(post,quiet,use_test_node,diagnostic)
+                output(post,quiet,use_test_node,diagnostic=diagnostic,urls_only=urls_only)
 
         if time_to_now < timedelta(seconds=2):
             timestamp = post["timestamp"]
             current_block_num = post["block_num"]
-            output_status(
-                timestamp,
-                pings,
-                count_posts,
-                time_to_now,
-                current_block_num=current_block_num,
-                reports=reports,
-                quiet=quiet,
-            )
-            logging.info(f"block_num: {post['block_num']}")
+            if reports:
+                output_status(
+                    timestamp,
+                    pings,
+                    count_posts,
+                    time_to_now,
+                    current_block_num=current_block_num,
+                    reports=reports,
+                    quiet=quiet
+                )
+
+            if not (urls_only or quiet):
+                logging.info(f"block_num: {post['block_num']}")
             # Break out of the for loop we've caught up.
             break
 
-    if post:
+    if post and (not (urls_only or quiet)):
         scan_time = datetime.utcnow() - scan_start_time
         logging.info(
             f"Finished catching up at block_num: {post['block_num']} in {scan_time}"
@@ -424,6 +449,7 @@ def main() -> None:
     my_args = vars(args)
     quiet = my_args["quiet"]
     diagnostic = my_args["diagnostic"]
+    urls_only = my_args["urls_only"]
     client_socket = None
 
     if my_args["socket"]:
@@ -473,6 +499,7 @@ def main() -> None:
                 reports=reports,
                 quiet=quiet,
                 diagnostic=diagnostic,
+                urls_only=urls_only,
             )
         else:
             hours_ago = timedelta(hours=my_args["old"])
@@ -483,6 +510,7 @@ def main() -> None:
                 reports=reports,
                 quiet=quiet,
                 diagnostic=diagnostic,
+                urls_only=urls_only,
             )
 
     history_only = my_args["history_only"]
@@ -491,7 +519,12 @@ def main() -> None:
         # scan_live will resume live scanning the chain and report every 5 minutes or
         # when a notification arrives
         scan_live(
-            hive, my_args["reports"], reports, quiet=quiet, client_socket=client_socket
+            hive,
+            my_args["reports"],
+            reports,
+            quiet=quiet,
+            client_socket=client_socket,
+            urls_only=urls_only,
         )
     else:
         logging.info("history_only is set. exiting")
