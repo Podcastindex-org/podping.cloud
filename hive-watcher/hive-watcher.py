@@ -2,9 +2,10 @@ import argparse
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from ipaddress import IPv4Address, IPv6Address, AddressValueError
 from socket import AF_INET, SOCK_STREAM, socket
+from time import strptime
 from typing import Set, Optional, Union
 
 import beem
@@ -64,6 +65,18 @@ block_history_argument_group.add_argument(
     default=0,
     help="Time in HOURS to look back up the chain for old pings (default is 0)",
 )
+
+block_history_argument_group.add_argument(
+    "-y",
+    "--startdate",
+    action="store",
+    type=str,
+    required=False,
+    metavar="",
+    default=0,
+    help="<%Y-%m-%d %H:%M:%S> Date/Time to start the history",
+)
+
 
 my_parser.add_argument(
     "-H",
@@ -143,8 +156,8 @@ def output(post, quiet=False, use_test_node=False, diagnostic=False) -> int:
     data = json.loads(post.get("json"))
     if diagnostic:
         logging.info(
-            f"Diagnositc - {post.get('timestamp')} "
-            f"- {post.get('trx_id')} - {post.get('message')}"
+            f"Diagnostic - {post.get('timestamp')} "
+            f"- {post.get('trx_id')} - {data.get('message')}"
             )
         logging.info(
             json.dumps(data, indent=2)
@@ -462,7 +475,7 @@ def main() -> None:
             logging.info("---------------> Using Main Hive Chain ")
 
     # scan_history will look back over the last 1 hour reporting every 15 minute chunk
-    if my_args["old"] or my_args["block"]:
+    if my_args["old"] or my_args["block"] or my_args["startdate"]:
         report_minutes = my_args["reports"]
         if my_args["block"]:
             block_num = my_args["block"]
@@ -475,7 +488,13 @@ def main() -> None:
                 diagnostic=diagnostic,
             )
         else:
-            hours_ago = timedelta(hours=my_args["old"])
+            if my_args["startdate"]:
+                arg_time = my_args["startdate"]
+                start_date = datetime.strptime(arg_time, "%Y-%m-%d %H:%M:%S")
+                hours_ago = datetime.now() - start_date
+            else:
+                hours_ago = timedelta(hours=my_args["old"])
+
             scan_history(
                 hive,
                 hours_ago=hours_ago,
