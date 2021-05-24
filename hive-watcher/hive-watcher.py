@@ -14,6 +14,7 @@ from beem.blockchain import Blockchain
 
 
 WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
+DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
 TEST_NODE = ["http://testnet.openhive.network:8091"]
 
 
@@ -73,6 +74,14 @@ my_parser.add_argument(
 )
 
 my_parser.add_argument(
+    "-d",
+    "--diagnostic",
+    action="store_true",
+    required=False,
+    help=("Show diagnostic posts written to the blockchain")
+)
+
+my_parser.add_argument(
     "-r",
     "--reports",
     action="store",
@@ -128,10 +137,20 @@ def allowed_op_id(operation_id) -> bool:
         return False
 
 
-def output(post, quiet=False, use_test_node=False) -> int:
+def output(post, quiet=False, use_test_node=False, diagnostic=False) -> int:
     """Prints out the post and extracts the custom_json"""
 
     data = json.loads(post.get("json"))
+    if diagnostic:
+        logging.info(
+            f"Diagnositc - {post.get('timestamp')} "
+            f"- {post.get('trx_id')} - {post.get('message')}"
+            )
+        logging.info(
+            json.dumps(data, indent=2)
+        )
+
+
     if quiet:
         if data.get("num_urls"):
             return data.get("num_urls")
@@ -212,6 +231,7 @@ def scan_live(
     use_test_node=False,
     client_socket: Optional[socket] = None,
     quiet=False,
+    diagnostic=False
 ):
     """watches the stream from the Hive blockchain"""
     report_timedelta = timedelta(minutes=report_freq)
@@ -264,6 +284,10 @@ def scan_live(
                 pings += count
                 Pings.total_pings += count
 
+        if diagnostic:
+            if post["id"] in DIAGNOSTIC_OPERATION_IDS:
+                output(post,quiet,use_test_node,diagnostic)
+
         if time_dif > timedelta(hours=1):
             # Re-fetch the allowed_accounts every hour in case we add one.
             allowed_accounts = get_allowed_accounts()
@@ -277,6 +301,7 @@ def scan_history(
     reports=True,
     use_test_node=False,
     quiet=False,
+    diagnostic=False
 ):
     """Scans back in history timed time delta ago, reporting with report_freq
     if timed is an int, treat it as hours, if report_freq is int, treat as min"""
@@ -350,6 +375,10 @@ def scan_history(
                 pings += count
                 Pings.total_pings += count
 
+        if diagnostic:
+            if post["id"] in DIAGNOSTIC_OPERATION_IDS:
+                output(post,quiet,use_test_node,diagnostic)
+
         if time_to_now < timedelta(seconds=2):
             timestamp = post["timestamp"]
             current_block_num = post["block_num"]
@@ -394,6 +423,7 @@ def main() -> None:
     args = my_parser.parse_args()
     my_args = vars(args)
     quiet = my_args["quiet"]
+    diagnostic = my_args["diagnostic"]
     client_socket = None
 
     if my_args["socket"]:
@@ -442,6 +472,7 @@ def main() -> None:
                 report_freq=report_minutes,
                 reports=reports,
                 quiet=quiet,
+                diagnostic=diagnostic,
             )
         else:
             hours_ago = timedelta(hours=my_args["old"])
@@ -451,6 +482,7 @@ def main() -> None:
                 report_freq=report_minutes,
                 reports=reports,
                 quiet=quiet,
+                diagnostic=diagnostic,
             )
 
     history_only = my_args["history_only"]
