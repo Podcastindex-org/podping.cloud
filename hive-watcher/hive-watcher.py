@@ -395,6 +395,8 @@ def scan_history(
 
     if stop_after > 0:
         stop_at = start_time + timedelta(hours=stop_after)
+    else:
+        stop_at = datetime(year=2000, month=1, day=1)
 
     post = None
 
