@@ -157,7 +157,7 @@ def output(post, quiet=False, use_test_node=False, diagnostic=False) -> int:
     if diagnostic:
         logging.info(
             f"Diagnostic - {post.get('timestamp')} "
-            f"- {post.get('trx_id')} - {data.get('message')}"
+            f"- {data.get('server_account')} - {post.get('trx_id')} - {data.get('message')}"
             )
         logging.info(
             json.dumps(data, indent=2)
