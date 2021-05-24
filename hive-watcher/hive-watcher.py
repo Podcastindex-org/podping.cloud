@@ -66,6 +66,18 @@ block_history_argument_group.add_argument(
     help="Time in HOURS to look back up the chain for old pings (default is 0)",
 )
 
+
+block_history_argument_group.add_argument(
+    "-a",
+    "--stop_after",
+    action="store",
+    type=int,
+    required=False,
+    metavar="",
+    default=0,
+    help=("Time in hours to replay for from the start point")
+)
+
 block_history_argument_group.add_argument(
     "-y",
     "--startdate",
@@ -74,7 +86,7 @@ block_history_argument_group.add_argument(
     required=False,
     metavar="",
     default=0,
-    help="<%%Y-%%m-%%d %%H:%%M:%%S> Date/Time to start the history",
+    help=("<%%Y-%%m-%%d %%H:%%M:%%S> Date/Time to start the history"),
 )
 
 
@@ -337,6 +349,7 @@ def scan_history(
     quiet=False,
     diagnostic=False,
     urls_only=False,
+    stop_after=0,
 ):
     """Scans back in history timed time delta ago, reporting with report_freq
     if timed is an int, treat it as hours, if report_freq is int, treat as min"""
@@ -380,6 +393,9 @@ def scan_history(
         threading=False,
     )
 
+    if stop_after > 0:
+        stop_at = start_time + timedelta(hours=stop_after)
+
     post = None
 
     for post in stream:
@@ -414,7 +430,7 @@ def scan_history(
             if post["id"] in DIAGNOSTIC_OPERATION_IDS:
                 output(post,quiet,use_test_node,diagnostic=diagnostic,urls_only=urls_only)
 
-        if time_to_now < timedelta(seconds=2):
+        if time_to_now < timedelta(seconds=2) or post_time > stop_at:
             timestamp = post["timestamp"]
             current_block_num = post["block_num"]
             if reports:
@@ -463,6 +479,7 @@ def main() -> None:
     quiet = my_args["quiet"]
     diagnostic = my_args["diagnostic"]
     urls_only = my_args["urls_only"]
+    stop_after = my_args["stop_after"]
     client_socket = None
 
     if my_args["socket"]:
@@ -513,6 +530,7 @@ def main() -> None:
                 quiet=quiet,
                 diagnostic=diagnostic,
                 urls_only=urls_only,
+                stop_after=stop_after,
             )
         else:
             if my_args["startdate"]:
@@ -530,6 +548,7 @@ def main() -> None:
                 quiet=quiet,
                 diagnostic=diagnostic,
                 urls_only=urls_only,
+                stop_after=stop_after,
             )
 
     history_only = my_args["history_only"]
