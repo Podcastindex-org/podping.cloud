@@ -1,6 +1,6 @@
 [package]
 name = "podping"
-version = "0.1.8"
+version = "0.1.9"
 authors = ["Dave Jones"]
 edition = "2018"
 
@@ -17,3 +17,4 @@ url = "2.2.1"
 rusqlite = "0.25.1"
 zmq = "0.9"
 drop-root = "0.1.1"
+percent-encoding = "2.1.0"

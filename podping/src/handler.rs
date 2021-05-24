@@ -5,6 +5,7 @@ use rusqlite::{params, Connection};
 use std::error::Error;
 use std::fmt;
 use std::time::{SystemTime};
+use percent_encoding::percent_decode;
 
 
 //Globals ----------------------------------------------------------------------------------------------------
@@ -139,6 +140,16 @@ pub async fn ping(ctx: Context) -> Response {
                       .status(StatusCode::BAD_REQUEST)
                       .body(format!("Urls must contain a valid protocol schema prefix, like http:// or https://").into())
                       .unwrap()
+                }
+            }
+
+            //Decode the url if it was percent encoded
+            match percent_decode(url_incoming.as_bytes()).decode_utf8() {
+                Ok(result_url) => {
+                    println!("ResultUrl: {}", result_url);
+                },
+                Err(e) => {
+                    eprintln!("ResultUrlError: {:#?}", e);
                 }
             }
 

@@ -15,3 +15,7 @@
 /hive-watcher/examples/write-to-csv-analyze-with-R/.RData
 # User-specific files
 /hive-watcher/examples/write-to-csv-analyze-with-R/.Ruserdata
+
+# Databases
+/podping/auth.db
+/podping/queue.db
