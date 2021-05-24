@@ -47,7 +47,7 @@ logging.basicConfig(level=logging.INFO,
 # COMMAND LINE
 # ---------------------------------------------------------------
 
-app_description = """ PodPing - Runs as a server and writes a stream of URLs to the Hive Blockchain """
+app_description = """ PodPing - Runs as a server and writes a stream of URLs to the Hive Blockchain or sends a single URL to Hive (--url option) """
 
 
 my_parser = argparse.ArgumentParser(prog='hive-writer',
@@ -60,16 +60,27 @@ group_noise = my_parser.add_mutually_exclusive_group()
 group_noise.add_argument('-q', '--quiet', action='store_true', help='Minimal output')
 group_noise.add_argument('-v', '--verbose', action='store_true', help='Lots of output')
 
-my_parser.add_argument('-s', '--socket',
+
+group_action_type = my_parser.add_mutually_exclusive_group()
+group_action_type.add_argument('-s', '--socket',
                        action='store', type=int, required=False,
                        metavar='',
                        default= None,
                        help='<port> Socket to listen on for each new url, returns either ')
-my_parser.add_argument('-z', '--zmq',
+group_action_type.add_argument('-z', '--zmq',
                        action='store', type=int, required=False,
                        metavar='',
                        default= None,
                        help='<port> for ZMQ to listen on for each new url, returns either ')
+
+group_action_type.add_argument('-u', '--url',
+                       action='store',
+                       type=str,
+                       required=False,
+                       metavar='',
+                       default=None,
+                       help="<url> Takes in a single URL and sends a single podping to Hive, needs HIVE_SERVER_ACCOUNT and HIVE_POSTING_KEY ENV variables set")
+
 
 my_parser.add_argument('-e', '--errors',
                        action='store', type=int, required=False,
@@ -90,9 +101,10 @@ wif = [os.getenv('HIVE_POSTING_KEY')]
 # Adding a Queue system to the Hive send_notification section
 hive_q = queue.Queue()
 
-def startup_sequence(ignore_errors= False) -> bool:
+def startup_sequence(ignore_errors= False, resource_test=True) -> bool:
     """ Run though a startup sequence connect to Hive and check env variables
-        Exit with error unless ignore_errors passed as True """
+        Exit with error unless ignore_errors passed as True
+        Defaults to sending two startup resource_test posts and checking resources """
 
     global hive
     global server_account, wif
@@ -138,39 +150,41 @@ def startup_sequence(ignore_errors= False) -> bool:
         error_messages.append(f'{ex} occurred {ex.__class__}')
         logging.error(error_messages[-1])
 
-    if acc:
-        try:    # Now post two custom json to test.
-            manabar = acc.get_rc_manabar()
-            logging.info(f'Testing Account Resource Credits - before {manabar.get("current_pct"):.2f}%')
-            custom_json = {
-                "server_account" : server_account,
-                "USE_TEST_NODE" : USE_TEST_NODE,
-                "message" : "Podping startup initiated"
-            }
-            error_message , success = send_notification(custom_json, 'podping-startup')
 
-            if not success:
-                error_messages.append(error_message)
-            logging.info('Testing Account Resource Credits.... 5s')
-            time.sleep(2)
-            manabar_after = acc.get_rc_manabar()
-            logging.info(f'Testing Account Resource Credits - after {manabar_after.get("current_pct"):.2f}%')
-            cost = manabar.get('current_mana') - manabar_after.get('current_mana')
-            if cost == 0:   # skip this test if we're going to get ZeroDivision
-                capacity = 1000000
-            else:
-                capacity = manabar_after.get('current_mana') / cost
-            logging.info(f'Capacity for further podpings : {capacity:.1f}')
-            custom_json['v'] = CURRENT_PODPING_VERSION
-            custom_json['capacity'] = f'{capacity:.1f}'
-            custom_json['message'] = 'Podping startup complete'
-            error_message , success = send_notification(custom_json, 'podping-startup')
-            if not success:
-                error_messages.append(error_message)
+    if resource_test:
+        if acc:
+            try:    # Now post two custom json to test.
+                manabar = acc.get_rc_manabar()
+                logging.info(f'Testing Account Resource Credits - before {manabar.get("current_pct"):.2f}%')
+                custom_json = {
+                    "server_account" : server_account,
+                    "USE_TEST_NODE" : USE_TEST_NODE,
+                    "message" : "Podping startup initiated"
+                }
+                error_message , success = send_notification(custom_json, 'podping-startup')
 
-        except Exception as ex:
-            error_messages.append(f'{ex} occurred {ex.__class__}')
-            logging.error(error_messages[-1])
+                if not success:
+                    error_messages.append(error_message)
+                logging.info('Testing Account Resource Credits.... 5s')
+                time.sleep(2)
+                manabar_after = acc.get_rc_manabar()
+                logging.info(f'Testing Account Resource Credits - after {manabar_after.get("current_pct"):.2f}%')
+                cost = manabar.get('current_mana') - manabar_after.get('current_mana')
+                if cost == 0:   # skip this test if we're going to get ZeroDivision
+                    capacity = 1000000
+                else:
+                    capacity = manabar_after.get('current_mana') / cost
+                logging.info(f'Capacity for further podpings : {capacity:.1f}')
+                custom_json['v'] = CURRENT_PODPING_VERSION
+                custom_json['capacity'] = f'{capacity:.1f}'
+                custom_json['message'] = 'Podping startup complete'
+                error_message , success = send_notification(custom_json, 'podping-startup')
+                if not success:
+                    error_messages.append(error_message)
+
+            except Exception as ex:
+                error_messages.append(f'{ex} occurred {ex.__class__}')
+                logging.error(error_messages[-1])
 
 
     if error_messages:
@@ -334,11 +348,16 @@ def failure_retry(url_list, failure_count = 0):
     """ Recursion... see recursion """
     global peak_fail_count
     if failure_count > 0:
-        logging.error(f"Waiting {HALT_TIME[failure_count]}")
+        logging.error(f"Waiting {HALT_TIME[failure_count]}s")
         time.sleep(HALT_TIME[failure_count])
         logging.info(f"RETRYING num_urls: {len(url_list)}")
     else:
-        logging.info(f"Received num_urls: {len(url_list)}")
+        if type(url_list) == list:
+            logging.info(f"Received num_urls: {len(url_list)}")
+        elif type(url_list) == str:
+            logging.info(f"One URL Received: {url_list}")
+        else:
+            logging.info(f"{url_list}")
 
     trx_id, success = send_notification(url_list)
     #  Send reply back to client
@@ -372,7 +391,17 @@ threading.Thread(target=send_notification_worker, daemon=True).start()
 
 def main() -> None:
     """ Main man what counts... """
-    startup_sequence()
+    if myArgs['url']:
+        url = myArgs['url']
+        if startup_sequence(resource_test=False):
+            answer, failure_count = failure_retry(url)
+            return
+        else:
+            raise(SystemExit)
+        return
+
+
+    startup_sequence(resource_test=True)
     if myArgs['socket']:
         HOST, PORT = "localhost", myArgs['socket']
         # Create the server, binding to localhost on port 9999

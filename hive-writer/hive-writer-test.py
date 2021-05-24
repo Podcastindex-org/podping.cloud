@@ -41,7 +41,7 @@ def loop_test():
     """ Run a simple loop test on the hive-writer program """
     start = time.perf_counter()
     #  Do 10 requests, waiting each time for a response
-    for request in range(2):
+    for request in range(7):
         print(f"Sending request {request} …")
         data = f"https://www.brianoflondon.me/podcast2/brians-forest-talks-exp.xml?q={request}"
         zsocket.send(data.encode())

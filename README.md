@@ -54,11 +54,30 @@ PODPING_RUNAS_USER="podping" ./target/release/podping
 
 ## Blockchain Writer (hive-writer.py)
 
-The python script `hive-writer.py` does the following:
+The python script `hive-writer.py` sends podpings to Hive:
+
+```
+usage: hive-writer [options]
+
+PodPing - Runs as a server and writes a stream of URLs to the Hive Blockchain or sends a single URL to Hive (--url option)
+
+optional arguments:
+  -h, --help      show this help message and exit
+  -q, --quiet     Minimal output
+  -v, --verbose   Lots of output
+  -s , --socket   <port> Socket to listen on for each new url, returns either
+  -z , --zmq      <port> for ZMQ to listen on for each new url, returns either
+  -u , --url      <url> Takes in a single URL and sends a single podping to Hive, needs HIVE_SERVER_ACCOUNT and HIVE_POSTING_KEY ENV variables set
+  -e , --errors   Deliberately force error rate of <int>%
+```
+
+There are two main modes of operation:
+1. Run as a server waiting for URLs either as a simple socket (--socket) or as ZMQ socket (--zmq)
+2. Send a single URL from the command line (--url)
 
 ### Enviornment
 
-In order to operate, ```hive-watcher``` must be given two ENV variables. The third ENV variable will use a test version of Hive which may or may not be available:
+In order to operate, ```hive-writer.py``` must be given two ENV variables. The third ENV variable will use a test version of Hive which may or may not be available:
 ```
 "env": {
     "HIVE_SERVER_ACCOUNT" : "blocktvnews",
@@ -66,7 +85,52 @@ In order to operate, ```hive-watcher``` must be given two ENV variables. The thi
     "USE_TEST_NODE": "False"
 }
 ```
+
 Hive accounts can be created with the tool [Hive On Board](https://hiveonboard.com?ref=brianoflondon). However, only *Podpings* from accounts which are approved by Podping and PodcastIndex will be recognised. The current authorised list can always be seen [here](https://peakd.com/@podping/following).
+
+### Example
+
+Send a single podping using account stored in ENV variable:
+
+```python hive-writer/hive-writer.py --url http://feed.nashownotes.com/rss.xml ```
+
+Output:
+```
+2021-05-24 10:42:18,258 INFO root MainThread : Podping startup sequence initiated, please stand by, full bozo checks in operation...
+2021-05-24 10:42:19,962 INFO root MainThread : Startup of Podping status: SUCCESS! Hit the BOOST Button.
+2021-05-24 10:42:19,962 INFO root MainThread : One URL Received: http://feed.nashownotes.com/rss.xml
+2021-05-24 10:42:20,846 INFO root MainThread : Transaction sent: f91a73abd9905135ef4e1ed979cc20f184fbc72e - Num urls: 1 - Json size: 77
+```
+
+The transaction can be found on the Hive blockchain using the transaction number: [f91a73abd9905135ef4e1ed979cc20f184fbc72e](https://hiveblocks.com/tx/f91a73abd9905135ef4e1ed979cc20f184fbc72e)
+
+
+Similarly, to run as a server:
+
+```python hive-writer\hive-writer.py --zmq 9999```
+
+This will initate a startup sequence which tests the ENV supplied credentials for the ability to write to Hive and makes a check on resource credits:
+
+```
+2021-05-24 11:29:49,495 INFO root MainThread : Podping startup sequence initiated, please stand by, full bozo checks in operation...
+2021-05-24 11:29:51,594 INFO root MainThread : Testing Account Resource Credits - before 99.30%
+2021-05-24 11:30:09,730 INFO root MainThread : Transaction sent: 9bfdac9088d75460bc9a560652eda2b86d2f49e9 - Num urls: 0 - Json size: 95
+2021-05-24 11:30:09,730 INFO root MainThread : Testing Account Resource Credits.... 5s
+2021-05-24 11:30:12,030 INFO root MainThread : Testing Account Resource Credits - after 99.29%
+2021-05-24 11:30:12,030 INFO root MainThread : Capacity for further podpings : 28825.1
+2021-05-24 11:30:28,903 INFO root MainThread : Transaction sent: e8573e27e02f561ea3e9f037fe6f7823f4445ecb - Num urls: 0 - Json size: 125
+2021-05-24 11:30:28,903 INFO root MainThread : Startup of Podping status: SUCCESS! Hit the BOOST Button.
+```
+
+The line ```Capacity for further podpings : 28825.1``` gives a very rough indication of how many podpings this account can send in its present state.
+
+This will start up and wait for a ZMQ connection on port 9999. The server waits for a single URL per connection return "OK" or "ERR" if something has failed. Every 3 seconds ```hive-writer.py``` will post the URLs received (up to a maximum of 130) to the Hive blockchain. If URLs come in faster than 130 every 3s they will be held in a buffer and written out.
+
+
+
+<br>
+
+## Blockchain Watcher (hive-watcher.py)
 
 The stream of *podpings* can be watched with the ```hive-watcher.py``` code. In addition there is a simplified version of this code ```simple-watcher.py``` which should be used to understand what is going on. There is javascript version in [hive-watcher.js](https://github.com/Podcastindex-org/podping.cloud/blob/main/hive-watcher-js/hive-watcher.js)
 
@@ -81,6 +145,7 @@ With default arguments it will print to the StdOut a log of each new URL that ha
 optional arguments:
   -h, --help          show this help message and exit
   -H, --history-only  Report history only and exit
+  -d, --diagnostic    Show diagnostic posts written to the blockchain
   -r , --reports      Time in MINUTES between periodic status reports, use 0 for no periodic reports
   -s , --socket       <IP-Address>:<port> Socket to send each new url to
   -t, --test          Use a test net API
@@ -89,6 +154,7 @@ optional arguments:
 
   -b , --block        Hive Block number to start replay at or use:
   -o , --old          Time in HOURS to look back up the chain for old pings (default is 0)
+  -y , --startdate    <%Y-%m-%d %H:%M:%S> Date/Time to start the history
 ```
 ### What it does
 
@@ -145,7 +211,7 @@ The write operation usually takes about 0.8s. At present ```hive-writer``` is no
 
 ## Blockchain Watcher (hive-watcher.py)
 
-The watcher script is how you see which podcast feed urls have signaled an update.  
+The watcher script is how you see which podcast feed urls have signaled an update.
 
 The python script `hive-watcher.py` is more full featured - allowing for socket listening, and other options.
 
@@ -164,7 +230,7 @@ This is the easiest way to get started watching the blockchain for feed updates.
 Each time a feed update notification is detected on the blockchain, the full url of the feed is printed to STDOUT on a new line.  Each
 FQDN that is output represents a new episode that has been published, or some other significant update to that podcast feed.
 
-You can watch this output as a way to signal your system to re-parse a podcast feed.  Or you can use it as a starting template to 
+You can watch this output as a way to signal your system to re-parse a podcast feed.  Or you can use it as a starting template to
 develop a more customized script for your environment.  It's dead simple!
 
 <br>
