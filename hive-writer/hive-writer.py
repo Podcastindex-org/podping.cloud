@@ -144,7 +144,8 @@ def startup_sequence(ignore_errors= False) -> bool:
             logging.info(f'Testing Account Resource Credits - before {manabar.get("current_pct"):.2f}%')
             custom_json = {
                 "server_account" : server_account,
-                "USE_TEST_NODE" : USE_TEST_NODE
+                "USE_TEST_NODE" : USE_TEST_NODE,
+                "message" : "Podping startup initiated"
             }
             error_message , success = send_notification(custom_json, 'podping-startup')
 
