@@ -8,6 +8,7 @@ import threading
 import time
 from random import randint
 import argparse
+from collections import OrderedDict
 
 import zmq
 from beem import Hive
@@ -20,16 +21,22 @@ from beemgraphenebase.types import Bool
 # BOL: Switching off TestNet, we should test on Hive for now.
 USE_TEST_NODE = os.getenv("USE_TEST_NODE", 'False').lower() in ('true', '1', 't')
 TEST_NODE = ['http://testnet.openhive.network:8091']
-CURRENT_PODPING_VERSION = "0.2"
-NOTIFICATION_REASONS = ['feed_update','new_feed','host_change']
-HIVE_OPERPATION_PERIOD = 3  # 1 Hive operation per this period in
-MAX_URL_PER_CUSTOM_JSON = 130 # total json size must be below 8192 bytes
+CURRENT_PODPING_VERSION = 2
+NOTIFICATION_REASONS = {
+    'feed_update' : 1,
+    'new_feed' : 2,
+    'host_change' : 3
+}
+
+
+HIVE_OPERATION_PERIOD = 3       # 1 Hive operation per this period in
+MAX_URL_PER_CUSTOM_JSON = 130   # total json size must be below 8192 bytes
 
 # This is a global signal to shut down until RC's recover
 # Stores the RC cost of each operation to calculate an average
 HALT_THE_QUEUE = False
 # HALT_TIME = [1,2,3]
-HALT_TIME = [0,3,9,12,30,60,120]
+HALT_TIME = [0,1,1,3,6,9,15]
 
 
 logging.basicConfig(level=logging.INFO,
@@ -110,7 +117,7 @@ def startup_sequence(ignore_errors= False) -> bool:
         error_messages.append(f'{ex} occurred {ex.__class__}')
         error_messages.append(f'Can not connect to Hive, probably bad key')
         logging.error(error_messages[-1])
-        error_messages.append("I'm sorry, Dave, I'm affraid I can't do that")
+        error_messages.append("I'm sorry, Dave, I'm afraid I can't do that")
         logging.error(error_messages[-1])
         exit_message = ' - '.join(error_messages)
         raise SystemExit(exit_message)
@@ -137,7 +144,8 @@ def startup_sequence(ignore_errors= False) -> bool:
             logging.info(f'Testing Account Resource Credits - before {manabar.get("current_pct"):.2f}%')
             custom_json = {
                 "server_account" : server_account,
-                "USE_TEST_NODE" : USE_TEST_NODE
+                "USE_TEST_NODE" : USE_TEST_NODE,
+                "message" : "Podping startup initiated"
             }
             error_message , success = send_notification(custom_json, 'podping-startup')
 
@@ -149,11 +157,11 @@ def startup_sequence(ignore_errors= False) -> bool:
             logging.info(f'Testing Account Resource Credits - after {manabar_after.get("current_pct"):.2f}%')
             cost = manabar.get('current_mana') - manabar_after.get('current_mana')
             if cost == 0:   # skip this test if we're going to get ZeroDivision
-                capcity = 1000000
+                capacity = 1000000
             else:
                 capacity = manabar_after.get('current_mana') / cost
             logging.info(f'Capacity for further podpings : {capacity:.1f}')
-            custom_json['version'] = CURRENT_PODPING_VERSION
+            custom_json['v'] = CURRENT_PODPING_VERSION
             custom_json['capacity'] = f'{capacity:.1f}'
             custom_json['message'] = 'Podping startup complete'
             error_message , success = send_notification(custom_json, 'podping-startup')
@@ -166,8 +174,8 @@ def startup_sequence(ignore_errors= False) -> bool:
 
 
     if error_messages:
-        error_messages.append("I'm sorry, Dave, I'm affraid I can't do that")
-        logging.error("Startup of Podping status: I'm sorry, Dave, I'm affraid I can't do that.")
+        error_messages.append("I'm sorry, Dave, I'm afraid I can't do that")
+        logging.error("Startup of Podping status: I'm sorry, Dave, I'm afraid I can't do that.")
         exit_message = ' - '.join(error_messages)
         if (not USE_TEST_NODE) or ignore_errors:
             raise SystemExit(exit_message)
@@ -226,6 +234,8 @@ def get_allowed_accounts(acc_name='podping') -> bool:
     return allowed
 
 
+
+
 def send_notification(data, operation_id ='podping'):
     """ Sends a custom_json to Hive
         Expects two env variables, Hive account name and posting key
@@ -233,20 +243,23 @@ def send_notification(data, operation_id ='podping'):
         HIVE_POSTING_KEY
         """
     num_urls = 0
+
     if type(data) == list:
+        # De duplicate the URL list by passing it through an ordered dict (preserves order)
+        data = list(OrderedDict.fromkeys(data))
         num_urls = len(data)
         custom_json = {
-            "version" : CURRENT_PODPING_VERSION,
+            "v" : CURRENT_PODPING_VERSION,
             "num_urls" : num_urls,
-            "reason" : NOTIFICATION_REASONS[0],
+            "r" : NOTIFICATION_REASONS["feed_update"],
             "urls" : data
         }
     elif type(data) == str:
         num_urls = 1
         custom_json = {
-            "version" : CURRENT_PODPING_VERSION,
+            "v" : CURRENT_PODPING_VERSION,
             "num_urls" : 1,
-            "reason" : NOTIFICATION_REASONS[0],
+            "r" : NOTIFICATION_REASONS["feed_update"],
             "url" : data
         }
     elif type(data) == dict:
@@ -255,7 +268,7 @@ def send_notification(data, operation_id ='podping'):
         logging.error(f'Unknown data type: {data}')
 
     try:
-        # Artifically create errors <-----------------------------------
+        # Artificially create errors <-----------------------------------
         if operation_id == 'podping' and myArgs['errors']:
             r = randint(1,100)
             if r <= myArgs['errors']:
@@ -346,7 +359,7 @@ def failure_retry(url_list, failure_count = 0):
         answer['message'] = 'failure - server will retry'
         if failure_count >= len(HALT_TIME):
             # Give up.
-            error_message = f"I'm sorry Dave, I'm affraid I can't do that. Too many tries {failure_count}"
+            error_message = f"I'm sorry Dave, I'm afraid I can't do that. Too many tries {failure_count}"
             logging.error(error_message)
             raise SystemExit(error_message)
         answer, failure_count = failure_retry(url_list, failure_count)
@@ -375,11 +388,10 @@ def main() -> None:
         failure_count = 0
         q_size = hive_q.qsize()
         num_url_limit = MAX_URL_PER_CUSTOM_JSON
-        url_list = []
         while True :
             url_list = []
             start = time.perf_counter()
-            while (time.perf_counter() - start < HIVE_OPERPATION_PERIOD) and (len(url_list) < num_url_limit ):
+            while (time.perf_counter() - start < HIVE_OPERATION_PERIOD) and (len(url_list) < num_url_limit ):
                 #  Wait for next request from client
                 url = socket.recv().decode('utf-8')
                 url_list.append(url)
