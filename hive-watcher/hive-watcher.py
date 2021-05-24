@@ -74,7 +74,7 @@ block_history_argument_group.add_argument(
     required=False,
     metavar="",
     default=0,
-    help="<%Y-%m-%d %H:%M:%S> Date/Time to start the history",
+    help="<%%Y-%%m-%%d %%H:%%M:%%S> Date/Time to start the history",
 )
 
 
