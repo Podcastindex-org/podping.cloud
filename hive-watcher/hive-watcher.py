@@ -14,7 +14,7 @@ from beem.account import Account
 from beem.block import Block
 from beem.blockchain import Blockchain
 
-from .config import Config
+from config import Config
 
 
 
@@ -49,15 +49,11 @@ def allowed_op_id(operation_id) -> bool:
         return False
 
 
-def output(post,
-           quiet=False,
-           use_test_node=False,
-           diagnostic=False,
-           urls_only=False) -> int:
+def output(post) -> int:
     """Prints out the post and extracts the custom_json"""
 
     data = json.loads(post.get("json"))
-    if diagnostic:
+    if Config.diagnostic:
         logging.info(
             f"Diagnostic - {post.get('timestamp')} "
             f"- {data.get('server_account')} - {post.get('trx_id')} - {data.get('message')}"
@@ -66,13 +62,13 @@ def output(post,
             json.dumps(data, indent=2)
         )
 
-    if quiet:
+    if Config.quiet:
         if data.get("num_urls"):
             return data.get("num_urls")
         else:
             return 1
 
-    if urls_only:
+    if Config.urls_only:
         if data.get("url"):
             print(data.get("url"))
             return 1
@@ -86,7 +82,7 @@ def output(post,
     data["timestamp"] = post.get("timestamp")
 
     count = 0
-    if use_test_node:
+    if Config.use_test_node:
         data["test_node"] = True
 
     if data.get("url"):
@@ -110,11 +106,9 @@ def output_status(
     count_posts,
     time_to_now="",
     current_block_num="",
-    reports=True,
-    quiet=False,
 ) -> None:
     """Writes out a status update at with some count data"""
-    if not reports and quiet:
+    if not Config.reports and Config.quiet:
         return None
     if time_to_now:
         logging.info(
@@ -238,18 +232,7 @@ def scan_live(
             allowed_accounts = get_allowed_accounts()
 
 
-def scan_history(
-    # hive: beem.Hive,
-    # block_num: Optional[int] = None,
-    # hours_ago: Optional[timedelta] = None,
-    # report_freq: int = 5,
-    # reports=True,
-    # use_test_node=False,
-    # quiet=False,
-    # diagnostic=False,
-    # urls_only=False,
-    # stop_after=0,
-):
+def scan_history():
     """Scans back in history timed time delta ago, reporting with report_freq
     if timed is an int, treat it as hours, if report_freq is int, treat as min"""
 
@@ -272,16 +255,11 @@ def scan_history(
 
     stream = get_stream(Config.blockchain, Config.block_num)
 
-    # if stop_after > 0:
-    #     stop_at = start_time + timedelta(hours=stop_after)
-    # else:
-    #     stop_at = datetime(year=3333, month=1, day=1)
-
-    # post = None
-
+    report_period_start_time = Config.start_time
+    post = None
     for post in stream:
         post_time = post["timestamp"].replace(tzinfo=None)
-        time_dif = post_time - start_time
+        time_dif = post_time - report_period_start_time
         time_to_now = datetime.utcnow() - post_time
         count_posts += 1
         if Config.reports:
@@ -293,44 +271,40 @@ def scan_history(
                     pings,
                     count_posts,
                     time_to_now,
-                    current_block_num=current_block_num,
-                    reports=reports,
-                    quiet=quiet,
+                    current_block_num
                 )
-                start_time = post["timestamp"].replace(tzinfo=None)
+                report_period_start_time = post["timestamp"].replace(tzinfo=None)
                 count_posts = 0
                 pings = 0
 
         if allowed_op_id(post["id"]):
             if set(post["required_posting_auths"]) & allowed_accounts:
-                count = output(post, quiet, use_test_node, urls_only=urls_only)
+                count = output(post)
                 pings += count
                 Pings.total_pings += count
 
-        if diagnostic:
+        if Config.diagnostic:
             if post["id"] in DIAGNOSTIC_OPERATION_IDS:
-                output(post,quiet,use_test_node,diagnostic=diagnostic,urls_only=urls_only)
+                output(post)
 
-        if time_to_now < timedelta(seconds=2) or post_time > stop_at:
+        if time_to_now < timedelta(seconds=2) or post_time > Config.stop_at:
             timestamp = post["timestamp"]
             current_block_num = post["block_num"]
-            if reports:
+            if Config.show_reports:
                 output_status(
                     timestamp,
                     pings,
                     count_posts,
                     time_to_now,
-                    current_block_num=current_block_num,
-                    reports=reports,
-                    quiet=quiet
-                )
+                    current_block_num
+                    )
 
-            if not (urls_only or quiet):
+            if not (Config.urls_only):
                 logging.info(f"block_num: {post['block_num']}")
             # Break out of the for loop we've caught up.
             break
 
-    if post and (not (urls_only or quiet)):
+    if post and (not (Config.urls_only)):
         scan_time = datetime.utcnow() - scan_start_time
         logging.info(
             f"Finished catching up at block_num: {post['block_num']} in {scan_time}"
@@ -384,39 +358,39 @@ def main() -> None:
 
         scan_history()
 
-        if Config.block:
-            scan_history(
-                hive,
-                block_num=block_num,
-                report_freq=report_minutes,
-                reports=reports,
-                quiet=quiet,
-                diagnostic=diagnostic,
-                urls_only=urls_only,
-                stop_after=stop_after,
-            )
-        else:
-            if my_args["startdate"]:
-                arg_time = my_args["startdate"]
-                start_date = datetime.strptime(arg_time, "%Y-%m-%d %H:%M:%S")
-                hours_ago = datetime.now() - start_date
-            else:
-                hours_ago = timedelta(hours=Config.old)
+    #     if Config.block_num:
+    #         scan_history(
+    #             hive,
+    #             block_num=block_num,
+    #             report_freq=report_minutes,
+    #             reports=reports,
+    #             quiet=quiet,
+    #             diagnostic=diagnostic,
+    #             urls_only=urls_only,
+    #             stop_after=stop_after,
+    #         )
+    #     else:
+    #         if my_args["startdate"]:
+    #             arg_time = my_args["startdate"]
+    #             start_date = datetime.strptime(arg_time, "%Y-%m-%d %H:%M:%S")
+    #             hours_ago = datetime.now() - start_date
+    #         else:
+    #             hours_ago = timedelta(hours=Config.old)
 
-            scan_history(
-                hive,
-                hours_ago=hours_ago,
-                report_freq=report_minutes,
-                reports=reports,
-                quiet=quiet,
-                diagnostic=diagnostic,
-                urls_only=urls_only,
-                stop_after=stop_after,
-            )
+    #         scan_history(
+    #             hive,
+    #             hours_ago=hours_ago,
+    #             report_freq=report_minutes,
+    #             reports=reports,
+    #             quiet=quiet,
+    #             diagnostic=diagnostic,
+    #             urls_only=urls_only,
+    #             stop_after=stop_after,
+    #         )
 
-    history_only = my_args["history_only"]
+    # history_only = my_args["history_only"]
 
-    if not history_only:
+    if not Config.history_only:
         # scan_live will resume live scanning the chain and report every 5 minutes or
         # when a notification arrives
         scan_live(
