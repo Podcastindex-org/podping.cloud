@@ -2,8 +2,8 @@ import argparse
 from datetime import datetime, timedelta
 import os
 import beem
-from beem import blockchain
-from beem import block
+from beem.blockchain import Blockchain
+from beem.block import Block
 
 TEST_NODE = ["http://testnet.openhive.network:8091"]
 
@@ -185,9 +185,10 @@ class Config():
         else:
             cls.hours_ago = timedelta(hours=cls.old)
 
-        cls.blockchain = blockchain(mode="head", blockchain_instance=cls.hive)
+        cls.blockchain = Blockchain(mode="head", blockchain_instance=cls.hive)
 
-        if cls.old or cls.block or cls.startdate:
+        # We are looking for some kind of history
+        if cls.old or cls.block_num or cls.start_date:
 
             if cls.stop_after > 0:
                 cls.stop_at = cls.start_time + timedelta(hours=cls.stop_after)
@@ -196,10 +197,10 @@ class Config():
 
 
             if cls.block_num:
-                cls.start_time = block(cls.block_num)["timestamp"].replace(tzinfo=None)
+                cls.start_time = Block(cls.block_num)["timestamp"].replace(tzinfo=None)
             elif cls.hours_ago:
                 cls.start_time = datetime.utcnow() - cls.hours_ago
-                cls.block_numblock_num = blockchain.get_estimated_block_num(cls.start_time)
+                cls.block_numblock_num = cls.blockchain.get_estimated_block_num(cls.start_time)
             else:
                 raise ValueError(
                     "scan_history: block_num or --old=<hours> required to scan history"

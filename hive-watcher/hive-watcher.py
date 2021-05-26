@@ -357,7 +357,7 @@ def main() -> None:
         format=f"%(asctime)s - %(levelname)s %(name)s %(threadName)s : -  %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S%z",
     )
-
+    Config.setup()
 
     # Send every URL to a simple socket
     client_socket = None
