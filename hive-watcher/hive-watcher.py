@@ -9,9 +9,13 @@ from time import strptime
 from typing import Set, Optional, Union
 
 import beem
+from beem import block
 from beem.account import Account
 from beem.block import Block
 from beem.blockchain import Blockchain
+
+from .config import Config
+
 
 
 WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
@@ -22,131 +26,6 @@ TEST_NODE = ["http://testnet.openhive.network:8091"]
 class Pings:
     total_pings = 0
 
-
-app_description = """PodPing - Watch the Hive Blockchain for notifications of new
-Podcast Episodes
-
-
-This code will run until terminated reporting every
-notification of a new Podcast Episode sent to the Hive blockchain by any PodPing
-servers.
-
-With default arguments it will print to the StdOut a log of each new URL that has
-updated interspersed with summary lines every 5 minutes that list the number of
-PodPings and the number of other 'custom_json' operations seen on the blockchain.
-This interval can be set with the --reports command line.
-"""
-
-my_parser = argparse.ArgumentParser(
-    prog="hive-watcher",
-    usage="%(prog)s [options]",
-    description=app_description,
-    epilog="",
-)
-
-block_history_argument_group = my_parser.add_argument_group()
-block_history_argument_group.add_argument(
-    "-b",
-    "--block",
-    action="store",
-    type=int,
-    required=False,
-    metavar="",
-    help="Hive Block number to start replay at or use:",
-)
-
-block_history_argument_group.add_argument(
-    "-o",
-    "--old",
-    action="store",
-    type=int,
-    required=False,
-    metavar="",
-    default=0,
-    help="Time in HOURS to look back up the chain for old pings (default is 0)",
-)
-
-
-block_history_argument_group.add_argument(
-    "-a",
-    "--stop_after",
-    action="store",
-    type=int,
-    required=False,
-    metavar="",
-    default=0,
-    help=("Time in hours to replay for from the start point")
-)
-
-block_history_argument_group.add_argument(
-    "-y",
-    "--startdate",
-    action="store",
-    type=str,
-    required=False,
-    metavar="",
-    default=0,
-    help=("<%%Y-%%m-%%d %%H:%%M:%%S> Date/Time to start the history"),
-)
-
-
-my_parser.add_argument(
-    "-H",
-    "--history-only",
-    action="store_true",
-    required=False,
-    help="Report history only and exit",
-)
-
-my_parser.add_argument(
-    "-d",
-    "--diagnostic",
-    action="store_true",
-    required=False,
-    help=("Show diagnostic posts written to the blockchain")
-)
-
-my_parser.add_argument(
-    "-u",
-    "--urls_only",
-    action="store_true",
-    required=False,
-    help=("Just output the urls on a single line, nothing else")
-)
-
-my_parser.add_argument(
-    "-r",
-    "--reports",
-    action="store",
-    type=int,
-    required=False,
-    metavar="",
-    default=5,
-    help=(
-        "Time in MINUTES between periodic status reports, use 0 for no periodic reports"
-    ),
-)
-
-my_parser.add_argument(
-    "-s",
-    "--socket",
-    action="store",
-    type=str,
-    required=False,
-    metavar="",
-    default=None,
-    help="<IP-Address>:<port> Socket to send each new url to",
-)
-
-my_parser.add_argument(
-    "-t", "--test", action="store_true", required=False, help="Use a test net API"
-)
-
-my_parser.set_defaults(history_only=False)
-
-group = my_parser.add_mutually_exclusive_group()
-group.add_argument("-q", "--quiet", action="store_true", help="Minimal output")
-group.add_argument("-v", "--verbose", action="store_true", help="Lots of output")
 
 
 def get_allowed_accounts(acc_name="podping") -> Set[str]:
@@ -268,6 +147,34 @@ def output_to_socket(
 
     # Do we need to receive from the socket?
 
+def get_stream(blockchain, block_num=None):
+    """ Open up a stream from Hive either live or history """
+
+    # If you want instant confirmation, you need to instantiate
+    # class:beem.blockchain.Blockchain with mode="head",
+    # otherwise, the call will wait until confirmed in an irreversible block.
+    # noinspection PyTypeChecker
+
+    if block_num:
+        # History
+        stream = blockchain.stream(
+            opNames=["custom_json"],
+            start=block_num,
+            max_batch_size=50,
+            raw_ops=False,
+            threading=False,
+        )
+    else:
+        # Live
+        stream = blockchain.stream(
+            opNames=["custom_json"],
+            raw_ops=False,
+            threading=False
+        )
+    return stream
+
+
+
 
 def scan_live(
     hive: beem.Hive,
@@ -289,15 +196,7 @@ def scan_live(
     if reports:
         logging.info(f"Watching live from block_num: {current_block_num}")
 
-    # If you want instant confirmation, you need to instantiate
-    # class:beem.blockchain.Blockchain with mode="head",
-    # otherwise, the call will wait until confirmed in an irreversible block.
-    # noinspection PyTypeChecker
-    stream = blockchain.stream(
-        opNames=["custom_json"],
-        raw_ops=False,
-        threading=False
-    )
+    stream = get_stream(blockchain)
 
     start_time = datetime.utcnow()
     count_posts = 0
@@ -383,15 +282,7 @@ def scan_history(
     if reports:
         logging.info("Started catching up")
 
-    # beem type doesn't have type hints
-    # noinspection PyTypeChecker
-    stream = blockchain.stream(
-        opNames=["custom_json"],
-        start=block_num,
-        max_batch_size=50,
-        raw_ops=False,
-        threading=False,
-    )
+    stream = get_stream(blockchain, block_num)
 
     if stop_after > 0:
         stop_at = start_time + timedelta(hours=stop_after)
@@ -469,6 +360,9 @@ def open_socket(
         logging.error(error_message)
 
 
+
+
+
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
@@ -476,17 +370,12 @@ def main() -> None:
         datefmt="%Y-%m-%dT%H:%M:%S%z",
     )
 
-    args = my_parser.parse_args()
-    my_args = vars(args)
-    quiet = my_args["quiet"]
-    diagnostic = my_args["diagnostic"]
-    urls_only = my_args["urls_only"]
-    stop_after = my_args["stop_after"]
-    client_socket = None
 
-    if my_args["socket"]:
+    # Send every URL to a simple socket
+    client_socket = None
+    if Config.use_socket:
         # TODO: Socket needs testing or conversion to zmq
-        ip_port = my_args["socket"].split(":")
+        ip_port = Config.use_socket.split(":")
         try:
             ip_address = IPv4Address(ip_port[0])
         except AddressValueError:
@@ -495,32 +384,15 @@ def main() -> None:
         client_socket = socket(AF_INET, SOCK_STREAM)
         open_socket(client_socket, ip_address, port)
 
-    use_test_node: bool = os.getenv("USE_TEST_NODE", "False").lower() in {
-        "true",
-        "1",
-        "t",
-    }
-
-    if my_args['test']:
-        use_test_node = True
-
-    if use_test_node:
-        hive = beem.Hive(node=TEST_NODE[0])
-    else:
-        hive = beem.Hive()
-
     """ do we want periodic reports? """
-    if my_args["reports"] == 0:
-        reports = False
-    else:
-        reports = True
-        if use_test_node:
+    if Config.show_reports:
+        if Config.use_test_node:
             logging.info("---------------> Using Test Node " + TEST_NODE[0])
         else:
             logging.info("---------------> Using Main Hive Chain ")
 
     # scan_history will look back over the last 1 hour reporting every 15 minute chunk
-    if my_args["old"] or my_args["block"] or my_args["startdate"]:
+    if Config.old or my_args["block"] or my_args["startdate"]:
         report_minutes = my_args["reports"]
         if my_args["block"]:
             block_num = my_args["block"]
@@ -540,7 +412,7 @@ def main() -> None:
                 start_date = datetime.strptime(arg_time, "%Y-%m-%d %H:%M:%S")
                 hours_ago = datetime.now() - start_date
             else:
-                hours_ago = timedelta(hours=my_args["old"])
+                hours_ago = timedelta(hours=Config.old)
 
             scan_history(
                 hive,
