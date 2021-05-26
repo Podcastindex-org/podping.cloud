@@ -20,7 +20,7 @@ from .config import Config
 
 WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
 DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
-TEST_NODE = ["http://testnet.openhive.network:8091"]
+
 
 
 class Pings:
@@ -239,16 +239,16 @@ def scan_live(
 
 
 def scan_history(
-    hive: beem.Hive,
-    block_num: Optional[int] = None,
-    hours_ago: Optional[timedelta] = None,
-    report_freq: int = 5,
-    reports=True,
-    use_test_node=False,
-    quiet=False,
-    diagnostic=False,
-    urls_only=False,
-    stop_after=0,
+    # hive: beem.Hive,
+    # block_num: Optional[int] = None,
+    # hours_ago: Optional[timedelta] = None,
+    # report_freq: int = 5,
+    # reports=True,
+    # use_test_node=False,
+    # quiet=False,
+    # diagnostic=False,
+    # urls_only=False,
+    # stop_after=0,
 ):
     """Scans back in history timed time delta ago, reporting with report_freq
     if timed is an int, treat it as hours, if report_freq is int, treat as min"""
@@ -260,43 +260,31 @@ def scan_history(
      - https://feeds.transistor.fm/retail-remix"""
 
     scan_start_time = datetime.utcnow()
-
-    report_timedelta = timedelta(minutes=report_freq)
-
-    blockchain = Blockchain(mode="head", blockchain_instance=hive)
-    if block_num:
-        start_time = Block(block_num)["timestamp"].replace(tzinfo=None)
-    elif hours_ago:
-        start_time = datetime.utcnow() - hours_ago
-        block_num = blockchain.get_estimated_block_num(start_time)
-    else:
-        raise ValueError(
-            "scan_history: block_num or --old=<hours> required sto scan history"
-        )
+    report_timedelta = timedelta(minutes=Config.report_minutes)
 
     allowed_accounts = get_allowed_accounts()
 
     count_posts = 0
     pings = 0
 
-    if reports:
+    if Config.reports:
         logging.info("Started catching up")
 
-    stream = get_stream(blockchain, block_num)
+    stream = get_stream(Config.blockchain, Config.block_num)
 
-    if stop_after > 0:
-        stop_at = start_time + timedelta(hours=stop_after)
-    else:
-        stop_at = datetime(year=3333, month=1, day=1)
+    # if stop_after > 0:
+    #     stop_at = start_time + timedelta(hours=stop_after)
+    # else:
+    #     stop_at = datetime(year=3333, month=1, day=1)
 
-    post = None
+    # post = None
 
     for post in stream:
         post_time = post["timestamp"].replace(tzinfo=None)
         time_dif = post_time - start_time
         time_to_now = datetime.utcnow() - post_time
         count_posts += 1
-        if reports:
+        if Config.reports:
             if time_dif > report_timedelta:
                 timestamp = post["timestamp"]
                 current_block_num = post["block_num"]
@@ -392,10 +380,11 @@ def main() -> None:
             logging.info("---------------> Using Main Hive Chain ")
 
     # scan_history will look back over the last 1 hour reporting every 15 minute chunk
-    if Config.old or my_args["block"] or my_args["startdate"]:
-        report_minutes = my_args["reports"]
-        if my_args["block"]:
-            block_num = my_args["block"]
+    if Config.old or Config.block or Config.startdate:
+
+        scan_history()
+
+        if Config.block:
             scan_history(
                 hive,
                 block_num=block_num,

@@ -1,6 +1,11 @@
 import argparse
+from datetime import datetime, timedelta
 import os
+import beem
+from beem import blockchain
+from beem import block
 
+TEST_NODE = ["http://testnet.openhive.network:8091"]
 
 app_description = """PodPing - Watch the Hive Blockchain for notifications of new
 Podcast Episodes
@@ -59,7 +64,7 @@ block_history_argument_group.add_argument(
 
 block_history_argument_group.add_argument(
     "-y",
-    "--startdate",
+    "--start_date",
     action="store",
     type=str,
     required=False,
@@ -71,7 +76,7 @@ block_history_argument_group.add_argument(
 
 my_parser.add_argument(
     "-H",
-    "--history-only",
+    "--history_only",
     action="store_true",
     required=False,
     help="Report history only and exit",
@@ -137,6 +142,9 @@ class Config():
     test = my_args["test"]
     quiet = my_args["quiet"]
     reports = my_args["reports"]
+    block_num = my_args["block"]
+    start_date = my_args["start_date"]
+    history_only = my_args["history_only"]
     old = my_args["old"]
     diagnostic = my_args["diagnostic"]
     urls_only = my_args["urls_only"]
@@ -156,8 +164,43 @@ class Config():
                 "t",
             }
 
+        # If reports is 0 no reports otherwise reports is report_minutes frequency
         if cls.reports == 0:
             cls.show_reports = False
         else:
             cls.show_reports = True
             cls.report_minutes = cls.reports
+
+        if cls.use_test_node:
+            cls.hive = beem.Hive(node=TEST_NODE[0])
+        else:
+            cls.hive = beem.Hive()
+
+
+        # If we have --old = use that or  if --start_date calculate
+        # how many hours_ago that is
+        if cls.start_date:
+            start_date = datetime.strptime(cls.start_date, "%Y-%m-%d %H:%M:%S")
+            cls.hours_ago = datetime.now() - start_date
+        else:
+            cls.hours_ago = timedelta(hours=cls.old)
+
+        cls.blockchain = blockchain(mode="head", blockchain_instance=cls.hive)
+
+        if cls.old or cls.block or cls.startdate:
+
+            if cls.stop_after > 0:
+                cls.stop_at = cls.start_time + timedelta(hours=cls.stop_after)
+            else:
+                cls.stop_at = datetime(year=3333, month=1, day=1)
+
+
+            if cls.block_num:
+                cls.start_time = block(cls.block_num)["timestamp"].replace(tzinfo=None)
+            elif cls.hours_ago:
+                cls.start_time = datetime.utcnow() - cls.hours_ago
+                cls.block_numblock_num = blockchain.get_estimated_block_num(cls.start_time)
+            else:
+                raise ValueError(
+                    "scan_history: block_num or --old=<hours> required to scan history"
+                )
