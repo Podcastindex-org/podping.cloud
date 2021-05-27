@@ -5,6 +5,8 @@ import beem
 from beem.blockchain import Blockchain
 from beem.block import Block
 
+from ipaddress import IPv4Address, IPv6Address, AddressValueError
+
 TEST_NODE = ["http://testnet.openhive.network:8091"]
 
 app_description = """PodPing - Watch the Hive Blockchain for notifications of new
@@ -190,7 +192,7 @@ class Config():
 
         # We are looking for some kind of history
         if cls.old or cls.block_num or cls.start_date:
-
+            cls.history = True
             if cls.block_num:
                 cls.start_time = Block(cls.block_num)["timestamp"].replace(tzinfo=None)
             elif cls.hours_ago:
@@ -205,3 +207,6 @@ class Config():
                 cls.stop_at = cls.start_time + timedelta(hours=cls.stop_after)
             else:
                 cls.stop_at = datetime(year=3333, month=1, day=1)
+        else:
+            cls.history = False
+            cls.start_time = datetime.utcnow()

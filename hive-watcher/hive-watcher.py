@@ -13,6 +13,7 @@ from beem import block
 from beem.account import Account
 from beem.block import Block
 from beem.blockchain import Blockchain
+from numpy.lib.twodim_base import _trilu_dispatcher
 
 from config import Config
 
@@ -141,7 +142,7 @@ def output_to_socket(
 
     # Do we need to receive from the socket?
 
-def get_stream(blockchain, block_num=None):
+def get_stream(block_num=None):
     """ Open up a stream from Hive either live or history """
 
     # If you want instant confirmation, you need to instantiate
@@ -151,7 +152,7 @@ def get_stream(blockchain, block_num=None):
 
     if block_num:
         # History
-        stream = blockchain.stream(
+        stream = Config.blockchain.stream(
             opNames=["custom_json"],
             start=block_num,
             max_batch_size=50,
@@ -160,7 +161,7 @@ def get_stream(blockchain, block_num=None):
         )
     else:
         # Live
-        stream = blockchain.stream(
+        stream = Config.blockchain.stream(
             opNames=["custom_json"],
             raw_ops=False,
             threading=False
@@ -232,9 +233,8 @@ def scan_live(
             allowed_accounts = get_allowed_accounts()
 
 
-def scan_history():
-    """Scans back in history timed time delta ago, reporting with report_freq
-    if timed is an int, treat it as hours, if report_freq is int, treat as min"""
+def scan_chain(history):
+    """ Either scans the old chain (history == True) or watches the live blockchain """
 
     # Very first transaction from Dave Testing:
     """2021-05-10 13:51:58,353 INFO root MainThread
@@ -250,12 +250,22 @@ def scan_history():
     count_posts = 0
     pings = 0
 
-    if Config.reports:
-        logging.info("Started catching up")
+    if history:
+        report_period_start_time = Config.start_time
+        current_block_num = Config.block_num
+        stream = get_stream(Config.block_num)
+        if Config.reports:
+            logging.info("Started catching up")
 
-    stream = get_stream(Config.blockchain, Config.block_num)
+    else:
+        report_period_start_time = datetime.utcnow()
+        current_block_num = Config.blockchain.get_current_block_num()
+        stream = get_stream()
+        if Config.reports:
+            logging.info(f"Watching live from block_num: {current_block_num}")
 
-    report_period_start_time = Config.start_time
+
+
     post = None
     for post in stream:
         post_time = post["timestamp"].replace(tzinfo=None)
@@ -266,13 +276,7 @@ def scan_history():
             if time_dif > report_timedelta:
                 timestamp = post["timestamp"]
                 current_block_num = post["block_num"]
-                output_status(
-                    timestamp,
-                    pings,
-                    count_posts,
-                    time_to_now,
-                    current_block_num
-                )
+                output_status(timestamp,pings,count_posts, time_to_now,current_block_num)
                 report_period_start_time = post["timestamp"].replace(tzinfo=None)
                 count_posts = 0
                 pings = 0
@@ -287,22 +291,23 @@ def scan_history():
             if post["id"] in DIAGNOSTIC_OPERATION_IDS:
                 output(post)
 
-        if time_to_now < timedelta(seconds=2) or post_time > Config.stop_at:
-            timestamp = post["timestamp"]
-            current_block_num = post["block_num"]
-            if Config.show_reports:
-                output_status(
-                    timestamp,
-                    pings,
-                    count_posts,
-                    time_to_now,
-                    current_block_num
-                    )
+        if history:
+            if time_to_now < timedelta(seconds=2) or post_time > Config.stop_at:
+                timestamp = post["timestamp"]
+                current_block_num = post["block_num"]
+                if Config.show_reports:
+                    output_status(timestamp,pings, count_posts,time_to_now,current_block_num)
 
-            if not (Config.urls_only):
-                logging.info(f"block_num: {post['block_num']}")
-            # Break out of the for loop we've caught up.
-            break
+                if not (Config.urls_only):
+                    logging.info(f"block_num: {post['block_num']}")
+                # Break out of the for loop we've caught up.
+                break
+        else:
+            if time_dif > timedelta(hours=1):
+                # Re-fetch the allowed_accounts every hour in case we add one.
+                allowed_accounts = get_allowed_accounts()
+
+
 
     if post and (not (Config.urls_only)):
         scan_time = datetime.utcnow() - scan_start_time
@@ -354,53 +359,13 @@ def main() -> None:
             logging.info("---------------> Using Main Hive Chain ")
 
     # scan_history will look back over the last 1 hour reporting every 15 minute chunk
-    if Config.old or Config.block or Config.startdate:
-
-        scan_history()
-
-    #     if Config.block_num:
-    #         scan_history(
-    #             hive,
-    #             block_num=block_num,
-    #             report_freq=report_minutes,
-    #             reports=reports,
-    #             quiet=quiet,
-    #             diagnostic=diagnostic,
-    #             urls_only=urls_only,
-    #             stop_after=stop_after,
-    #         )
-    #     else:
-    #         if my_args["startdate"]:
-    #             arg_time = my_args["startdate"]
-    #             start_date = datetime.strptime(arg_time, "%Y-%m-%d %H:%M:%S")
-    #             hours_ago = datetime.now() - start_date
-    #         else:
-    #             hours_ago = timedelta(hours=Config.old)
-
-    #         scan_history(
-    #             hive,
-    #             hours_ago=hours_ago,
-    #             report_freq=report_minutes,
-    #             reports=reports,
-    #             quiet=quiet,
-    #             diagnostic=diagnostic,
-    #             urls_only=urls_only,
-    #             stop_after=stop_after,
-    #         )
-
-    # history_only = my_args["history_only"]
+    if Config.history:
+        scan_chain(history=True))
 
     if not Config.history_only:
         # scan_live will resume live scanning the chain and report every 5 minutes or
         # when a notification arrives
-        scan_live(
-            hive,
-            my_args["reports"],
-            reports,
-            quiet=quiet,
-            client_socket=client_socket,
-            urls_only=urls_only,
-        )
+        scan_chain(history=False)
     else:
         logging.info("history_only is set. exiting")
 
