@@ -7,9 +7,6 @@
 // 
 
 while(1) {
-    $url = trim(readline());
-    if(stripos($url, 'http://') === 0 || stripos($url, 'https://') === 0) {
-        echo "PODPING: Polling [$url] for new items.\n";
-        poll_feed($url);
-    }
+    $url = trim(readline());    
+    poll_feed($url);
 }
