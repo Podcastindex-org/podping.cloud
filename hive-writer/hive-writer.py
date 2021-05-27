@@ -30,13 +30,13 @@ NOTIFICATION_REASONS = {
 
 
 HIVE_OPERATION_PERIOD = 3       # 1 Hive operation per this period in
-MAX_URL_PER_CUSTOM_JSON = 130   # total json size must be below 8192 bytes
+MAX_URL_PER_CUSTOM_JSON = 90   # total json size must be below 8192 bytes
 
 # This is a global signal to shut down until RC's recover
 # Stores the RC cost of each operation to calculate an average
 HALT_THE_QUEUE = False
 # HALT_TIME = [1,2,3]
-HALT_TIME = [0,1,1,3,6,9,15]
+HALT_TIME = [0,1,1,1,1,1,1,1,3,6,9,15,15,15,15,15,15,15]
 
 
 logging.basicConfig(level=logging.INFO,
@@ -100,6 +100,8 @@ wif = [os.getenv('HIVE_POSTING_KEY')]
 
 # Adding a Queue system to the Hive send_notification section
 hive_q = queue.Queue()
+# Move the URL Q into a proper Q
+url_q = queue.Queue()
 
 def startup_sequence(ignore_errors= False, resource_test=True) -> bool:
     """ Run though a startup sequence connect to Hive and check env variables
@@ -233,9 +235,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
 def url_in(url):
     """ Send a URL and I'll post it to Hive """
-    custom_json = {'url': url}
-    trx_id , success = send_notification(custom_json)
-    return trx_id, success
+    url_q.put(url)
+    return "Sent", True
 
 
 def get_allowed_accounts(acc_name='podping') -> bool:
@@ -333,6 +334,17 @@ def send_notification_worker():
         logging.info(f'Task time: {duration:0.2f} - Queue size: ' + str(hive_q.qsize()))
         logging.info(f'Finished a task: {trx_id["trx_id"]} - {success}')
 
+def url_q_worker():
+    while True :
+        url_list = []
+        start = time.perf_counter()
+        while (time.perf_counter() - start < HIVE_OPERATION_PERIOD) and (len(url_list) < MAX_URL_PER_CUSTOM_JSON ):
+            #  get next URL from Q
+            url = url_q.get()
+            url_list.append(url)
+            logging.info(f'URL in queue: {url} - URL List: {len(url_list)}')
+            url_q.task_done()
+        hive_q.put( ( failure_retry, url_list) )
 
 
 
@@ -389,6 +401,9 @@ def failure_retry(url_list, failure_count = 0):
 # Adding a Queue system to the Hive send_notification section
 threading.Thread(target=send_notification_worker, daemon=True).start()
 
+# Adding a Queue system for holding URLs and sending them out
+threading.Thread(target=url_q_worker, daemon=True).start()
+
 def main() -> None:
     """ Main man what counts... """
     if myArgs['url']:
@@ -406,7 +421,6 @@ def main() -> None:
         HOST, PORT = "localhost", myArgs['socket']
         # Create the server, binding to localhost on port 9999
         server = socketserver.TCPServer((HOST, PORT), MyTCPHandler)
-
         # Activate the server; this will keep running until you
         # interrupt the program with Ctrl-C
         server.serve_forever()
@@ -414,19 +428,11 @@ def main() -> None:
         context = zmq.Context()
         socket = context.socket(zmq.REP)
         socket.bind(f"tcp://*:{myArgs['zmq']}")
-        failure_count = 0
-        q_size = hive_q.qsize()
-        num_url_limit = MAX_URL_PER_CUSTOM_JSON
         while True :
-            url_list = []
-            start = time.perf_counter()
-            while (time.perf_counter() - start < HIVE_OPERATION_PERIOD) and (len(url_list) < num_url_limit ):
-                #  Wait for next request from client
-                url = socket.recv().decode('utf-8')
-                url_list.append(url)
-                ans = "OK"
-                socket.send(ans.encode('utf-8'))
-            hive_q.put( ( failure_retry, url_list) )
+            url = socket.recv().decode('utf-8')
+            url_q.put(url)
+            ans = "OK"
+            socket.send(ans.encode('utf-8'))
 
     else:
         logging.error("You've got to specify --socket or --zmq otherwise I can't listen!")
