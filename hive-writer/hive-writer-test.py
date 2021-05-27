@@ -19,7 +19,7 @@ zsocket.connect("tcp://localhost:9999")
 
 def old_socket():
 
-    for n in range(10000):
+    for n in range(500):
             # Create a client socket
         clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Connect to the server
