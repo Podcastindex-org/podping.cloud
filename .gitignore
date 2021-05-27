@@ -5,6 +5,9 @@
 /venv
 .saved-info.txt
 
+__pycache__/
+hive-watcher/config/__pycache__/__init__.cpython-38.pyc
+
 # Example Specific Files #
 ##########################
 /hive-watcher/examples/write-to-csv-analyze-with-R/data*

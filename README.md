@@ -257,8 +257,11 @@ Then launch hive-write like this:
 
 This software is in beta condition.  It is running in production.  But, you should still expect bugs.
 
-The hive-writer agent requires permission keys that are not included in this repo.  They should be exported into your
+The hive-writer agent requires a Hive account and Hive Posting key which are not included in this repo.  They should be exported into your
 shell environment before launching the script.
+
+### Hive authoization
+If you want to write your own podpings directly to the Hive blockchain, in order for other watching clients to notice your podpings, your writing Hive account needs to be authorised. This authorisation is handled by @brianoflondon [contact via Podcastindex.social](https://podcastindex.social/@brianoflondon).
 
 <br>
 
