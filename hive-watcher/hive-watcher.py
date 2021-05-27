@@ -138,19 +138,6 @@ def output_status(
         )
 
 
-def output_to_socket(post) -> None:
-    """Take in a post and a socket and send the url to a socket"""
-
-    data = json.loads(post.get("json"))
-    url = data.get("url")
-    if url:
-        try:
-            Config.client_socket.send(url.encode())
-        except Exception as ex:
-            error_message = f"{ex} occurred {ex.__class__}"
-            logging.error(error_message)
-
-
 def get_stream(block_num=None):
     """ Open up a stream from Hive either live or history """
 
