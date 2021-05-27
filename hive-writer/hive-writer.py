@@ -36,7 +36,7 @@ MAX_URL_PER_CUSTOM_JSON = 90   # total json size must be below 8192 bytes
 # Stores the RC cost of each operation to calculate an average
 HALT_THE_QUEUE = False
 # HALT_TIME = [1,2,3]
-HALT_TIME = [0,1,1,3,6,9,15]
+HALT_TIME = [0,1,1,1,1,1,1,1,3,6,9,15,15,15,15,15,15,15]
 
 
 logging.basicConfig(level=logging.INFO,
