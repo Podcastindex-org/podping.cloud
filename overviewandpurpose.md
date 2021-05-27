@@ -6,11 +6,12 @@ Podping is an alternative to WebSub for the open, RSS based podcasting ecosystem
 
 ## Problem
 
-WebSub is a wonderful technology for the blogging world, and for small subscription bases. But, there are three main issues that make it less than ideal for the open world of podcasting:
+WebSub is a wonderful technology for the blogging world, and for small subscription bases. But, there are four main issues that make it less than ideal for the open world of podcasting:
 
 1. Not all hosting companies have chosen to support it.
 2. The burden of resubscribing on a per-feed basis every 7-15 days goes up exponentially as the feed count grows into 6 or 7 digits.
 3. The WebSub ecosystem of hubs consists mainly of SuperFeedr and Google. Most feeds are concentrated on those two.
+4. WebSub uses web hooks, so it requires having a server in order to receive notifications.  This isn't useful for standalone apps.
 
 A final issue is that of reliability. In our experience, hubs have proven to be unreliable at times. Especially the free ones. We have seen what appear to be outage periods, or just silence.
 
