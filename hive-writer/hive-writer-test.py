@@ -25,7 +25,7 @@ def old_socket():
         # Connect to the server
         clientSocket.connect(("127.0.0.1",9998))
         # Send data to server
-        data = f"https://www.brianoflondon.me/{n}/podcast2/brians-forest-talks-exp.xml"
+        data = f"https://www.brianoflondon.me/podcast2/brians-forest-talks-exp.xml?q={n}"
         clientSocket.send(data.encode())
         # Receive data from server
         dataFromServer = clientSocket.recv(1024)
