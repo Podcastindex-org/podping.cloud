@@ -233,9 +233,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
 def url_in(url):
     """ Send a URL and I'll post it to Hive """
-    custom_json = {'url': url}
-    trx_id , success = send_notification(custom_json)
-    return trx_id, success
+    hive_q.put( ( failure_retry, url) )
+    return "Sent", True
 
 
 def get_allowed_accounts(acc_name='podping') -> bool:

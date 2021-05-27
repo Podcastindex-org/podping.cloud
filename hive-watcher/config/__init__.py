@@ -4,7 +4,7 @@ import os
 import beem
 from beem.blockchain import Blockchain
 from beem.block import Block
-
+from socket import AF_INET, SOCK_STREAM, socket
 from ipaddress import IPv4Address, IPv6Address, AddressValueError
 
 TEST_NODE = ["http://testnet.openhive.network:8091"]
@@ -154,6 +154,15 @@ class Config():
     use_socket = my_args["socket"]
 
 
+    @classmethod
+    def socket_connect(cls):
+        cls.client_socket = socket(AF_INET, SOCK_STREAM)
+        try:
+            cls.client_socket.connect((cls.ip_address.compressed, cls.port))
+        except Exception as ex:
+            error_message = f"{ex} occurred {ex.__class__}"
+            print(error_message)
+
 
     @classmethod
     def setup(cls):
@@ -210,3 +219,14 @@ class Config():
         else:
             cls.history = False
             cls.start_time = datetime.utcnow()
+
+
+        cls.client_socket = None
+        if cls.use_socket:
+            # TODO: Socket needs testing or conversion to zmq
+            ip_port = cls.use_socket.split(":")
+            try:
+                cls.ip_address = IPv4Address(ip_port[0])
+            except AddressValueError:
+                cls.ip_address = IPv6Address(ip_port[0])
+            cls.port = int(ip_port[1])

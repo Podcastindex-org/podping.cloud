@@ -21,7 +21,7 @@ from config import Config
 
 WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
 DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
-
+TEST_NODE = ["http://testnet.openhive.network:8091"]
 
 
 class Pings:
@@ -72,11 +72,25 @@ def output(post) -> int:
     if Config.urls_only:
         if data.get("url"):
             print(data.get("url"))
+            Config.client_socket.send(data.get("url").encode())
             return 1
         elif data.get("urls"):
             for url in data.get("urls"):
                 print(url)
+                Config.client_socket.send(url.encode())
             return data.get("num_urls")
+
+    if Config.use_socket:
+        if data.get("url"):
+            Config.socket_connect()
+            Config.client_socket.send(data.get("url").encode())
+            dataFromServer = Config.client_socket.recv(1024)
+        elif data.get("urls"):
+            for url in data.get("urls"):
+                Config.socket_connect()
+                Config.client_socket.send(url.encode())
+                dataFromServer = Config.client_socket.recv(1024)
+
 
     data["required_posting_auths"] = post.get("required_posting_auths")
     data["trx_id"] = post.get("trx_id")
@@ -124,23 +138,18 @@ def output_status(
         )
 
 
-def output_to_socket(
-    post,
-    client_socket: Optional[socket] = None,
-) -> None:
+def output_to_socket(post) -> None:
     """Take in a post and a socket and send the url to a socket"""
-    if not client_socket:
-        return
+
     data = json.loads(post.get("json"))
     url = data.get("url")
     if url:
         try:
-            client_socket.send(url.encode())
+            Config.client_socket.send(url.encode())
         except Exception as ex:
             error_message = f"{ex} occurred {ex.__class__}"
             logging.error(error_message)
 
-    # Do we need to receive from the socket?
 
 def get_stream(block_num=None):
     """ Open up a stream from Hive either live or history """
@@ -167,70 +176,6 @@ def get_stream(block_num=None):
             threading=False
         )
     return stream
-
-
-
-
-def scan_live(
-    hive: beem.Hive,
-    report_freq: int = 5,
-    reports=True,
-    use_test_node=False,
-    client_socket: Optional[socket] = None,
-    quiet=False,
-    diagnostic=False,
-    urls_only=False
-):
-    """watches the stream from the Hive blockchain"""
-    report_timedelta = timedelta(minutes=report_freq)
-
-    allowed_accounts = get_allowed_accounts()
-
-    blockchain = Blockchain(mode="head", blockchain_instance=hive)
-    current_block_num = blockchain.get_current_block_num()
-    if reports:
-        logging.info(f"Watching live from block_num: {current_block_num}")
-
-    stream = get_stream(blockchain)
-
-    start_time = datetime.utcnow()
-    count_posts = 0
-    pings = 0
-
-    for post in stream:
-        count_posts += 1
-        time_dif = post["timestamp"].replace(tzinfo=None) - start_time
-        if reports:
-            if time_dif > report_timedelta:
-                current_block_num = str(blockchain.get_current_block_num())
-                timestamp = post["timestamp"]
-                output_status(
-                    timestamp,
-                    pings,
-                    count_posts,
-                    current_block_num=current_block_num,
-                    reports=reports,
-                    quiet=quiet,
-                )
-                start_time = post["timestamp"].replace(tzinfo=None)
-                count_posts = 0
-                pings = 0
-
-        if allowed_op_id(post["id"]):
-            if set(post["required_posting_auths"]) & allowed_accounts:
-                count = output(post, quiet, use_test_node, urls_only=urls_only)
-                if client_socket:
-                    output_to_socket(post, client_socket)
-                pings += count
-                Pings.total_pings += count
-
-        if diagnostic:
-            if post["id"] in DIAGNOSTIC_OPERATION_IDS:
-                output(post,quiet,use_test_node,diagnostic)
-
-        if time_dif > timedelta(hours=1):
-            # Re-fetch the allowed_accounts every hour in case we add one.
-            allowed_accounts = get_allowed_accounts()
 
 
 def scan_chain(history):
@@ -316,19 +261,6 @@ def scan_chain(history):
         )
 
 
-def open_socket(
-    client_socket: socket, ip_address: Union[IPv4Address, IPv6Address], port: int
-):
-    """If a socket errors out and will try to reopen it"""
-    try:
-        client_socket.connect((ip_address.compressed, port))
-    except Exception as ex:
-        error_message = f"{ex} occurred {ex.__class__}"
-        logging.error(error_message)
-
-
-
-
 
 def main() -> None:
     logging.basicConfig(
@@ -338,18 +270,7 @@ def main() -> None:
     )
     Config.setup()
 
-    # Send every URL to a simple socket
-    client_socket = None
-    if Config.use_socket:
-        # TODO: Socket needs testing or conversion to zmq
-        ip_port = Config.use_socket.split(":")
-        try:
-            ip_address = IPv4Address(ip_port[0])
-        except AddressValueError:
-            ip_address = IPv6Address(ip_port[0])
-        port = int(ip_port[1])
-        client_socket = socket(AF_INET, SOCK_STREAM)
-        open_socket(client_socket, ip_address, port)
+
 
     """ do we want periodic reports? """
     if Config.show_reports:
@@ -360,9 +281,9 @@ def main() -> None:
 
     # scan_history will look back over the last 1 hour reporting every 15 minute chunk
     if Config.history:
-        scan_chain(history=True))
+        scan_chain(history=True)
 
-    if not Config.history_only:
+    if not Config.history_only or Config.stop_after:
         # scan_live will resume live scanning the chain and report every 5 minutes or
         # when a notification arrives
         scan_chain(history=False)

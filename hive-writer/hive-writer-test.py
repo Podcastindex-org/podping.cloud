@@ -19,11 +19,11 @@ zsocket.connect("tcp://localhost:9999")
 
 def old_socket():
 
-    for n in range(10):
+    for n in range(10000):
             # Create a client socket
         clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Connect to the server
-        clientSocket.connect(("127.0.0.1",9999))
+        clientSocket.connect(("127.0.0.1",9998))
         # Send data to server
         data = f"https://www.brianoflondon.me/{n}/podcast2/brians-forest-talks-exp.xml"
         clientSocket.send(data.encode())
@@ -85,5 +85,5 @@ def old_data(start_line=0):
 if __name__ == "__main__":
     # for _ in range (5):
     #     old_data(0)
-    loop_test()
-    # old_socket()
+    # loop_test()
+    old_socket()
