@@ -82,14 +82,11 @@ def output(post) -> int:
 
     if Config.use_socket:
         if data.get("url"):
-            Config.socket_connect()
-            Config.client_socket.send(data.get("url").encode())
-            dataFromServer = Config.client_socket.recv(1024)
+            Config.socket_send(data.get("url"))
         elif data.get("urls"):
             for url in data.get("urls"):
-                Config.socket_connect()
-                Config.client_socket.send(url.encode())
-                dataFromServer = Config.client_socket.recv(1024)
+                Config.socket_send(url)
+
 
 
     data["required_posting_auths"] = post.get("required_posting_auths")

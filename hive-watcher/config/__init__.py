@@ -113,7 +113,8 @@ my_parser.add_argument(
     ),
 )
 
-my_parser.add_argument(
+group_zmq_socket = my_parser.add_mutually_exclusive_group()
+group_zmq_socket.add_argument(
     "-s",
     "--socket",
     action="store",
@@ -123,6 +124,15 @@ my_parser.add_argument(
     default=None,
     help="<IP-Address>:<port> Socket to send each new url to",
 )
+
+group_zmq_socket.add_argument(
+    '-z', '--zmq',
+    action='store',
+    type=str,
+    required=False,
+    metavar='',
+    default= None,
+    help='<IP-Address>:<port> for ZMQ to send each new url to')
 
 my_parser.add_argument(
     "-t", "--test", action="store_true", required=False, help="Use a test net API"
@@ -156,6 +166,7 @@ class Config():
 
     @classmethod
     def socket_connect(cls):
+        """ Connect to a socket """
         cls.client_socket = socket(AF_INET, SOCK_STREAM)
         try:
             cls.client_socket.connect((cls.ip_address.compressed, cls.port))
@@ -163,6 +174,13 @@ class Config():
             error_message = f"{ex} occurred {ex.__class__}"
             print(error_message)
 
+
+    @classmethod
+    def socket_send(cls, url):
+        """ Send a single URL to the socket specifie in startup """
+        cls.socket_connect()
+        cls.client_socket.send(url.encode())
+        cls.client_socket.close
 
     @classmethod
     def setup(cls):

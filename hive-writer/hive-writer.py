@@ -29,7 +29,7 @@ NOTIFICATION_REASONS = {
 }
 
 
-HIVE_OPERATION_PERIOD = 3       # 1 Hive operation per this period in
+HIVE_OPERATION_PERIOD = 4       # 1 Hive operation per this period in
 MAX_URL_PER_CUSTOM_JSON = 90   # total json size must be below 8192 bytes
 
 # This is a global signal to shut down until RC's recover
@@ -338,11 +338,13 @@ def url_q_worker():
     while True :
         url_list = []
         start = time.perf_counter()
-        while (time.perf_counter() - start < HIVE_OPERATION_PERIOD) and (len(url_list) < MAX_URL_PER_CUSTOM_JSON ):
+        duration = 0
+        while (duration < HIVE_OPERATION_PERIOD) and (len(url_list) < MAX_URL_PER_CUSTOM_JSON ):
             #  get next URL from Q
             url = url_q.get()
             url_list.append(url)
-            logging.info(f'URL in queue: {url} - URL List: {len(url_list)}')
+            duration = time.perf_counter() - start
+            logging.info(f'Duration: {duration} - URL in queue: {url} - URL List: {len(url_list)}')
             url_q.task_done()
         hive_q.put( ( failure_retry, url_list) )
 
