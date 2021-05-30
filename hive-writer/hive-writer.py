@@ -4,6 +4,7 @@ import logging
 import os
 import queue
 import socketserver
+from sys import getsizeof
 import threading
 import time
 from random import randint
@@ -29,8 +30,9 @@ NOTIFICATION_REASONS = {
 }
 
 
-HIVE_OPERATION_PERIOD = 4       # 1 Hive operation per this period in
+HIVE_OPERATION_PERIOD = 3       # 1 Hive operation per this period in
 MAX_URL_PER_CUSTOM_JSON = 90   # total json size must be below 8192 bytes
+MAX_URL_LIST_BYTES = 7000
 
 # This is a global signal to shut down until RC's recover
 # Stores the RC cost of each operation to calculate an average
@@ -81,6 +83,11 @@ group_action_type.add_argument('-u', '--url',
                        default=None,
                        help="<url> Takes in a single URL and sends a single podping to Hive, needs HIVE_SERVER_ACCOUNT and HIVE_POSTING_KEY ENV variables set")
 
+my_parser.add_argument("-t",
+                    "--test",
+                    action="store_true",
+                    required=False, help="Use a test net API"
+)
 
 my_parser.add_argument('-e', '--errors',
                        action='store', type=int, required=False,
@@ -107,7 +114,7 @@ def startup_sequence(ignore_errors= False, resource_test=True) -> bool:
     """ Run though a startup sequence connect to Hive and check env variables
         Exit with error unless ignore_errors passed as True
         Defaults to sending two startup resource_test posts and checking resources """
-
+    global USE_TEST_NODE
     global hive
     global server_account, wif
     error_messages = []
@@ -124,8 +131,11 @@ def startup_sequence(ignore_errors= False, resource_test=True) -> bool:
     try:
         if USE_TEST_NODE:
             hive = Hive(keys=wif,node=TEST_NODE)
+            logging.info("---------------> Using Test Node " + TEST_NODE[0])
         else:
             hive = Hive(keys=wif)
+            logging.info("---------------> Using Main Hive Chain ")
+
 
     except Exception as ex:
         error_messages.append(f'{ex} occurred {ex.__class__}')
@@ -259,18 +269,18 @@ def send_notification(data, operation_id ='podping'):
         """
     num_urls = 0
 
-    if type(data) == list:
-        # De duplicate the URL list by passing it through an ordered dict (preserves order)
-        data = list(OrderedDict.fromkeys(data))
+    if type(data) == set:
         num_urls = len(data)
+        size_of_urls = len("".join(data))
         custom_json = {
             "v" : CURRENT_PODPING_VERSION,
             "num_urls" : num_urls,
             "r" : NOTIFICATION_REASONS["feed_update"],
-            "urls" : data
+            "urls" : list(data)
         }
     elif type(data) == str:
         num_urls = 1
+        size_of_urls = len(data)
         custom_json = {
             "v" : CURRENT_PODPING_VERSION,
             "num_urls" : 1,
@@ -278,6 +288,7 @@ def send_notification(data, operation_id ='podping'):
             "url" : data
         }
     elif type(data) == dict:
+        size_of_urls = getsizeof(data)
         custom_json = data
     else:
         logging.error(f'Unknown data type: {data}')
@@ -294,8 +305,8 @@ def send_notification(data, operation_id ='podping'):
         tx = hive.custom_json(id=operation_id, json_data= custom_json,
                             required_posting_auths=[server_account])
         trx_id = tx['trx_id']
-
-        logging.info(f'Transaction sent: {trx_id} - Num urls: {num_urls} - Json size: {size_of_json}')
+        logging.info(f'Transaction sent: {trx_id} - Num urls: {num_urls} - Size of Urls: {size_of_urls} - Json size: {size_of_json}')
+        logging.info(f'Overhead: {size_of_json - size_of_urls}')
         return trx_id, True
 
     except MissingKeyError:
@@ -336,17 +347,20 @@ def send_notification_worker():
 
 def url_q_worker():
     while True :
-        url_list = []
+        url_set = set()
         start = time.perf_counter()
         duration = 0
-        while (duration < HIVE_OPERATION_PERIOD) and (len(url_list) < MAX_URL_PER_CUSTOM_JSON ):
+        url_set_bytes = 0
+        while (duration < HIVE_OPERATION_PERIOD) and (url_set_bytes < MAX_URL_LIST_BYTES ):
             #  get next URL from Q
             url = url_q.get()
-            url_list.append(url)
+            url_set.add(url)
             duration = time.perf_counter() - start
-            logging.info(f'Duration: {duration} - URL in queue: {url} - URL List: {len(url_list)}')
+            logging.info(f'Duration: {duration} - URL in queue: {url} - URL List: {len(url_set)}')
             url_q.task_done()
-        hive_q.put( ( failure_retry, url_list) )
+            url_set_bytes = len("".join(url_set))
+        hive_q.put( ( failure_retry, url_set) )
+        logging.info(f'Size of Urls: {url_set_bytes}')
 
 
 
@@ -358,25 +372,25 @@ def url_q_worker():
 # Global used for tracking the number of failures we get in recursive retry
 peak_fail_count = 0
 
-def failure_retry(url_list, failure_count = 0):
+def failure_retry(url_set, failure_count = 0):
     """ Recursion... see recursion """
     global peak_fail_count
     if failure_count > 0:
         logging.error(f"Waiting {HALT_TIME[failure_count]}s")
         time.sleep(HALT_TIME[failure_count])
-        logging.info(f"RETRYING num_urls: {len(url_list)}")
+        logging.info(f"RETRYING num_urls: {len(url_set)}")
     else:
-        if type(url_list) == list:
-            logging.info(f"Received num_urls: {len(url_list)}")
-        elif type(url_list) == str:
-            logging.info(f"One URL Received: {url_list}")
+        if type(url_set) == set:
+            logging.info(f"Received num_urls: {len(url_set)}")
+        elif type(url_set) == str:
+            logging.info(f"One URL Received: {url_set}")
         else:
-            logging.info(f"{url_list}")
+            logging.info(f"{url_set}")
 
-    trx_id, success = send_notification(url_list)
+    trx_id, success = send_notification(url_set)
     #  Send reply back to client
     answer ={
-        'url':url_list,
+        'url':url_set,
         'trx_id':trx_id
     }
     if success:
@@ -395,7 +409,7 @@ def failure_retry(url_list, failure_count = 0):
             error_message = f"I'm sorry Dave, I'm afraid I can't do that. Too many tries {failure_count}"
             logging.error(error_message)
             raise SystemExit(error_message)
-        answer, failure_count = failure_retry(url_list, failure_count)
+        answer, failure_count = failure_retry(url_set, failure_count)
         # Walk back up the recursion tree:
         return answer, failure_count
 
@@ -408,6 +422,10 @@ threading.Thread(target=url_q_worker, daemon=True).start()
 
 def main() -> None:
     """ Main man what counts... """
+    global USE_TEST_NODE
+    if myArgs['test']:
+        USE_TEST_NODE = True
+
     if myArgs['url']:
         url = myArgs['url']
         if startup_sequence(resource_test=False):

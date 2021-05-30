@@ -135,7 +135,10 @@ group_zmq_socket.add_argument(
     help='<IP-Address>:<port> for ZMQ to send each new url to')
 
 my_parser.add_argument(
-    "-t", "--test", action="store_true", required=False, help="Use a test net API"
+    "-t",
+    "--test",
+    action="store_true",
+    required=False, help="Use a test net API"
 )
 
 my_parser.set_defaults(history_only=False)
