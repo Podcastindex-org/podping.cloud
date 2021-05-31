@@ -1,114 +1,29 @@
-from datetime import timedelta
+import argparse
 import json
 import logging
 import os
 import queue
 import socketserver
-from sys import getsizeof
 import threading
 import time
-from random import randint
-import argparse
 from collections import OrderedDict
+from datetime import timedelta
+from random import randint
+from sys import getsizeof
 
 import zmq
 from beem import Hive
 from beem.account import Account
 from beem.exceptions import AccountDoesNotExistsException, MissingKeyError
 from beemapi.exceptions import UnhandledRPCError
-from beemgraphenebase.types import Bool
 
-# Testnet instead of main Hive
-# BOL: Switching off TestNet, we should test on Hive for now.
-USE_TEST_NODE = os.getenv("USE_TEST_NODE", 'False').lower() in ('true', '1', 't')
-TEST_NODE = ['http://testnet.openhive.network:8091']
-CURRENT_PODPING_VERSION = 2
-NOTIFICATION_REASONS = {
-    'feed_update' : 1,
-    'new_feed' : 2,
-    'host_change' : 3
-}
-
-
-HIVE_OPERATION_PERIOD = 3       # 1 Hive operation per this period in
-MAX_URL_PER_CUSTOM_JSON = 90   # total json size must be below 8192 bytes
-MAX_URL_LIST_BYTES = 7000
-
-# This is a global signal to shut down until RC's recover
-# Stores the RC cost of each operation to calculate an average
-HALT_THE_QUEUE = False
-# HALT_TIME = [1,2,3]
-HALT_TIME = [0,1,1,1,1,1,1,1,3,6,9,15,15,15,15,15,15,15]
+from config import Config
 
 
 logging.basicConfig(level=logging.INFO,
-                    format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
+            format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
 
 
-# ---------------------------------------------------------------
-# COMMAND LINE
-# ---------------------------------------------------------------
-
-app_description = """ PodPing - Runs as a server and writes a stream of URLs to the Hive Blockchain or sends a single URL to Hive (--url option) """
-
-
-my_parser = argparse.ArgumentParser(prog='hive-writer',
-                                    usage='%(prog)s [options]',
-                                    description= app_description,
-                                    epilog='')
-
-
-group_noise = my_parser.add_mutually_exclusive_group()
-group_noise.add_argument('-q', '--quiet', action='store_true', help='Minimal output')
-group_noise.add_argument('-v', '--verbose', action='store_true', help='Lots of output')
-
-
-group_action_type = my_parser.add_mutually_exclusive_group()
-group_action_type.add_argument('-s', '--socket',
-                       action='store', type=int, required=False,
-                       metavar='',
-                       default= None,
-                       help='<port> Socket to listen on for each new url, returns either ')
-group_action_type.add_argument('-z', '--zmq',
-                       action='store', type=int, required=False,
-                       metavar='',
-                       default= None,
-                       help='<port> for ZMQ to listen on for each new url, returns either ')
-
-group_action_type.add_argument('-u', '--url',
-                       action='store',
-                       type=str,
-                       required=False,
-                       metavar='',
-                       default=None,
-                       help="<url> Takes in a single URL and sends a single podping to Hive, needs HIVE_SERVER_ACCOUNT and HIVE_POSTING_KEY ENV variables set")
-
-my_parser.add_argument("-t",
-                    "--test",
-                    action="store_true",
-                    required=False, help="Use a test net API"
-)
-
-my_parser.add_argument('-e', '--errors',
-                       action='store', type=int, required=False,
-                       metavar='',
-                       default=None,
-                       help='Deliberately force error rate of <int>%%')
-
-args = my_parser.parse_args()
-myArgs = vars(args)
-
-# ---------------------------------------------------------------
-# START OF STARTUP SEQUENCE
-# ---------------------------------------------------------------
-# GLOBAL:
-server_account = os.getenv('HIVE_SERVER_ACCOUNT')
-wif = [os.getenv('HIVE_POSTING_KEY')]
-
-# Adding a Queue system to the Hive send_notification section
-hive_q = queue.Queue()
-# Move the URL Q into a proper Q
-url_q = queue.Queue()
 
 def startup_sequence(ignore_errors= False, resource_test=True) -> bool:
     """ Run though a startup sequence connect to Hive and check env variables
@@ -116,24 +31,23 @@ def startup_sequence(ignore_errors= False, resource_test=True) -> bool:
         Defaults to sending two startup resource_test posts and checking resources """
     global USE_TEST_NODE
     global hive
-    global server_account, wif
     error_messages = []
     # Set up Hive with error checking
     logging.info('Podping startup sequence initiated, please stand by, full bozo checks in operation...')
-    if not server_account:
+    if not Config.server_account:
         error_messages.append('No Hive account passed: HIVE_SERVER_ACCOUNT environment var must be set.')
         logging.error(error_messages[-1])
 
-    if not wif:
+    if not Config.wif:
         error_messages.append('No Hive Posting Key passed: HIVE_POSTING_KEY environment var must be set.')
         logging.error(error_messages[-1])
 
     try:
         if USE_TEST_NODE:
-            hive = Hive(keys=wif,node=TEST_NODE)
-            logging.info("---------------> Using Test Node " + TEST_NODE[0])
+            hive = Hive(keys=Config.wif,node=Config.TEST_NODE)
+            logging.info("---------------> Using Test Node " + Config.TEST_NODE[0])
         else:
-            hive = Hive(keys=wif)
+            hive = Hive(keys=Config.wif)
             logging.info("---------------> Using Main Hive Chain ")
 
 
@@ -149,14 +63,14 @@ def startup_sequence(ignore_errors= False, resource_test=True) -> bool:
 
     acc = None
     try:
-        acc = Account(server_account, blockchain_instance=hive, lazy=True)
+        acc = Account(Config.server_account, blockchain_instance=hive, lazy=True)
         allowed = get_allowed_accounts()
-        if not server_account in allowed:
-            error_messages.append(f'Account @{server_account} not authorised to send Podpings')
+        if not Config.server_account in allowed:
+            error_messages.append(f'Account @{Config.server_account} not authorised to send Podpings')
             logging.error(error_messages[-1])
 
     except AccountDoesNotExistsException:
-        error_messages.append(f'Hive account @{server_account} does not exist, check ENV vars and try again AccountDoesNotExistsException')
+        error_messages.append(f'Hive account @{Config.server_account} does not exist, check ENV vars and try again AccountDoesNotExistsException')
         logging.error(error_messages[-1])
     except Exception as ex:
         error_messages.append(f'{ex} occurred {ex.__class__}')
@@ -169,8 +83,8 @@ def startup_sequence(ignore_errors= False, resource_test=True) -> bool:
                 manabar = acc.get_rc_manabar()
                 logging.info(f'Testing Account Resource Credits - before {manabar.get("current_pct"):.2f}%')
                 custom_json = {
-                    "server_account" : server_account,
-                    "USE_TEST_NODE" : USE_TEST_NODE,
+                    "server_account" : Config.server_account,
+                    "USE_TEST_NODE" : Config.test,
                     "message" : "Podping startup initiated"
                 }
                 error_message , success = send_notification(custom_json, 'podping-startup')
@@ -187,7 +101,7 @@ def startup_sequence(ignore_errors= False, resource_test=True) -> bool:
                 else:
                     capacity = manabar_after.get('current_mana') / cost
                 logging.info(f'Capacity for further podpings : {capacity:.1f}')
-                custom_json['v'] = CURRENT_PODPING_VERSION
+                custom_json['v'] = Config.CURRENT_PODPING_VERSION
                 custom_json['capacity'] = f'{capacity:.1f}'
                 custom_json['message'] = 'Podping startup complete'
                 error_message , success = send_notification(custom_json, 'podping-startup')
@@ -245,7 +159,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
 def url_in(url):
     """ Send a URL and I'll post it to Hive """
-    url_q.put(url)
+    Config.url_q.put(url)
     return "Sent", True
 
 
@@ -273,18 +187,18 @@ def send_notification(data, operation_id ='podping'):
         num_urls = len(data)
         size_of_urls = len("".join(data))
         custom_json = {
-            "v" : CURRENT_PODPING_VERSION,
+            "v" : Config.CURRENT_PODPING_VERSION,
             "num_urls" : num_urls,
-            "r" : NOTIFICATION_REASONS["feed_update"],
+            "r" : Config.NOTIFICATION_REASONS["feed_update"],
             "urls" : list(data)
         }
     elif type(data) == str:
         num_urls = 1
         size_of_urls = len(data)
         custom_json = {
-            "v" : CURRENT_PODPING_VERSION,
+            "v" : Config.CURRENT_PODPING_VERSION,
             "num_urls" : 1,
-            "r" : NOTIFICATION_REASONS["feed_update"],
+            "r" : Config.NOTIFICATION_REASONS["feed_update"],
             "url" : data
         }
     elif type(data) == dict:
@@ -295,22 +209,22 @@ def send_notification(data, operation_id ='podping'):
 
     try:
         # Artificially create errors <-----------------------------------
-        if operation_id == 'podping' and myArgs['errors']:
+        if operation_id == 'podping' and Config.errors:
             r = randint(1,100)
-            if r <= myArgs['errors']:
-                raise Exception(f'Infinite Improbability Error level of {r}% : Threshold set at {myArgs["errors"]}%')
+            if r <= Config.errors:
+                raise Exception(f'Infinite Improbability Error level of {r}% : Threshold set at {Config.errors}%')
 
         # Assert Exception:o.json.length() <= HIVE_CUSTOM_OP_DATA_MAX_LENGTH: Operation JSON must be less than 8192 bytes.
         size_of_json = len(json.dumps(custom_json))
         tx = hive.custom_json(id=operation_id, json_data= custom_json,
-                            required_posting_auths=[server_account])
+                            required_posting_auths=[Config.server_account])
         trx_id = tx['trx_id']
         logging.info(f'Transaction sent: {trx_id} - Num urls: {num_urls} - Size of Urls: {size_of_urls} - Json size: {size_of_json}')
         logging.info(f'Overhead: {size_of_json - size_of_urls}')
         return trx_id, True
 
     except MissingKeyError:
-        error_message = f'The provided key for @{server_account} is not valid '
+        error_message = f'The provided key for @{Config.server_account} is not valid '
         logging.error(error_message)
         return error_message, False
     except UnhandledRPCError as ex:
@@ -331,7 +245,7 @@ def send_notification(data, operation_id ='podping'):
 def send_notification_worker():
     """ Opens and watches a queue and sends notifications to Hive one by one """
     while True:
-        items = hive_q.get()
+        items = Config.hive_q.get()
         func = items[0]
         args = items[1:]
         start = time.perf_counter()
@@ -341,8 +255,8 @@ def send_notification_worker():
         duration = time.perf_counter() - start
         # if duration < 2.0:
         #     time.sleep(2.0-duration)
-        hive_q.task_done()
-        logging.info(f'Task time: {duration:0.2f} - Queue size: ' + str(hive_q.qsize()))
+        Config.hive_q.task_done()
+        logging.info(f'Task time: {duration:0.2f} - Queue size: ' + str(Config.hive_q.qsize()))
         logging.info(f'Finished a task: {trx_id["trx_id"]} - {success}')
 
 def url_q_worker():
@@ -351,15 +265,15 @@ def url_q_worker():
         start = time.perf_counter()
         duration = 0
         url_set_bytes = 0
-        while (duration < HIVE_OPERATION_PERIOD) and (url_set_bytes < MAX_URL_LIST_BYTES ):
+        while (duration < Config.HIVE_OPERATION_PERIOD) and (url_set_bytes < Config.MAX_URL_LIST_BYTES ):
             #  get next URL from Q
-            url = url_q.get()
+            url = Config.url_q.get()
             url_set.add(url)
             duration = time.perf_counter() - start
             logging.info(f'Duration: {duration} - URL in queue: {url} - URL List: {len(url_set)}')
-            url_q.task_done()
+            Config.url_q.task_done()
             url_set_bytes = len("".join(url_set))
-        hive_q.put( ( failure_retry, url_set) )
+        Config.hive_q.put( ( failure_retry, url_set) )
         logging.info(f'Size of Urls: {url_set_bytes}')
 
 
@@ -376,8 +290,8 @@ def failure_retry(url_set, failure_count = 0):
     """ Recursion... see recursion """
     global peak_fail_count
     if failure_count > 0:
-        logging.error(f"Waiting {HALT_TIME[failure_count]}s")
-        time.sleep(HALT_TIME[failure_count])
+        logging.error(f"Waiting {Config.HALT_TIME[failure_count]}s")
+        time.sleep(Config.HALT_TIME[failure_count])
         logging.info(f"RETRYING num_urls: {len(url_set)}")
     else:
         if type(url_set) == set:
@@ -404,7 +318,7 @@ def failure_retry(url_set, failure_count = 0):
         failure_count += 1
         peak_fail_count += 1
         answer['message'] = 'failure - server will retry'
-        if failure_count >= len(HALT_TIME):
+        if failure_count >= len(Config.HALT_TIME):
             # Give up.
             error_message = f"I'm sorry Dave, I'm afraid I can't do that. Too many tries {failure_count}"
             logging.error(error_message)
@@ -422,12 +336,13 @@ threading.Thread(target=url_q_worker, daemon=True).start()
 
 def main() -> None:
     """ Main man what counts... """
+    Config.setup()
     global USE_TEST_NODE
-    if myArgs['test']:
+    if Config.test:
         USE_TEST_NODE = True
 
-    if myArgs['url']:
-        url = myArgs['url']
+    if Config.url:
+        url = Config.url
         if startup_sequence(resource_test=False):
             answer, failure_count = failure_retry(url)
             return
@@ -437,20 +352,20 @@ def main() -> None:
 
 
     startup_sequence(resource_test=True)
-    if myArgs['socket']:
-        HOST, PORT = "localhost", myArgs['socket']
+    if Config.socket:
+        HOST, PORT = "localhost", Config.socket
         # Create the server, binding to localhost on port 9999
         server = socketserver.TCPServer((HOST, PORT), MyTCPHandler)
         # Activate the server; this will keep running until you
         # interrupt the program with Ctrl-C
         server.serve_forever()
-    elif myArgs['zmq']:
+    elif Config.zmq:
         context = zmq.Context()
         socket = context.socket(zmq.REP)
-        socket.bind(f"tcp://*:{myArgs['zmq']}")
+        socket.bind(f"tcp://*:{Config.zmq}")
         while True :
             url = socket.recv().decode('utf-8')
-            url_q.put(url)
+            Config.url_q.put(url)
             ans = "OK"
             socket.send(ans.encode('utf-8'))
 
