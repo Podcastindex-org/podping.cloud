@@ -1,13 +1,10 @@
-import argparse
+
 import json
 import logging
-import os
-import queue
+from queue import Empty
 import socketserver
 import threading
 import time
-from collections import OrderedDict
-from datetime import timedelta
 from random import randint
 from sys import getsizeof
 
@@ -18,7 +15,6 @@ from beem.exceptions import AccountDoesNotExistsException, MissingKeyError
 from beemapi.exceptions import UnhandledRPCError
 
 from config import Config
-
 
 logging.basicConfig(level=logging.INFO,
             format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
@@ -267,14 +263,21 @@ def url_q_worker():
         url_set_bytes = 0
         while (duration < Config.HIVE_OPERATION_PERIOD) and (url_set_bytes < Config.MAX_URL_LIST_BYTES ):
             #  get next URL from Q
-            url = Config.url_q.get()
+            logging.info(f"Duration: {duration:.3f} - WAITING - Queue: {len(url_set)}")
+            try:
+                url = Config.url_q.get(timeout=Config.HIVE_OPERATION_PERIOD)
+            except Empty:
+                break
+            except Exception as ex:
+                logging.error(f"{ex} occurred")
             url_set.add(url)
             duration = time.perf_counter() - start
-            logging.info(f'Duration: {duration} - URL in queue: {url} - URL List: {len(url_set)}')
+            logging.info(f'Duration: {duration:.3f} - URL in queue: {url} - URL List: {len(url_set)}')
             Config.url_q.task_done()
             url_set_bytes = len("".join(url_set))
-        Config.hive_q.put( ( failure_retry, url_set) )
-        logging.info(f'Size of Urls: {url_set_bytes}')
+        if len(url_set):
+            Config.hive_q.put( ( failure_retry, url_set) )
+            logging.info(f'Size of Urls: {url_set_bytes}')
 
 
 
