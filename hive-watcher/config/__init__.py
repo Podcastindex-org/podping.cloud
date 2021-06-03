@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime, timedelta
 import os
+from sys import flags
 import beem
 from beem.blockchain import Blockchain
 from beem.block import Block
@@ -8,6 +9,7 @@ from socket import AF_INET, SOCK_STREAM, socket
 from ipaddress import IPv4Address, IPv6Address, AddressValueError
 
 import zmq
+from zmq.sugar.frame import Message
 
 TEST_NODE = ["http://testnet.openhive.network:8091"]
 
@@ -193,8 +195,9 @@ class Config():
     def zsocket_send(cls, url):
         """ Send a single URL to the zsocket specified in startup """
         if cls.zsocket:
-            cls.zsocket.send(url.encode())
-            message = cls.zsocket.recv()
+            cls.zsocket.send(url.encode(),flags=zmq.NOBLOCK)
+            msg = cls.zsocket.recv()
+
 
     @classmethod
     def setup(cls):
