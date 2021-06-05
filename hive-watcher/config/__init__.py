@@ -7,6 +7,8 @@ from beem.block import Block
 from socket import AF_INET, SOCK_STREAM, socket
 from ipaddress import IPv4Address, IPv6Address, AddressValueError
 
+import zmq
+
 TEST_NODE = ["http://testnet.openhive.network:8091"]
 
 app_description = """PodPing - Watch the Hive Blockchain for notifications of new
@@ -113,7 +115,8 @@ my_parser.add_argument(
     ),
 )
 
-my_parser.add_argument(
+group_zmq_socket = my_parser.add_mutually_exclusive_group()
+group_zmq_socket.add_argument(
     "-s",
     "--socket",
     action="store",
@@ -124,8 +127,20 @@ my_parser.add_argument(
     help="<IP-Address>:<port> Socket to send each new url to",
 )
 
+group_zmq_socket.add_argument(
+    '-z', '--zmq',
+    action='store',
+    type=str,
+    required=False,
+    metavar='',
+    default= None,
+    help='<IP-Address>:<port> for ZMQ to send each new url to')
+
 my_parser.add_argument(
-    "-t", "--test", action="store_true", required=False, help="Use a test net API"
+    "-t",
+    "--test",
+    action="store_true",
+    required=False, help="Use a test net API"
 )
 
 my_parser.set_defaults(history_only=False)
@@ -152,10 +167,12 @@ class Config():
     urls_only = my_args["urls_only"]
     stop_after = my_args["stop_after"]
     use_socket = my_args["socket"]
+    use_zmq = my_args["zmq"]
 
 
     @classmethod
     def socket_connect(cls):
+        """ Connect to a socket """
         cls.client_socket = socket(AF_INET, SOCK_STREAM)
         try:
             cls.client_socket.connect((cls.ip_address.compressed, cls.port))
@@ -163,6 +180,21 @@ class Config():
             error_message = f"{ex} occurred {ex.__class__}"
             print(error_message)
 
+
+    @classmethod
+    def socket_send(cls, url):
+        """ Send a single URL to the socket specifie in startup """
+        if cls.client_socket:
+            cls.socket_connect()
+            cls.client_socket.send(url.encode())
+            cls.client_socket.close
+
+    @classmethod
+    def zsocket_send(cls, url):
+        """ Send a single URL to the zsocket specified in startup """
+        if cls.zsocket:
+            cls.zsocket.send(url.encode())
+            message = cls.zsocket.recv()
 
     @classmethod
     def setup(cls):
@@ -179,6 +211,7 @@ class Config():
         # If reports is 0 no reports otherwise reports is report_minutes frequency
         if cls.reports == 0:
             cls.show_reports = False
+            cls.report_minutes = 0
         else:
             cls.show_reports = True
             cls.report_minutes = cls.reports
@@ -230,3 +263,15 @@ class Config():
             except AddressValueError:
                 cls.ip_address = IPv6Address(ip_port[0])
             cls.port = int(ip_port[1])
+
+        cls.zsocket = None
+        if cls.use_zmq:
+            context = zmq.Context()
+            ip_port = cls.use_zmq.split(":")
+            try:
+                cls.ip_address = IPv4Address(ip_port[0])
+            except AddressValueError:
+                cls.ip_address = IPv6Address(ip_port[0])
+
+            cls.zsocket = context.socket(zmq.REQ)
+            cls.zsocket.connect(f"tcp://{cls.ip_address}:{ip_port[1]}")
