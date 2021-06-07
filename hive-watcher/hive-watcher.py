@@ -21,7 +21,7 @@ from config import Config
 
 WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
 DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
-TEST_NODE = ["http://testnet.openhive.network:8091"]
+TEST_NODE = ["https://testnet.openhive.network"]
 
 
 class Pings:
