@@ -11,7 +11,7 @@ from ipaddress import IPv4Address, IPv6Address, AddressValueError
 import zmq
 from zmq.sugar.frame import Message
 
-TEST_NODE = ["http://testnet.openhive.network:8091"]
+TEST_NODE = ["https://testnet.openhive.network"]
 
 app_description = """PodPing - Watch the Hive Blockchain for notifications of new
 Podcast Episodes
