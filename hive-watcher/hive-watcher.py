@@ -50,18 +50,11 @@ def allowed_op_id(operation_id) -> bool:
         return False
 
 
+
 def output(post) -> int:
     """Prints out the post and extracts the custom_json"""
 
     data = json.loads(post.get("json"))
-    if Config.diagnostic:
-        logging.info(
-            f"Diagnostic - {post.get('timestamp')} "
-            f"- {data.get('server_account')} - {post.get('trx_id')} - {data.get('message')}"
-            )
-        logging.info(
-            json.dumps(data, indent=2)
-        )
 
     if Config.quiet:
         if data.get("num_urls"):
@@ -108,16 +101,29 @@ def output(post) -> int:
     if data.get("url"):
         logging.info(
             f"Feed Updated - {data.get('timestamp')} - {data.get('trx_id')} "
-            f"- {data.get('url')}"
+            f"- {data.get('url')} - {data['required_posting_auths']}"
         )
         count = 1
     elif data.get("urls"):
         for url in data.get("urls"):
             count += 1
             logging.info(
-                f"Feed Updated - {data.get('timestamp')} - {data.get('trx_id')} - {url}"
+                f"Feed Updated - {data.get('timestamp')} - {data.get('trx_id')}"
+                f" - {url} - {data['required_posting_auths']}"
             )
     return count
+
+def output_diagnostic(post) -> None:
+    """ Just output Diagnostic messages recorded on the chain """
+    data = json.loads(post.get("json"))
+    if Config.diagnostic:
+        logging.info(
+            f"Diagnostic - {post.get('timestamp')} "
+            f"- {data.get('server_account')} - {post.get('trx_id')} - {data.get('message')}"
+            )
+        logging.info(
+            json.dumps(data, indent=2)
+        )
 
 
 def output_status(
@@ -201,8 +207,6 @@ def scan_chain(history):
         if Config.reports:
             logging.info(f"Watching live from block_num: {current_block_num}")
 
-
-
     post = None
     for post in stream:
         post_time = post["timestamp"].replace(tzinfo=None)
@@ -226,7 +230,7 @@ def scan_chain(history):
 
         if Config.diagnostic:
             if post["id"] in DIAGNOSTIC_OPERATION_IDS:
-                output(post)
+                output_diagnostic(post)
 
         if history:
             if time_to_now < timedelta(seconds=2) or post_time > Config.stop_at:
