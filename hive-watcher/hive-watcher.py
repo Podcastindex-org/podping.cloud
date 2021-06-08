@@ -21,7 +21,7 @@ from config import Config
 
 WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
 DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
-TEST_NODE = ["http://testnet.openhive.network:8091"]
+TEST_NODE = ["https://testnet.openhive.network"]
 
 
 class Pings:
@@ -65,12 +65,14 @@ def output(post) -> int:
     if Config.urls_only:
         if data.get("url"):
             print(data.get("url"))
-            Config.client_socket.send(data.get("url").encode())
+            Config.socket_send(data.get("url"))
+            Config.zsocket_send(data.get("url"))
             return 1
         elif data.get("urls"):
             for url in data.get("urls"):
                 print(url)
-                Config.client_socket.send(url.encode())
+                Config.socket_send(url)
+                Config.zsocket_send(url)
             return data.get("num_urls")
 
     if Config.use_socket:
@@ -80,6 +82,12 @@ def output(post) -> int:
             for url in data.get("urls"):
                 Config.socket_send(url)
 
+    if Config.use_zmq:
+        if data.get("url"):
+            Config.zsocket_send(data.get("url"))
+        elif data.get("urls"):
+            for url in data.get("urls"):
+                Config.zsocket_send(url)
 
 
     data["required_posting_auths"] = post.get("required_posting_auths")

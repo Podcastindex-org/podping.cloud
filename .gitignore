@@ -23,6 +23,4 @@ hive-watcher/config/__pycache__/__init__.cpython-38.pyc
 /podping/auth.db
 /podping/queue.db
 hive-watcher/err_prop.log
-
-.gitignore
 hive-watcher/proposal-watcher.py

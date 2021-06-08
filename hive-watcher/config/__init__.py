@@ -1,13 +1,17 @@
 import argparse
 from datetime import datetime, timedelta
 import os
+from sys import flags
 import beem
 from beem.blockchain import Blockchain
 from beem.block import Block
 from socket import AF_INET, SOCK_STREAM, socket
 from ipaddress import IPv4Address, IPv6Address, AddressValueError
 
-TEST_NODE = ["http://testnet.openhive.network:8091"]
+import zmq
+from zmq.sugar.frame import Message
+
+TEST_NODE = ["https://testnet.openhive.network"]
 
 app_description = """PodPing - Watch the Hive Blockchain for notifications of new
 Podcast Episodes
@@ -165,6 +169,7 @@ class Config():
     urls_only = my_args["urls_only"]
     stop_after = my_args["stop_after"]
     use_socket = my_args["socket"]
+    use_zmq = my_args["zmq"]
 
 
     @classmethod
@@ -181,9 +186,18 @@ class Config():
     @classmethod
     def socket_send(cls, url):
         """ Send a single URL to the socket specifie in startup """
-        cls.socket_connect()
-        cls.client_socket.send(url.encode())
-        cls.client_socket.close
+        if cls.client_socket:
+            cls.socket_connect()
+            cls.client_socket.send(url.encode())
+            cls.client_socket.close
+
+    @classmethod
+    def zsocket_send(cls, url):
+        """ Send a single URL to the zsocket specified in startup """
+        if cls.zsocket:
+            cls.zsocket.send(url.encode(),flags=zmq.NOBLOCK)
+            msg = cls.zsocket.recv()
+
 
     @classmethod
     def setup(cls):
@@ -200,6 +214,7 @@ class Config():
         # If reports is 0 no reports otherwise reports is report_minutes frequency
         if cls.reports == 0:
             cls.show_reports = False
+            cls.report_minutes = 0
         else:
             cls.show_reports = True
             cls.report_minutes = cls.reports
@@ -251,3 +266,15 @@ class Config():
             except AddressValueError:
                 cls.ip_address = IPv6Address(ip_port[0])
             cls.port = int(ip_port[1])
+
+        cls.zsocket = None
+        if cls.use_zmq:
+            context = zmq.Context()
+            ip_port = cls.use_zmq.split(":")
+            try:
+                cls.ip_address = IPv4Address(ip_port[0])
+            except AddressValueError:
+                cls.ip_address = IPv6Address(ip_port[0])
+
+            cls.zsocket = context.socket(zmq.REQ)
+            cls.zsocket.connect(f"tcp://{cls.ip_address}:{ip_port[1]}")
