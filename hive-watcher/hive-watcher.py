@@ -1,33 +1,19 @@
-import argparse
 import json
 import logging
-import os
-from datetime import date, datetime, timedelta
-from ipaddress import IPv4Address, IPv6Address, AddressValueError
-from socket import AF_INET, SOCK_STREAM, socket
-from time import strptime
-from typing import Set, Optional, Union
+from datetime import datetime, timedelta
+from typing import Set
 
 import beem
-from beem import block
 from beem.account import Account
-from beem.block import Block
-from beem.blockchain import Blockchain
-from numpy.lib.twodim_base import _trilu_dispatcher
 
 from config import Config
-
-
 
 WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
 DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
 TEST_NODE = ["https://testnet.openhive.network"]
 
-
 class Pings:
     total_pings = 0
-
-
 
 def get_allowed_accounts(acc_name="podping") -> Set[str]:
     """get a list of all accounts allowed to post by acc_name (podping)
