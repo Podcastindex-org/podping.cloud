@@ -136,7 +136,7 @@ group_zmq_socket.add_argument(
     required=False,
     metavar='',
     default= None,
-    help='<IP-Address>:<port> for ZMQ to send each new url to')
+    help='<IP-Address>:<port> for ZMQ to send each new url to (if no IP given, defaults to 127.0.0.1)')
 
 my_parser.add_argument(
     "-t",
@@ -260,21 +260,26 @@ class Config():
         cls.client_socket = None
         if cls.use_socket:
             # TODO: Socket needs testing or conversion to zmq
-            ip_port = cls.use_socket.split(":")
+            ip_port_params = cls.use_socket.split(":")
             try:
-                cls.ip_address = IPv4Address(ip_port[0])
+                cls.ip_address = IPv4Address(ip_port_params[0])
             except AddressValueError:
-                cls.ip_address = IPv6Address(ip_port[0])
-            cls.port = int(ip_port[1])
+                cls.ip_address = IPv6Address(ip_port_params[0])
+            cls.port = int(ip_port_params[1])
 
         cls.zsocket = None
         if cls.use_zmq:
             context = zmq.Context()
-            ip_port = cls.use_zmq.split(":")
-            try:
-                cls.ip_address = IPv4Address(ip_port[0])
-            except AddressValueError:
-                cls.ip_address = IPv6Address(ip_port[0])
+            ip_port_params = cls.use_zmq.split(":")
+            if len(ip_port_params) == 1:
+                cls.ip_address = "127.0.0.1"
+                cls.ip_port = ip_port_params[0]
+            else:
+                cls.ip_port = ip_port_params[1]
+                try:
+                    cls.ip_address = IPv4Address(ip_port_params[0])
+                except AddressValueError:
+                    cls.ip_address = IPv6Address(cls.ip_port)
 
             cls.zsocket = context.socket(zmq.REQ)
-            cls.zsocket.connect(f"tcp://{cls.ip_address}:{ip_port[1]}")
+            cls.zsocket.connect(f"tcp://{cls.ip_address}:{cls.ip_port}")
