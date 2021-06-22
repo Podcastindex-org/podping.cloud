@@ -195,8 +195,12 @@ class Config():
     def zsocket_send(cls, url):
         """ Send a single URL to the zsocket specified in startup """
         if cls.zsocket:
-            cls.zsocket.send(url.encode(),flags=zmq.NOBLOCK)
-            msg = cls.zsocket.recv()
+            # cls.zsocket.RCV = 1000 # in milliseconds
+            try:
+                cls.zsocket.send_string(url,flags=zmq.NOBLOCK)
+                msg = cls.zsocket.recv_string()
+            except Exception as ex:
+                print(f"Exception: {ex}")
 
 
     @classmethod
@@ -272,7 +276,7 @@ class Config():
             context = zmq.Context()
             ip_port_params = cls.use_zmq.split(":")
             if len(ip_port_params) == 1:
-                cls.ip_address = "127.0.0.1"
+                cls.ip_address = IPv4Address("127.0.0.1")
                 cls.ip_port = ip_port_params[0]
             else:
                 cls.ip_port = ip_port_params[1]
@@ -282,4 +286,5 @@ class Config():
                     cls.ip_address = IPv6Address(cls.ip_port)
 
             cls.zsocket = context.socket(zmq.REQ)
+            print(f"tcp://{cls.ip_address}:{cls.ip_port}")
             cls.zsocket.connect(f"tcp://{cls.ip_address}:{cls.ip_port}")

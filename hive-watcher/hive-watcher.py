@@ -12,6 +12,7 @@ WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
 DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
 TEST_NODE = ["https://testnet.openhive.network"]
 
+
 class Pings:
     total_pings = 0
 
