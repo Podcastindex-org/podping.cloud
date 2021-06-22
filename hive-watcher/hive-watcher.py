@@ -8,9 +8,7 @@ from beem.account import Account
 
 from config import Config
 
-WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
-DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
-TEST_NODE = ["https://testnet.openhive.network"]
+
 
 
 class Pings:
@@ -31,7 +29,7 @@ def get_allowed_accounts(acc_name="podping") -> Set[str]:
 
 def allowed_op_id(operation_id) -> bool:
     """Checks if the operation_id is in the allowed list"""
-    if operation_id in WATCHED_OPERATION_IDS:
+    if operation_id in Config.WATCHED_OPERATION_IDS:
         return True
     else:
         return False
@@ -216,7 +214,7 @@ def scan_chain(history):
                 Pings.total_pings += count
 
         if Config.diagnostic:
-            if post["id"] in DIAGNOSTIC_OPERATION_IDS:
+            if post["id"] in Config.DIAGNOSTIC_OPERATION_IDS:
                 output_diagnostic(post)
 
         if history:
@@ -253,12 +251,10 @@ def main() -> None:
     )
     Config.setup()
 
-
-
     """ do we want periodic reports? """
     if Config.show_reports:
         if Config.use_test_node:
-            logging.info("---------------> Using Test Node " + TEST_NODE[0])
+            logging.info("---------------> Using Test Node " + Config.TEST_NODE[0])
         else:
             logging.info("---------------> Using Main Hive Chain ")
 

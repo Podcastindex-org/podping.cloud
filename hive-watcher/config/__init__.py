@@ -145,6 +145,15 @@ my_parser.add_argument(
     required=False, help="Use a test net API"
 )
 
+my_parser.add_argument(
+    "-l",
+    "--livetest",
+    action="store_true",
+    required=False,
+    help="Watch live Hive chain but looking for id=podping-livetest",
+)
+
+
 my_parser.set_defaults(history_only=False)
 
 group = my_parser.add_mutually_exclusive_group()
@@ -158,6 +167,12 @@ my_args = vars(args)
 
 
 class Config():
+
+    WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
+    DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
+    TEST_NODE = ["https://testnet.openhive.network"]
+
+
     test = my_args["test"]
     quiet = my_args["quiet"]
     reports = my_args["reports"]
@@ -170,6 +185,7 @@ class Config():
     stop_after = my_args["stop_after"]
     use_socket = my_args["socket"]
     use_zmq = my_args["zmq"]
+    livetest = my_args["livetest"]
 
 
     @classmethod
@@ -288,3 +304,6 @@ class Config():
             cls.zsocket = context.socket(zmq.REQ)
             print(f"tcp://{cls.ip_address}:{cls.ip_port}")
             cls.zsocket.connect(f"tcp://{cls.ip_address}:{cls.ip_port}")
+
+        if cls.livetest:
+            cls.WATCHED_OPERATION_IDS = ["podping-livetest"]
