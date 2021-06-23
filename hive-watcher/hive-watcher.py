@@ -9,10 +9,9 @@ from beem.account import Account
 from config import Config
 
 
-
-
 class Pings:
     total_pings = 0
+
 
 def get_allowed_accounts(acc_name="podping") -> Set[str]:
     """get a list of all accounts allowed to post by acc_name (podping)
@@ -33,7 +32,6 @@ def allowed_op_id(operation_id) -> bool:
         return True
     else:
         return False
-
 
 
 def output(post) -> int:
@@ -74,7 +72,6 @@ def output(post) -> int:
             for url in data.get("urls"):
                 Config.zsocket_send(url)
 
-
     data["required_posting_auths"] = post.get("required_posting_auths")
     data["trx_id"] = post.get("trx_id")
     data["timestamp"] = post.get("timestamp")
@@ -98,17 +95,16 @@ def output(post) -> int:
             )
     return count
 
+
 def output_diagnostic(post) -> None:
-    """ Just output Diagnostic messages recorded on the chain """
+    """Just output Diagnostic messages recorded on the chain"""
     data = json.loads(post.get("json"))
     if Config.diagnostic:
         logging.info(
             f"Diagnostic - {post.get('timestamp')} "
             f"- {data.get('server_account')} - {post.get('trx_id')} - {data.get('message')}"
-            )
-        logging.info(
-            json.dumps(data, indent=2)
         )
+        logging.info(json.dumps(data, indent=2))
 
 
 def output_status(
@@ -135,7 +131,7 @@ def output_status(
 
 
 def get_stream(block_num=None):
-    """ Open up a stream from Hive either live or history """
+    """Open up a stream from Hive either live or history"""
 
     # If you want instant confirmation, you need to instantiate
     # class:beem.blockchain.Blockchain with mode="head",
@@ -154,15 +150,13 @@ def get_stream(block_num=None):
     else:
         # Live
         stream = Config.blockchain.stream(
-            opNames=["custom_json"],
-            raw_ops=False,
-            threading=False
+            opNames=["custom_json"], raw_ops=False, threading=False
         )
     return stream
 
 
 def scan_chain(history):
-    """ Either scans the old chain (history == True) or watches the live blockchain """
+    """Either scans the old chain (history == True) or watches the live blockchain"""
 
     # Very first transaction from Dave Testing:
     """2021-05-10 13:51:58,353 INFO root MainThread
@@ -202,7 +196,9 @@ def scan_chain(history):
             if time_dif > report_timedelta:
                 timestamp = post["timestamp"]
                 current_block_num = post["block_num"]
-                output_status(timestamp,pings,count_posts, time_to_now,current_block_num)
+                output_status(
+                    timestamp, pings, count_posts, time_to_now, current_block_num
+                )
                 report_period_start_time = post["timestamp"].replace(tzinfo=None)
                 count_posts = 0
                 pings = 0
@@ -222,7 +218,9 @@ def scan_chain(history):
                 timestamp = post["timestamp"]
                 current_block_num = post["block_num"]
                 if Config.show_reports:
-                    output_status(timestamp,pings, count_posts,time_to_now,current_block_num)
+                    output_status(
+                        timestamp, pings, count_posts, time_to_now, current_block_num
+                    )
 
                 if not (Config.urls_only):
                     logging.info(f"block_num: {post['block_num']}")
@@ -233,14 +231,11 @@ def scan_chain(history):
                 # Re-fetch the allowed_accounts every hour in case we add one.
                 allowed_accounts = get_allowed_accounts()
 
-
-
     if post and (not (Config.urls_only)):
         scan_time = datetime.utcnow() - scan_start_time
         logging.info(
             f"Finished catching up at block_num: {post['block_num']} in {scan_time}"
         )
-
 
 
 def main() -> None:
