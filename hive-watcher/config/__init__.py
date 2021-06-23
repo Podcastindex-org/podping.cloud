@@ -2,6 +2,7 @@ import argparse
 from datetime import datetime, timedelta
 import os
 from sys import flags
+from typing import Tuple
 import beem
 from beem.blockchain import Blockchain
 from beem.block import Block

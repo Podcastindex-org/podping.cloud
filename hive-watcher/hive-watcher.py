@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Set
 
 import beem
@@ -13,7 +13,7 @@ class Pings:
     total_pings = 0
 
 
-def get_allowed_accounts(acc_name="podping") -> Set[str]:
+def get_allowed_accounts(acc_name: str = "podping") -> Set[str]:
     """get a list of all accounts allowed to post by acc_name (podping)
     and only react to these accounts"""
 
@@ -26,7 +26,7 @@ def get_allowed_accounts(acc_name="podping") -> Set[str]:
     return set(master_account.get_following())
 
 
-def allowed_op_id(operation_id) -> bool:
+def allowed_op_id(operation_id: str) -> bool:
     """Checks if the operation_id is in the allowed list"""
     if operation_id in Config.WATCHED_OPERATION_IDS:
         return True
@@ -48,6 +48,8 @@ def output(post) -> int:
     if Config.urls_only:
         if data.get("url"):
             print(data.get("url"))
+            # These calls do nothing if sockets are not open
+            # ZMQ Socket will block until it receives acknowledgement
             Config.socket_send(data.get("url"))
             Config.zsocket_send(data.get("url"))
             return 1
@@ -96,7 +98,7 @@ def output(post) -> int:
     return count
 
 
-def output_diagnostic(post) -> None:
+def output_diagnostic(post: dict) -> None:
     """Just output Diagnostic messages recorded on the chain"""
     data = json.loads(post.get("json"))
     if Config.diagnostic:
@@ -109,10 +111,10 @@ def output_diagnostic(post) -> None:
 
 def output_status(
     timestamp: str,
-    pings,
-    count_posts,
-    time_to_now="",
-    current_block_num="",
+    pings: int,
+    count_posts: int,
+    time_to_now: timedelta = None,
+    current_block_num: int ="",
 ) -> None:
     """Writes out a status update at with some count data"""
     if not Config.reports and Config.quiet:
@@ -120,17 +122,17 @@ def output_status(
     if time_to_now:
         logging.info(
             f"{timestamp} - Podpings: {pings:7} / {Pings.total_pings:10} - Count:"
-            f" {count_posts} - BlockNum: {current_block_num} - Time Delta:"
+            f" {count_posts:12} - BlockNum: {current_block_num} - Time Delta:"
             f" {time_to_now}"
         )
     else:
         logging.info(
-            f"{timestamp} - Podpings: {pings:7} / {Pings.total_pings:1} - Count:"
-            f" {count_posts} - BlockNum: {current_block_num}"
+            f"{timestamp} - Podpings: {pings:7} / {Pings.total_pings:10} - Count:"
+            f" {count_posts:12} - BlockNum: {current_block_num}"
         )
 
 
-def get_stream(block_num=None):
+def get_stream(block_num : int = None):
     """Open up a stream from Hive either live or history"""
 
     # If you want instant confirmation, you need to instantiate
@@ -155,7 +157,7 @@ def get_stream(block_num=None):
     return stream
 
 
-def scan_chain(history):
+def scan_chain(history: bool):
     """Either scans the old chain (history == True) or watches the live blockchain"""
 
     # Very first transaction from Dave Testing:
@@ -196,6 +198,7 @@ def scan_chain(history):
             if time_dif > report_timedelta:
                 timestamp = post["timestamp"]
                 current_block_num = post["block_num"]
+                if time_to_now.seconds < 1: time_to_now = timedelta(seconds=1)
                 output_status(
                     timestamp, pings, count_posts, time_to_now, current_block_num
                 )
@@ -210,7 +213,7 @@ def scan_chain(history):
                 Pings.total_pings += count
 
         if Config.diagnostic:
-            if post["id"] in Config.DIAGNOSTIC_OPERATION_IDS:
+            if post["id"] in list(Config.DIAGNOSTIC_OPERATION_IDS):
                 output_diagnostic(post)
 
         if history:
