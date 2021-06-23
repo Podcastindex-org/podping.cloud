@@ -13,6 +13,7 @@ import beem
 from beem.account import Account
 from beem.blockchain import Blockchain
 
+
 WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
 
 
@@ -47,11 +48,7 @@ def main():
     # otherwise, the call will wait until confirmed in an irreversible block.
     # noinspection PyTypeChecker
     # Filter only for "custom_json" operations on Hive.
-    stream = blockchain.stream(
-        opNames=["custom_json"],
-        raw_ops=False,
-        threading=False
-    )
+    stream = blockchain.stream(opNames=["custom_json"], raw_ops=False, threading=False)
 
     for post in stream:
         # Filter only on post ID from the list above.
