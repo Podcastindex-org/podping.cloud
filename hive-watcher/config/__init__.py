@@ -2,6 +2,7 @@ import argparse
 from datetime import datetime, timedelta
 import os
 from sys import flags
+from typing import Tuple
 import beem
 from beem.blockchain import Blockchain
 from beem.block import Block
@@ -136,7 +137,7 @@ group_zmq_socket.add_argument(
     required=False,
     metavar='',
     default= None,
-    help='<IP-Address>:<port> for ZMQ to send each new url to')
+    help='<IP-Address>:<port> for ZMQ to send each new url to (if no IP given, defaults to 127.0.0.1)')
 
 my_parser.add_argument(
     "-t",
@@ -144,6 +145,15 @@ my_parser.add_argument(
     action="store_true",
     required=False, help="Use a test net API"
 )
+
+my_parser.add_argument(
+    "-l",
+    "--livetest",
+    action="store_true",
+    required=False,
+    help="Watch live Hive chain but looking for id=podping-livetest",
+)
+
 
 my_parser.set_defaults(history_only=False)
 
@@ -158,6 +168,12 @@ my_args = vars(args)
 
 
 class Config():
+
+    WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
+    DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
+    TEST_NODE = ["https://testnet.openhive.network"]
+
+
     test = my_args["test"]
     quiet = my_args["quiet"]
     reports = my_args["reports"]
@@ -170,6 +186,7 @@ class Config():
     stop_after = my_args["stop_after"]
     use_socket = my_args["socket"]
     use_zmq = my_args["zmq"]
+    livetest = my_args["livetest"]
 
 
     @classmethod
@@ -195,8 +212,12 @@ class Config():
     def zsocket_send(cls, url):
         """ Send a single URL to the zsocket specified in startup """
         if cls.zsocket:
-            cls.zsocket.send(url.encode(),flags=zmq.NOBLOCK)
-            msg = cls.zsocket.recv()
+            # cls.zsocket.RCV = 1000 # in milliseconds
+            try:
+                cls.zsocket.send_string(url,flags=zmq.NOBLOCK)
+                msg = cls.zsocket.recv_string()
+            except Exception as ex:
+                print(f"Exception: {ex}")
 
 
     @classmethod
@@ -260,21 +281,30 @@ class Config():
         cls.client_socket = None
         if cls.use_socket:
             # TODO: Socket needs testing or conversion to zmq
-            ip_port = cls.use_socket.split(":")
+            ip_port_params = cls.use_socket.split(":")
             try:
-                cls.ip_address = IPv4Address(ip_port[0])
+                cls.ip_address = IPv4Address(ip_port_params[0])
             except AddressValueError:
-                cls.ip_address = IPv6Address(ip_port[0])
-            cls.port = int(ip_port[1])
+                cls.ip_address = IPv6Address(ip_port_params[0])
+            cls.port = int(ip_port_params[1])
 
         cls.zsocket = None
         if cls.use_zmq:
             context = zmq.Context()
-            ip_port = cls.use_zmq.split(":")
-            try:
-                cls.ip_address = IPv4Address(ip_port[0])
-            except AddressValueError:
-                cls.ip_address = IPv6Address(ip_port[0])
+            ip_port_params = cls.use_zmq.split(":")
+            if len(ip_port_params) == 1:
+                cls.ip_address = IPv4Address("127.0.0.1")
+                cls.ip_port = ip_port_params[0]
+            else:
+                cls.ip_port = ip_port_params[1]
+                try:
+                    cls.ip_address = IPv4Address(ip_port_params[0])
+                except AddressValueError:
+                    cls.ip_address = IPv6Address(cls.ip_port)
 
             cls.zsocket = context.socket(zmq.REQ)
-            cls.zsocket.connect(f"tcp://{cls.ip_address}:{ip_port[1]}")
+            print(f"tcp://{cls.ip_address}:{cls.ip_port}")
+            cls.zsocket.connect(f"tcp://{cls.ip_address}:{cls.ip_port}")
+
+        if cls.livetest:
+            cls.WATCHED_OPERATION_IDS = ["podping-livetest"]

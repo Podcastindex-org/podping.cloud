@@ -54,6 +54,8 @@ PODPING_RUNAS_USER="podping" ./target/release/podping
 
 ## Blockchain Writer (hive-writer.py)
 
+### NOTE: Development of hive-writer.py has moved to https://github.com/Podcastindex-org/podping-hivewriter
+
 The python script `hive-writer.py` sends podpings to Hive:
 
 ```

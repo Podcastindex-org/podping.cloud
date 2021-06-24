@@ -13,7 +13,9 @@ import beem
 from beem.account import Account
 from beem.blockchain import Blockchain
 
+
 WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
+
 
 def get_allowed_accounts(acc_name="podping") -> Set[str]:
     """get a list of all accounts allowed to post by acc_name (podping)
@@ -27,6 +29,7 @@ def get_allowed_accounts(acc_name="podping") -> Set[str]:
 
     return set(master_account.get_following())
 
+
 def allowed_op_id(operation_id) -> bool:
     """Checks if the operation_id is in the allowed list"""
     if operation_id in WATCHED_OPERATION_IDS:
@@ -36,7 +39,7 @@ def allowed_op_id(operation_id) -> bool:
 
 
 def main():
-    """ Outputs URLs one by one as they appear on the Hive Podping stream """
+    """Outputs URLs one by one as they appear on the Hive Podping stream"""
     allowed_accounts = get_allowed_accounts()
     hive = beem.Hive()
     blockchain = Blockchain(mode="head", blockchain_instance=hive)
@@ -45,9 +48,7 @@ def main():
     # otherwise, the call will wait until confirmed in an irreversible block.
     # noinspection PyTypeChecker
     # Filter only for "custom_json" operations on Hive.
-    stream = blockchain.stream(
-        opNames=["custom_json"], raw_ops=False, threading=False, thread_num=4
-    )
+    stream = blockchain.stream(opNames=["custom_json"], raw_ops=False, threading=False)
 
     for post in stream:
         # Filter only on post ID from the list above.
