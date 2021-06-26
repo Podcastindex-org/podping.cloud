@@ -66,7 +66,7 @@ block_history_argument_group.add_argument(
     required=False,
     metavar="",
     default=0,
-    help=("Time in hours to replay for from the start point")
+    help=("Time in hours to replay for from the start point"),
 )
 
 block_history_argument_group.add_argument(
@@ -94,7 +94,7 @@ my_parser.add_argument(
     "--diagnostic",
     action="store_true",
     required=False,
-    help=("Show diagnostic posts written to the blockchain")
+    help=("Show diagnostic posts written to the blockchain"),
 )
 
 my_parser.add_argument(
@@ -102,7 +102,7 @@ my_parser.add_argument(
     "--urls_only",
     action="store_true",
     required=False,
-    help=("Just output the urls on a single line, nothing else")
+    help=("Just output the urls on a single line, nothing else"),
 )
 
 my_parser.add_argument(
@@ -131,19 +131,18 @@ group_zmq_socket.add_argument(
 )
 
 group_zmq_socket.add_argument(
-    '-z', '--zmq',
-    action='store',
+    "-z",
+    "--zmq",
+    action="store",
     type=str,
     required=False,
-    metavar='',
-    default= None,
-    help='<IP-Address>:<port> for ZMQ to send each new url to (if no IP given, defaults to 127.0.0.1)')
+    metavar="",
+    default=None,
+    help="<IP-Address>:<port> for ZMQ to send each new url to (if no IP given, defaults to 127.0.0.1)",
+)
 
 my_parser.add_argument(
-    "-t",
-    "--test",
-    action="store_true",
-    required=False, help="Use a test net API"
+    "-t", "--test", action="store_true", required=False, help="Use a test net API"
 )
 
 my_parser.add_argument(
@@ -162,17 +161,15 @@ group.add_argument("-q", "--quiet", action="store_true", help="Minimal output")
 group.add_argument("-v", "--verbose", action="store_true", help="Lots of output")
 
 
-
 args = my_parser.parse_args()
 my_args = vars(args)
 
 
-class Config():
+class Config:
 
     WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
     DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
     TEST_NODE = ["https://testnet.openhive.network"]
-
 
     test = my_args["test"]
     quiet = my_args["quiet"]
@@ -188,10 +185,9 @@ class Config():
     use_zmq = my_args["zmq"]
     livetest = my_args["livetest"]
 
-
     @classmethod
     def socket_connect(cls):
-        """ Connect to a socket """
+        """Connect to a socket"""
         cls.client_socket = socket(AF_INET, SOCK_STREAM)
         try:
             cls.client_socket.connect((cls.ip_address.compressed, cls.port))
@@ -199,10 +195,9 @@ class Config():
             error_message = f"{ex} occurred {ex.__class__}"
             print(error_message)
 
-
     @classmethod
     def socket_send(cls, url):
-        """ Send a single URL to the socket specifie in startup """
+        """Send a single URL to the socket specifie in startup"""
         if cls.client_socket:
             cls.socket_connect()
             cls.client_socket.send(url.encode())
@@ -210,19 +205,18 @@ class Config():
 
     @classmethod
     def zsocket_send(cls, url):
-        """ Send a single URL to the zsocket specified in startup """
+        """Send a single URL to the zsocket specified in startup"""
         if cls.zsocket:
             # cls.zsocket.RCV = 1000 # in milliseconds
             try:
-                cls.zsocket.send_string(url,flags=zmq.NOBLOCK)
+                cls.zsocket.send_string(url, flags=zmq.NOBLOCK)
                 msg = cls.zsocket.recv_string()
             except Exception as ex:
                 print(f"Exception: {ex}")
 
-
     @classmethod
     def setup(cls):
-        """ Setup the config """
+        """Setup the config"""
         if cls.test:
             cls.use_test_node = True
         else:
@@ -244,7 +238,9 @@ class Config():
             cls.hive = beem.Hive(node=TEST_NODE[0])
         else:
             cls.hive = beem.Hive()
-
+            cls.hive.chain_params[
+                "chain_id"
+            ] = "beeab0de00000000000000000000000000000000000000000000000000000000"
 
         # If we have --old = use that or  if --start_date calculate
         # how many hours_ago that is
@@ -276,7 +272,6 @@ class Config():
         else:
             cls.history = False
             cls.start_time = datetime.utcnow()
-
 
         cls.client_socket = None
         if cls.use_socket:
