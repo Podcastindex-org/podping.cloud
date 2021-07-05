@@ -238,9 +238,6 @@ class Config:
             cls.hive = beem.Hive(node=TEST_NODE[0])
         else:
             cls.hive = beem.Hive()
-            cls.hive.chain_params[
-                "chain_id"
-            ] = "beeab0de00000000000000000000000000000000000000000000000000000000"
 
         # If we have --old = use that or  if --start_date calculate
         # how many hours_ago that is
