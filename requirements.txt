@@ -1,7 +1,11 @@
+aiohttp==3.7.4.post0
 appdirs==1.4.4
 asn1crypto==1.4.0
+async-timeout==3.0.1
+asyncio==3.4.3
+attrs==21.2.0
 bandit==1.7.0
-beem==0.24.21
+beem==0.24.26
 black==21.6b0
 certifi==2021.5.30
 chardet==4.0.0
@@ -12,6 +16,7 @@ ecdsa==0.17.0
 gitdb==4.0.7
 GitPython==3.1.17
 idna==2.10
+multidict==5.1.0
 mypy-extensions==0.4.3
 pathspec==0.8.1
 pbr==5.6.0
@@ -29,8 +34,10 @@ six==1.16.0
 smmap==4.0.0
 stevedore==3.3.0
 toml==0.10.2
+typing-extensions==3.10.0.0
 urllib3==1.26.5
 uvloop==0.15.2
 wcwidth==0.2.5
 websocket-client==1.1.0
+yarl==1.6.3
 zmq==0.0.0

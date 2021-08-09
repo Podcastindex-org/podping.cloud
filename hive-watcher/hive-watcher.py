@@ -12,6 +12,9 @@ from config import Config
 class Pings:
     total_pings = 0
 
+class UnspecifiedHiveException(Exception):
+    pass
+
 
 def get_allowed_accounts(acc_name: str = "podping") -> Set[str]:
     """get a list of all accounts allowed to post by acc_name (podping)
@@ -189,50 +192,57 @@ def scan_chain(history: bool):
             logging.info(f"Watching live from block_num: {current_block_num}")
 
     post = None
-    for post in stream:
-        post_time = post["timestamp"].replace(tzinfo=None)
-        time_dif = post_time - report_period_start_time
-        time_to_now = datetime.utcnow() - post_time
-        count_posts += 1
-        if Config.reports:
-            if time_dif > report_timedelta:
-                timestamp = post["timestamp"]
-                current_block_num = post["block_num"]
-                if time_to_now.seconds < 1: time_to_now = timedelta(seconds=1)
-                output_status(
-                    timestamp, pings, count_posts, time_to_now, current_block_num
-                )
-                report_period_start_time = post["timestamp"].replace(tzinfo=None)
-                count_posts = 0
-                pings = 0
-
-        if allowed_op_id(post["id"]):
-            if set(post["required_posting_auths"]) & allowed_accounts:
-                count = output(post)
-                pings += count
-                Pings.total_pings += count
-
-        if Config.diagnostic:
-            if post["id"] in list(Config.DIAGNOSTIC_OPERATION_IDS):
-                output_diagnostic(post)
-
-        if history:
-            if time_to_now < timedelta(seconds=2) or post_time > Config.stop_at:
-                timestamp = post["timestamp"]
-                current_block_num = post["block_num"]
-                if Config.show_reports:
+    try:
+        for post in stream:
+            post_time = post["timestamp"].replace(tzinfo=None)
+            time_dif = post_time - report_period_start_time
+            time_to_now = datetime.utcnow() - post_time
+            count_posts += 1
+            if Config.reports:
+                if time_dif > report_timedelta:
+                    timestamp = post["timestamp"]
+                    current_block_num = post["block_num"]
+                    if time_to_now.seconds < 1: time_to_now = timedelta(seconds=1)
                     output_status(
                         timestamp, pings, count_posts, time_to_now, current_block_num
                     )
+                    report_period_start_time = post["timestamp"].replace(tzinfo=None)
+                    count_posts = 0
+                    pings = 0
 
-                if not (Config.urls_only):
-                    logging.info(f"block_num: {post['block_num']}")
-                # Break out of the for loop we've caught up.
-                break
-        else:
-            if time_dif > timedelta(hours=1):
-                # Re-fetch the allowed_accounts every hour in case we add one.
-                allowed_accounts = get_allowed_accounts()
+            if allowed_op_id(post["id"]):
+                if set(post["required_posting_auths"]) & allowed_accounts:
+                    count = output(post)
+                    pings += count
+                    Pings.total_pings += count
+
+            if Config.diagnostic:
+                if post["id"] in list(Config.DIAGNOSTIC_OPERATION_IDS):
+                    output_diagnostic(post)
+
+            if history:
+                if time_to_now < timedelta(seconds=2) or post_time > Config.stop_at:
+                    timestamp = post["timestamp"]
+                    current_block_num = post["block_num"]
+                    if Config.show_reports:
+                        output_status(
+                            timestamp, pings, count_posts, time_to_now, current_block_num
+                        )
+
+                    if not (Config.urls_only):
+                        logging.info(f"block_num: {post['block_num']}")
+                    # Break out of the for loop we've caught up.
+                    break
+            else:
+                if time_dif > timedelta(hours=1):
+                    # Re-fetch the allowed_accounts every hour in case we add one.
+                    allowed_accounts = get_allowed_accounts()
+
+
+    except Exception as ex:
+        logging.error(f"Exception: {ex}")
+        logging.warning("Exception being handled - restarting")
+        raise UnspecifiedHiveException(ex)
 
     if post and (not (Config.urls_only)):
         scan_time = datetime.utcnow() - scan_start_time
@@ -262,11 +272,18 @@ def main() -> None:
 
     if not Config.history_only or Config.stop_after:
         # scan_live will resume live scanning the chain and report every 5 minutes or
-        # when a notification arrives
+        # when a notification
+        #
         scan_chain(history=False)
     else:
         logging.info("history_only is set. exiting")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as ex:
+        logging.error(f"Error: {ex}")
+        logging.error("Restarting the watcher")
+        Config.old = 1
+        main()
