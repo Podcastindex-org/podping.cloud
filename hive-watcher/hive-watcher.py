@@ -280,10 +280,11 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as ex:
-        logging.error(f"Error: {ex}")
-        logging.error("Restarting the watcher")
-        Config.old = 1
-        main()
+    while True:
+        try:
+            main()
+        except Exception as ex:
+            logging.error(f"Error: {ex}")
+            logging.error("Restarting the watcher")
+            Config.old = 1
+            main()
