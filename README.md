@@ -227,13 +227,16 @@ This is the easiest way to get started watching the blockchain for feed updates.
 2. Switch to the `hive-watcher` sub-directory.
 3. Make sure python3 and pip3 are installed.
 4. Run `pip3 install beem`.
-5. Launch the watcher script like this: `python3 ./simple-watcher.py`
+5. Launch the watcher script like this: `python3 -u ./hive-watcher.py --old=1 --urls_only`
 
 Each time a feed update notification is detected on the blockchain, the full url of the feed is printed to STDOUT on a new line.  Each
 FQDN that is output represents a new episode that has been published, or some other significant update to that podcast feed.
 
 You can watch this output as a way to signal your system to re-parse a podcast feed.  Or you can use it as a starting template to
 develop a more customized script for your environment.  It's dead simple!
+
+The `--old=1` argument tells the watcher to look back 1 hours and return all the changes that happened since then.  It's good to use that for times when
+you may need to bounce an aggregator or some other down time.
 
 <br>
 
