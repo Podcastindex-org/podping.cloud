@@ -260,8 +260,6 @@ Then launch hive-write like this:
 
 ## Important Note
 
-This software is in beta condition.  It is running in production.  But, you should still expect bugs.
-
 The hive-writer agent requires a Hive account and Hive Posting key which are not included in this repo.  They should be exported into your
 shell environment before launching the script.
 
