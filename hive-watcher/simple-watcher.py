@@ -15,7 +15,7 @@ from beem.account import Account
 from beem.blockchain import Blockchain
 
 
-WATCHED_OPERATION_IDS = ["podping"]
+WATCHED_OPERATION_IDS = ["podping", "pp_"]
 
 
 def get_allowed_accounts(acc_name="podping") -> Set[str]:
@@ -33,10 +33,10 @@ def get_allowed_accounts(acc_name="podping") -> Set[str]:
 
 def allowed_op_id(operation_id) -> bool:
     """Checks if the operation_id is in the allowed list"""
-    if operation_id in WATCHED_OPERATION_IDS:
-        return True
-    else:
-        return False
+    return (
+        operation_id in WATCHED_OPERATION_IDS
+        or operation_id[:3] in WATCHED_OPERATION_IDS
+    )
 
 
 def block_num_back_in_minutes(blockchain: Blockchain, m: int) -> int:

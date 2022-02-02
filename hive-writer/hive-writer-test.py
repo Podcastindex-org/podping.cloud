@@ -13,7 +13,7 @@ context = zmq.Context()
 # Socket to talk to server
 print("Connecting to hello world server…")
 zsocket = context.socket(zmq.REQ)
-zsocket.connect("tcp://10.0.0.5:9999")
+zsocket.connect("tcp://localhost:9999")
 
 
 def old_socket():
@@ -69,8 +69,8 @@ def test_data(run_time: int = 0):
             print(f"{n:6} - Time taken: {duration}")
             burst += 1
             n += 1
-            time.sleep(random() / 2)
-        time.sleep(randint(2,6))
+            # time.sleep(random() / 2)
+        # time.sleep(randint(2,6))
 
 
 
@@ -108,7 +108,7 @@ def old_data(start_line=0):
 
 
 if __name__ == "__main__":
-    test_data(60*24)
+    test_data(3)
     # for _ in range(5):
     #     old_data(0)
     # loop_test()

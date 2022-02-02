@@ -17,7 +17,7 @@ from pydantic.fields import Field
 # Brian of London
 
 
-log = logging.getLogger('privex.steem')
+log = logging.getLogger("privex.steem")
 log.level = logging.ERROR
 log.setLevel(logging.ERROR)
 
@@ -46,9 +46,7 @@ class PodpingOp(BaseModel):
 
     def __init__(__pydantic_self__, **data: Any) -> None:
         if type(data["data"]["json"]) == str:
-            data["data"]["json"] = PodpingJson.parse_raw(
-                data["data"]["json"]
-            )
+            data["data"]["json"] = PodpingJson.parse_raw(data["data"]["json"])
         # if type(data["timestamp"]) == str:
         #     data["timestamp"] = datetime.strptime(data["timestamp"], "%Y-%m-%dT%H:%M:%S")
         super().__init__(**data)
@@ -110,8 +108,6 @@ async def find_all_podpings(b: Block):
                     print(f"{pp.age} | {pp.op_txid}")
                     for url in pp.data.payload.urls:
                         print(f"--> {url}")
-
-
 
 
 asyncio.run(main())

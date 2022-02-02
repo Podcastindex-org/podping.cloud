@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime, time, timedelta
+import sys
 from typing import Set
 
 import beem
@@ -31,10 +32,10 @@ def get_allowed_accounts(acc_name: str = "podping") -> Set[str]:
 
 def allowed_op_id(operation_id: str) -> bool:
     """Checks if the operation_id is in the allowed list"""
-    if operation_id in Config.WATCHED_OPERATION_IDS:
-        return True
-    else:
-        return False
+    return (
+        operation_id in Config.WATCHED_OPERATION_IDS
+        or operation_id[:3] in Config.WATCHED_OPERATION_IDS
+    )
 
 
 def output(post) -> int:
@@ -277,6 +278,7 @@ def main() -> None:
         scan_chain(history=False)
     else:
         logging.info("history_only is set. exiting")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
