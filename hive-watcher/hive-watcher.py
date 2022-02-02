@@ -13,6 +13,7 @@ from config import Config
 class Pings:
     total_pings = 0
 
+
 class UnspecifiedHiveException(Exception):
     pass
 
@@ -35,7 +36,6 @@ def allowed_op_id(operation_id: str) -> bool:
     for id in Config.WATCHED_OPERATION_IDS:
         if operation_id.startswith(id):
             return True
-
 
 
 def output(post) -> int:
@@ -128,7 +128,7 @@ def output_status(
     pings: int,
     count_posts: int,
     time_to_now: timedelta = None,
-    current_block_num: int ="",
+    current_block_num: int = "",
 ) -> None:
     """Writes out a status update at with some count data"""
     if not Config.reports and Config.quiet:
@@ -146,7 +146,7 @@ def output_status(
         )
 
 
-def get_stream(block_num : int = None):
+def get_stream(block_num: int = None):
     """Open up a stream from Hive either live or history"""
 
     # If you want instant confirmation, you need to instantiate
@@ -213,7 +213,8 @@ def scan_chain(history: bool):
                 if time_dif > report_timedelta:
                     timestamp = post["timestamp"]
                     current_block_num = post["block_num"]
-                    if time_to_now.seconds < 1: time_to_now = timedelta(seconds=1)
+                    if time_to_now.seconds < 1:
+                        time_to_now = timedelta(seconds=1)
                     output_status(
                         timestamp, pings, count_posts, time_to_now, current_block_num
                     )
@@ -237,7 +238,11 @@ def scan_chain(history: bool):
                     current_block_num = post["block_num"]
                     if Config.show_reports:
                         output_status(
-                            timestamp, pings, count_posts, time_to_now, current_block_num
+                            timestamp,
+                            pings,
+                            count_posts,
+                            time_to_now,
+                            current_block_num,
                         )
 
                     if not (Config.urls_only):
@@ -248,7 +253,6 @@ def scan_chain(history: bool):
                 if time_dif > timedelta(hours=1):
                     # Re-fetch the allowed_accounts every hour in case we add one.
                     allowed_accounts = get_allowed_accounts()
-
 
     except Exception as ex:
         logging.error(f"Exception: {ex}")
