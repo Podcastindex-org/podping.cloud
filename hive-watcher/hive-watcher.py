@@ -32,16 +32,24 @@ def get_allowed_accounts(acc_name: str = "podping") -> Set[str]:
 
 def allowed_op_id(operation_id: str) -> bool:
     """Checks if the operation_id is in the allowed list"""
-    return (
-        operation_id in Config.WATCHED_OPERATION_IDS
-        or operation_id[:3] in Config.WATCHED_OPERATION_IDS
-    )
+    for id in Config.WATCHED_OPERATION_IDS:
+        if operation_id.startswith(id):
+            return True
+
 
 
 def output(post) -> int:
     """Prints out the post and extracts the custom_json"""
 
     data = json.loads(post.get("json"))
+    data["medium_reason"] = "podcast update"
+
+    # Check version of Podping and :
+    if data.get("version") == "1.0":
+        if data.get("iris"):
+            data["urls"] = data.get("iris")
+            data["num_urls"] = len(data["iris"])
+            data["medium_reason"] = f"{data.get('medium')} {data.get('reason')}"
 
     if Config.quiet:
         if data.get("num_urls"):
@@ -88,16 +96,18 @@ def output(post) -> int:
 
     if data.get("url"):
         logging.info(
-            f"Feed Updated - {data.get('timestamp')} - {data.get('trx_id')} "
-            f"- {data.get('url')} - {data['required_posting_auths']}"
+            f"Feed Updated | {data.get('timestamp')} | {data.get('trx_id')} "
+            f"| {data.get('url')} | {data['required_posting_auths']}"
+            f" | {data['medium_reason']}"
         )
         count = 1
     elif data.get("urls"):
         for url in data.get("urls"):
             count += 1
             logging.info(
-                f"Feed Updated - {data.get('timestamp')} - {data.get('trx_id')}"
-                f" - {url} - {data['required_posting_auths']}"
+                f"Feed Updated | {data.get('timestamp')} | {data.get('trx_id')}"
+                f" | {url} | {data['required_posting_auths']}"
+                f" | {data['medium_reason']}"
             )
     return count
 
@@ -107,8 +117,8 @@ def output_diagnostic(post: dict) -> None:
     data = json.loads(post.get("json"))
     if Config.diagnostic:
         logging.info(
-            f"Diagnostic - {post.get('timestamp')} "
-            f"- {data.get('server_account')} - {post.get('trx_id')} - {data.get('message')}"
+            f"Diagnostic | {post.get('timestamp')} "
+            f"| {data.get('server_account')} | {post.get('trx_id')} | {data.get('message')}"
         )
         logging.info(json.dumps(data, indent=2))
 
@@ -125,14 +135,14 @@ def output_status(
         return None
     if time_to_now:
         logging.info(
-            f"{timestamp} - Podpings: {pings:7} / {Pings.total_pings:10} - Count:"
-            f" {count_posts:12} - BlockNum: {current_block_num} - Time Delta:"
+            f"{timestamp} | Podpings: {pings:7} / {Pings.total_pings:10} | Count:"
+            f" {count_posts:12} | BlockNum: {current_block_num} | Time Delta:"
             f" {time_to_now}"
         )
     else:
         logging.info(
-            f"{timestamp} - Podpings: {pings:7} / {Pings.total_pings:10} - Count:"
-            f" {count_posts:12} - BlockNum: {current_block_num}"
+            f"{timestamp} | Podpings: {pings:7} / {Pings.total_pings:10} | Count:"
+            f" {count_posts:12} | BlockNum: {current_block_num}"
         )
 
 
@@ -242,7 +252,7 @@ def scan_chain(history: bool):
 
     except Exception as ex:
         logging.error(f"Exception: {ex}")
-        logging.warning("Exception being handled - restarting")
+        logging.warning("Exception being handled | restarting")
         raise UnspecifiedHiveException(ex)
 
     if post and (not (Config.urls_only)):
@@ -255,7 +265,7 @@ def scan_chain(history: bool):
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
-        format=f"%(asctime)s - %(levelname)s %(name)s %(threadName)s : -  %(message)s",
+        format=f"%(asctime)s | %(levelname)s %(name)s %(threadName)s : |  %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S%z",
     )
     Config.setup()
@@ -282,6 +292,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    main()
     while True:
         try:
             main()

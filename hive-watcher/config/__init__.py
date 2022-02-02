@@ -167,8 +167,8 @@ my_args = vars(args)
 
 class Config:
 
-    WATCHED_OPERATION_IDS = ["podping", "hive-hydra", "pp_"]
-    DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
+    WATCHED_OPERATION_IDS = ["pp_", "podping"]
+    DIAGNOSTIC_OPERATION_IDS = ["podping-startup","pp_startup"]
     TEST_NODE = ["https://testnet.openhive.network"]
 
     test = my_args["test"]
@@ -183,7 +183,7 @@ class Config:
     stop_after = my_args["stop_after"]
     use_socket = my_args["socket"]
     use_zmq = my_args["zmq"]
-    livetest = my_args["livetest", "pplt_"]
+    livetest = my_args["livetest"]
 
     @classmethod
     def socket_connect(cls):
@@ -299,4 +299,4 @@ class Config:
             cls.zsocket.connect(f"tcp://{cls.ip_address}:{cls.ip_port}")
 
         if cls.livetest:
-            cls.WATCHED_OPERATION_IDS = ["podping-livetest"]
+            cls.WATCHED_OPERATION_IDS = ["podping-livetest", "pplt_"]
