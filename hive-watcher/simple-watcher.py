@@ -15,7 +15,7 @@ from beem.account import Account
 from beem.blockchain import Blockchain
 
 
-WATCHED_OPERATION_IDS = ["podping"]
+WATCHED_OPERATION_IDS = ["podping", "pp_"]
 
 
 def get_allowed_accounts(acc_name="podping") -> Set[str]:
@@ -31,12 +31,11 @@ def get_allowed_accounts(acc_name="podping") -> Set[str]:
     return set(master_account.get_following())
 
 
-def allowed_op_id(operation_id) -> bool:
+def allowed_op_id(operation_id: str) -> bool:
     """Checks if the operation_id is in the allowed list"""
-    if operation_id in WATCHED_OPERATION_IDS:
-        return True
-    else:
-        return False
+    for id in WATCHED_OPERATION_IDS:
+        if operation_id.startswith(id):
+            return True
 
 
 def block_num_back_in_minutes(blockchain: Blockchain, m: int) -> int:
@@ -70,11 +69,14 @@ def main():
             # Filter by the accounts we have authorised to podping
             if set(post["required_posting_auths"]) & allowed_accounts:
                 data = json.loads(post.get("json"))
-                if data.get("url"):
-                    print(data.get("url"))
+                if data.get("iris"):
+                    for iri in data.get("iris"):
+                        print(iri)
                 elif data.get("urls"):
                     for url in data.get("urls"):
                         print(url)
+                elif data.get("url"):
+                    print(data.get("url"))
 
 
 if __name__ == "__main__":

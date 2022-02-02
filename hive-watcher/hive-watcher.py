@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime, time, timedelta
+import sys
 from typing import Set
 
 import beem
@@ -11,6 +12,7 @@ from config import Config
 
 class Pings:
     total_pings = 0
+
 
 class UnspecifiedHiveException(Exception):
     pass
@@ -31,16 +33,23 @@ def get_allowed_accounts(acc_name: str = "podping") -> Set[str]:
 
 def allowed_op_id(operation_id: str) -> bool:
     """Checks if the operation_id is in the allowed list"""
-    if operation_id in Config.WATCHED_OPERATION_IDS:
-        return True
-    else:
-        return False
+    for id in Config.WATCHED_OPERATION_IDS:
+        if operation_id.startswith(id):
+            return True
 
 
 def output(post) -> int:
     """Prints out the post and extracts the custom_json"""
 
     data = json.loads(post.get("json"))
+    data["medium_reason"] = "podcast update"
+
+    # Check version of Podping and :
+    if data.get("version") == "1.0":
+        if data.get("iris"):
+            data["urls"] = data.get("iris")
+            data["num_urls"] = len(data["iris"])
+            data["medium_reason"] = f"{data.get('medium')} {data.get('reason')}"
 
     if Config.quiet:
         if data.get("num_urls"):
@@ -87,16 +96,18 @@ def output(post) -> int:
 
     if data.get("url"):
         logging.info(
-            f"Feed Updated - {data.get('timestamp')} - {data.get('trx_id')} "
-            f"- {data.get('url')} - {data['required_posting_auths']}"
+            f"Feed Updated | {data.get('timestamp')} | {data.get('trx_id')} "
+            f"| {data.get('url')} | {data['required_posting_auths']}"
+            f" | {data['medium_reason']}"
         )
         count = 1
     elif data.get("urls"):
         for url in data.get("urls"):
             count += 1
             logging.info(
-                f"Feed Updated - {data.get('timestamp')} - {data.get('trx_id')}"
-                f" - {url} - {data['required_posting_auths']}"
+                f"Feed Updated | {data.get('timestamp')} | {data.get('trx_id')}"
+                f" | {url} | {data['required_posting_auths']}"
+                f" | {data['medium_reason']}"
             )
     return count
 
@@ -106,8 +117,8 @@ def output_diagnostic(post: dict) -> None:
     data = json.loads(post.get("json"))
     if Config.diagnostic:
         logging.info(
-            f"Diagnostic - {post.get('timestamp')} "
-            f"- {data.get('server_account')} - {post.get('trx_id')} - {data.get('message')}"
+            f"Diagnostic | {post.get('timestamp')} "
+            f"| {data.get('server_account')} | {post.get('trx_id')} | {data.get('message')}"
         )
         logging.info(json.dumps(data, indent=2))
 
@@ -117,25 +128,25 @@ def output_status(
     pings: int,
     count_posts: int,
     time_to_now: timedelta = None,
-    current_block_num: int ="",
+    current_block_num: int = "",
 ) -> None:
     """Writes out a status update at with some count data"""
     if not Config.reports and Config.quiet:
         return None
     if time_to_now:
         logging.info(
-            f"{timestamp} - Podpings: {pings:7} / {Pings.total_pings:10} - Count:"
-            f" {count_posts:12} - BlockNum: {current_block_num} - Time Delta:"
+            f"{timestamp} | Podpings: {pings:7} / {Pings.total_pings:10} | Count:"
+            f" {count_posts:12} | BlockNum: {current_block_num} | Time Delta:"
             f" {time_to_now}"
         )
     else:
         logging.info(
-            f"{timestamp} - Podpings: {pings:7} / {Pings.total_pings:10} - Count:"
-            f" {count_posts:12} - BlockNum: {current_block_num}"
+            f"{timestamp} | Podpings: {pings:7} / {Pings.total_pings:10} | Count:"
+            f" {count_posts:12} | BlockNum: {current_block_num}"
         )
 
 
-def get_stream(block_num : int = None):
+def get_stream(block_num: int = None):
     """Open up a stream from Hive either live or history"""
 
     # If you want instant confirmation, you need to instantiate
@@ -202,7 +213,8 @@ def scan_chain(history: bool):
                 if time_dif > report_timedelta:
                     timestamp = post["timestamp"]
                     current_block_num = post["block_num"]
-                    if time_to_now.seconds < 1: time_to_now = timedelta(seconds=1)
+                    if time_to_now.seconds < 1:
+                        time_to_now = timedelta(seconds=1)
                     output_status(
                         timestamp, pings, count_posts, time_to_now, current_block_num
                     )
@@ -226,7 +238,11 @@ def scan_chain(history: bool):
                     current_block_num = post["block_num"]
                     if Config.show_reports:
                         output_status(
-                            timestamp, pings, count_posts, time_to_now, current_block_num
+                            timestamp,
+                            pings,
+                            count_posts,
+                            time_to_now,
+                            current_block_num,
                         )
 
                     if not (Config.urls_only):
@@ -238,10 +254,9 @@ def scan_chain(history: bool):
                     # Re-fetch the allowed_accounts every hour in case we add one.
                     allowed_accounts = get_allowed_accounts()
 
-
     except Exception as ex:
         logging.error(f"Exception: {ex}")
-        logging.warning("Exception being handled - restarting")
+        logging.warning("Exception being handled | restarting")
         raise UnspecifiedHiveException(ex)
 
     if post and (not (Config.urls_only)):
@@ -254,7 +269,7 @@ def scan_chain(history: bool):
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
-        format=f"%(asctime)s - %(levelname)s %(name)s %(threadName)s : -  %(message)s",
+        format=f"%(asctime)s | %(levelname)s %(name)s %(threadName)s : |  %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S%z",
     )
     Config.setup()
@@ -277,9 +292,11 @@ def main() -> None:
         scan_chain(history=False)
     else:
         logging.info("history_only is set. exiting")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
+    main()
     while True:
         try:
             main()
