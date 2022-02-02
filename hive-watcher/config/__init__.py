@@ -168,7 +168,7 @@ my_args = vars(args)
 class Config:
 
     WATCHED_OPERATION_IDS = ["pp_", "podping"]
-    DIAGNOSTIC_OPERATION_IDS = ["podping-startup","pp_startup"]
+    DIAGNOSTIC_OPERATION_IDS = ["podping-startup", "pp_startup"]
     TEST_NODE = ["https://testnet.openhive.network"]
 
     test = my_args["test"]
@@ -300,3 +300,7 @@ class Config:
 
         if cls.livetest:
             cls.WATCHED_OPERATION_IDS = ["podping-livetest", "pplt_"]
+
+        if cls.urls_only:
+            cls.show_reports = False
+            cls.reports = 0
