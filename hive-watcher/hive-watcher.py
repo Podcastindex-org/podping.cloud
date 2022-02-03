@@ -236,7 +236,7 @@ def scan_chain(history: bool):
                 if time_to_now < timedelta(seconds=2) or post_time > Config.stop_at:
                     timestamp = post["timestamp"]
                     current_block_num = post["block_num"]
-                    if Config.show_reports:
+                    if Config.show_reports and not Config.urls_only:
                         output_status(
                             timestamp,
                             pings,
@@ -296,7 +296,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
     while True:
         try:
             main()
