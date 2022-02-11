@@ -267,6 +267,7 @@ def scan_chain(history: bool):
 
 
 def main() -> None:
+    logging.getLogger("beemapi.graphenerpc").setLevel(logging.CRITICAL)
     logging.basicConfig(
         level=logging.INFO,
         format=f"%(asctime)s | %(levelname)s %(name)s %(threadName)s : |  %(message)s",
