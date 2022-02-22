@@ -1,14 +1,16 @@
 [tool.poetry]
 name = "hive-watcher"
-version = "0.1.0"
+version = "0.2.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.7"
-beem = "^0.24.21"
-zmq = "^0.0.0"
+pyzmq = "^22.1.0"
+lighthive = "^0.3.3"
+pendulum = "^2.1.2"
+beem = "^0.24.26"
 
 [tool.poetry.dev-dependencies]
 black = "^21.5b1"
@@ -19,7 +21,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
-target-version = ['py37', 'py38', 'py39']
+target-version = ['py37', 'py38', 'py39', 'py310']
 
 [tool.isort]
 profile = "black"
