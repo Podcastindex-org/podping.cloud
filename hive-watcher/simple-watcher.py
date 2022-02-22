@@ -16,6 +16,7 @@ from beem.blockchain import Blockchain
 
 
 WATCHED_OPERATION_IDS = ["podping", "pp_"]
+LIVETEST_WATCHED_OPERATION_IDS = ["podping-livetest", "pplt_"]
 
 
 def get_allowed_accounts(acc_name="podping") -> Set[str]:
