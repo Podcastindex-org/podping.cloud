@@ -185,7 +185,7 @@ def historical_block_stream_generator(client, start_block, end_block):
             num_in_batch = 0
 
 
-def listen_for_podping_operations(condenser_api_client, start_block):
+def listen_for_custom_json_operations(condenser_api_client, start_block):
     current_block = start_block
     if not current_block:
         current_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
@@ -243,7 +243,7 @@ def scan_chain(client: Client, history: bool, start_block=None):
         report_period_start_time = pendulum.now()
         #event_listener = EventListener(client, "head", start_block=start_block)
         #stream = event_listener.on("custom_json")
-        stream = listen_for_podping_operations(client, start_block)
+        stream = listen_for_custom_json_operations(client, start_block)
         if Config.reports:
             logging.info(f"Watching live from block_num: {start_block}")
 
