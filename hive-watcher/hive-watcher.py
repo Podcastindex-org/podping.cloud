@@ -308,7 +308,8 @@ def scan_chain(client: Client, history: bool, start_block=None):
             f"Finished catching up at block_num: {post['block']} in {scan_time}"
         )
 
-    return post['block']
+    if post:
+        return post['block']
 
 
 def main() -> None:
@@ -327,15 +328,17 @@ def main() -> None:
         else:
             logging.info("---------------> Using Main Hive Chain ")
 
-    client = get_client(automatic_node_selection=True)
+    client = get_client(automatic_node_selection=False)
     start_block = None
 
     # scan_history will look back over the last 1 hour reporting every 15 minute chunk
     if Config.history:
-        start_block = scan_chain(client, history=True, start_block=Config.block_num) + 1
+        start_block = scan_chain(client, history=True, start_block=Config.block_num)
 
     if start_block is None:
         start_block = client.get_dynamic_global_properties()["head_block_number"]
+    else:
+        start_block += 1
 
     if not Config.history_only or Config.stop_after:
         # scan_live will resume live scanning the chain and report every 5 minutes or
