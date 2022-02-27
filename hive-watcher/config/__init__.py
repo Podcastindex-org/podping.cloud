@@ -1,6 +1,7 @@
 import argparse
 import math
 import os
+import re
 from socket import AF_INET, SOCK_STREAM, socket
 from ipaddress import IPv4Address, IPv6Address, AddressValueError
 
@@ -226,6 +227,7 @@ my_args = vars(args)
 class Config:
 
     WATCHED_OPERATION_IDS = ["pp_", "podping"]
+    OPERATION_REGEX = re.compile(r"^pp_(.*)_(.*)|podping$")
     DIAGNOSTIC_OPERATION_IDS = ["podping-startup", "pp_startup"]
     TEST_NODE = ["https://testnet.openhive.network"]
 
@@ -357,6 +359,7 @@ class Config:
 
         if cls.livetest:
             cls.WATCHED_OPERATION_IDS = ["podping-livetest", "pplt_"]
+            cls.OPERATION_REGEX = re.compile(r"^pplt_(.*)_(.*)|podping-livetest$")
 
         if cls.json:
             cls.urls_only = True
