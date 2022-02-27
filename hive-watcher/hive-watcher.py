@@ -55,9 +55,7 @@ def get_allowed_accounts(
 
 def allowed_op_id(operation_id: str) -> bool:
     """Checks if the operation_id is in the allowed list"""
-    for id in Config.WATCHED_OPERATION_IDS:
-        if operation_id.startswith(id):
-            return True
+    return Config.OPERATION_REGEX.match(operation_id) is not None
 
 
 def output(post) -> int:
