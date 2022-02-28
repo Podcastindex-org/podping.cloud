@@ -1,16 +1,57 @@
 import argparse
-from datetime import datetime, timedelta
+import math
 import os
-from sys import flags
-from typing import Tuple
-import beem
-from beem.blockchain import Blockchain
-from beem.block import Block
+import re
 from socket import AF_INET, SOCK_STREAM, socket
 from ipaddress import IPv4Address, IPv6Address, AddressValueError
 
 import zmq
-from zmq.sugar.frame import Message
+from lighthive.client import Client
+import pendulum
+
+
+BLOCK_INTERVAL = 3
+
+
+# Adapted from beem under the MIT license
+# https://github.com/holgern/beem/blob/master/beem/blockchain.py#L307-L364
+def get_estimated_block_num(client: Client, date, accurate=True):
+
+    last_block_num = client.get_dynamic_global_properties()["head_block_number"]
+    last_block = client.get_block(last_block_num)
+    time_diff = pendulum.parse(last_block['timestamp']) - date
+    block_number = math.floor(last_block_num - time_diff.total_seconds() / BLOCK_INTERVAL)
+    if block_number < 1:
+        block_number = 1
+
+    if accurate:
+        if block_number > last_block_num:
+            block_number = last_block_num
+        block_time_diff = pendulum.duration(seconds=10)
+
+        last_block_time_diff_seconds = 10
+        second_last_block_time_diff_seconds = 10
+
+        while block_time_diff.total_seconds() > BLOCK_INTERVAL or block_time_diff.total_seconds() < -BLOCK_INTERVAL:
+            block = client.get_block(block_number)
+            second_last_block_time_diff_seconds = last_block_time_diff_seconds
+            last_block_time_diff_seconds = block_time_diff.total_seconds()
+            block_time_diff = date - pendulum.parse(block['timestamp'])
+            if second_last_block_time_diff_seconds == block_time_diff.total_seconds() and second_last_block_time_diff_seconds < 10:
+                return int(block_number)
+            delta = block_time_diff.total_seconds() // BLOCK_INTERVAL
+            if delta == 0 and block_time_diff.total_seconds() < 0:
+                delta = -1
+            elif delta == 0 and block_time_diff.total_seconds() > 0:
+                delta = 1
+            block_number += delta
+            if block_number < 1:
+                break
+            if block_number > last_block_num:
+                break
+
+    return int(block_number)
+
 
 TEST_NODE = ["https://testnet.openhive.network"]
 
@@ -47,6 +88,16 @@ block_history_argument_group.add_argument(
 )
 
 block_history_argument_group.add_argument(
+    "-e",
+    "--unix_epoch",
+    action="store",
+    type=int,
+    required=False,
+    metavar="",
+    help="Unix timestamp to start the history",
+)
+
+block_history_argument_group.add_argument(
     "-o",
     "--old",
     action="store",
@@ -77,7 +128,7 @@ block_history_argument_group.add_argument(
     required=False,
     metavar="",
     default=0,
-    help=("<%%Y-%%m-%%d %%H:%%M:%%S> Date/Time to start the history"),
+    help=("ISO 8601/RFC 3339 Date/Time to start the history:  See https://pendulum.eustace.io/docs/#parsing"),
 )
 
 
@@ -103,6 +154,14 @@ my_parser.add_argument(
     action="store_true",
     required=False,
     help=("Just output the urls on a single line, nothing else"),
+)
+
+my_parser.add_argument(
+    "-j",
+    "--json",
+    action="store_true",
+    required=False,
+    help=("Just output the urls on a single line as json, nothing else"),
 )
 
 my_parser.add_argument(
@@ -167,19 +226,22 @@ my_args = vars(args)
 
 class Config:
 
-    WATCHED_OPERATION_IDS = ["podping", "hive-hydra"]
-    DIAGNOSTIC_OPERATION_IDS = ["podping-startup"]
+    WATCHED_OPERATION_IDS = ["pp_", "podping"]
+    OPERATION_REGEX = re.compile(r"^pp_(.*)_(.*)|podping$")
+    DIAGNOSTIC_OPERATION_IDS = ["podping-startup", "pp_startup"]
     TEST_NODE = ["https://testnet.openhive.network"]
 
     test = my_args["test"]
     quiet = my_args["quiet"]
     reports = my_args["reports"]
     block_num = my_args["block"]
+    unix_epoch = my_args["unix_epoch"]
     start_date = my_args["start_date"]
     history_only = my_args["history_only"]
     old = my_args["old"]
     diagnostic = my_args["diagnostic"]
     urls_only = my_args["urls_only"]
+    json = my_args["json"]
     stop_after = my_args["stop_after"]
     use_socket = my_args["socket"]
     use_zmq = my_args["zmq"]
@@ -234,41 +296,38 @@ class Config:
             cls.show_reports = True
             cls.report_minutes = cls.reports
 
-        if cls.use_test_node:
-            cls.hive = beem.Hive(node=TEST_NODE[0])
-        else:
-            cls.hive = beem.Hive()
-
         # If we have --old = use that or  if --start_date calculate
         # how many hours_ago that is
         if cls.start_date:
-            start_date = datetime.strptime(cls.start_date, "%Y-%m-%d %H:%M:%S")
-            cls.hours_ago = datetime.now() - start_date
+            start_date = pendulum.parse(cls.start_date)
+            cls.hours_ago = pendulum.now() - start_date
+        elif cls.unix_epoch:
+            start_date = pendulum.from_timestamp(cls.unix_epoch)
+            cls.hours_ago = pendulum.now() - start_date
         else:
-            cls.hours_ago = timedelta(hours=cls.old)
-
-        cls.blockchain = Blockchain(mode="head", blockchain_instance=cls.hive)
+            cls.hours_ago = pendulum.duration(hours=cls.old)
 
         # We are looking for some kind of history
-        if cls.old or cls.block_num or cls.start_date:
+        if cls.old or cls.block_num or cls.unix_epoch or cls.start_date:
             cls.history = True
+            client = Client()
             if cls.block_num:
-                cls.start_time = Block(cls.block_num)["timestamp"].replace(tzinfo=None)
+                cls.start_time = pendulum.parse(client.get_block(cls.block_num)["timestamp"])
             elif cls.hours_ago:
-                cls.start_time = datetime.utcnow() - cls.hours_ago
-                cls.block_num = cls.blockchain.get_estimated_block_num(cls.start_time)
+                cls.start_time = pendulum.now() - cls.hours_ago
+                cls.block_num = get_estimated_block_num(client, cls.start_time)
             else:
                 raise ValueError(
-                    "scan_history: block_num or --old=<hours> required to scan history"
+                    "scan_history: --old=<hours> required to scan history"
                 )
 
             if cls.stop_after > 0:
-                cls.stop_at = cls.start_time + timedelta(hours=cls.stop_after)
+                cls.stop_at = cls.start_time + pendulum.duration(hours=cls.stop_after)
             else:
-                cls.stop_at = datetime(year=3333, month=1, day=1)
+                cls.stop_at = pendulum.datetime(year=3333, month=1, day=1)
         else:
             cls.history = False
-            cls.start_time = datetime.utcnow()
+            cls.start_time = pendulum.now()
 
         cls.client_socket = None
         if cls.use_socket:
@@ -299,4 +358,12 @@ class Config:
             cls.zsocket.connect(f"tcp://{cls.ip_address}:{cls.ip_port}")
 
         if cls.livetest:
-            cls.WATCHED_OPERATION_IDS = ["podping-livetest"]
+            cls.WATCHED_OPERATION_IDS = ["podping-livetest", "pplt_"]
+            cls.OPERATION_REGEX = re.compile(r"^pplt_(.*)_(.*)|podping-livetest$")
+
+        if cls.json:
+            cls.urls_only = True
+
+        if cls.urls_only:
+            cls.show_reports = False
+            cls.reports = 0

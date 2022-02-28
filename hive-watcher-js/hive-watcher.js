@@ -2,6 +2,33 @@
  * Example way to use the dhive library to watch for podpings on the Hive blockchain.
  */
 
+MEDIUM_PODCAST = "podcast"
+MEDIUM_AUDIOBOOK = "audiobook"
+MEDIUM_BLOG = "blog"
+MEDIUM_FILM = "film"
+MEDIUM_MUSIC = "music"
+MEDIUM_NEWSLETTER = "newsletter"
+MEDIUM_VIDEO = "video"
+
+PodpingMedium = [
+    MEDIUM_PODCAST,
+    MEDIUM_AUDIOBOOK,
+    MEDIUM_BLOG,
+    MEDIUM_FILM,
+    MEDIUM_MUSIC,
+    MEDIUM_NEWSLETTER,
+    MEDIUM_VIDEO,
+]
+
+REASON_LIVE = "live"
+REASON_LIVE_END = "liveEnd"
+REASON_UPDATE = "update"
+
+PodpingReason = [
+    REASON_LIVE,
+    REASON_LIVE_END,
+    REASON_UPDATE,
+]
 
 /**
  * Shuffles items in an array. Shuffles in place
@@ -18,27 +45,21 @@ function shuffleArray(array) {
 }
 
 const addressList = [
-    'https://api.openhive.network',
-    'https://api.hive.blog',
-    'https://hive.roelandp.nl',
-    'https://techcoderx.com',
-    'https://api.hivekings.com',
-    'https://anyx.io',
-    'https://api.deathwing.me',
-    'https://hive-api.arcange.eu',
-    'https://rpc.ecency.com',
-    'https://hived.privex.io',
+    "https://api.openhive.network",
+    "https://api.hive.blog",
+    "https://anyx.io",
+    "https://api.deathwing.me",
 ]
 // shuffle list to try and spread the load across different endpoints since the first item is always used.
 shuffleArray(addressList)
 console.log(`Using API address "${addressList[0]}"`)
-const client = new dhive.Client(addressList, {
-    // reducing timeout and threshold makes fall over to other API address happen faster
-    timeout: 2000, // in ms
-    failoverThreshold: 1,
-});
-
-const VALID_CUSTOM_JSON_ID = "podping"
+const client = new dhive.Client(
+    addressList, {
+        // reducing timeout and threshold makes fall over to other API address happen faster
+        timeout: 6000, // in ms
+        failoverThreshold: 1,
+    }
+);
 
 let validAccounts = ['podping']
 
@@ -55,8 +76,8 @@ function handleBlock(block) {
             handleTransaction(transaction, timestamp)
         }
     } catch (error) {
-        console.log("error handling block")
-        console.log(error)
+        console.error("error handling block")
+        console.error(error)
     }
 }
 
@@ -69,6 +90,9 @@ function handleBlock(block) {
 function handleTransaction(transaction, timestamp) {
     let blockNumber = transaction.block_num
     let transactionId = transaction.transaction_id
+
+    const block_num_span = document.getElementById("block_num");
+    block_num_span.innerText = blockNumber.toLocaleString()
 
     for (let operation of transaction.operations) {
         handleOperation(operation, timestamp, blockNumber, transactionId)
@@ -100,9 +124,13 @@ function handleOperation(operation, timestamp, blockNumber, transactionId) {
  * @param transactionId transaction identifier post is in
  */
 function handleCustomJsonPost(post, timestamp, blockNumber, transactionId) {
-    if (post.id === VALID_CUSTOM_JSON_ID) {
+    if (post.id === "podping" || post.id.startsWith("pp_")) {
         handlePodpingPost(post, timestamp, blockNumber, transactionId)
     }
+    // To include test posts
+    // else if (post.id === "podpingtest" || post.id.startsWith("pplt_")) {
+    //     handlePodpingPost(post, timestamp, blockNumber, transactionId)
+    // }
 }
 
 
@@ -120,27 +148,54 @@ function handlePodpingPost(post, timestamp, blockNumber, transactionId) {
 
     let postJson = JSON.parse(post.json)
 
-    // only accept feed update types
-    let updateReason = postJson.reason
-    // old posts didn't include an update type so still accept them
-    if (updateReason !== undefined && updateReason !== "feed_update")
-        return
+    let version = postJson.version || postJson.v
+    let updateReason = postJson.reason || postJson.r || postJson.type
+    let medium = postJson.medium
 
-    let urls = postJson.urls
-    if (urls === undefined) {
-        urls = [postJson.url]
+    if (version === "1.0") {
+        if (!(PodpingReason.includes(updateReason) && PodpingMedium.includes(medium))) {
+            return
+        }
+    } else {
+        // fallback to any possible
+        // old posts didn't include an update type so still accept them
+        if (updateReason !== undefined && updateReason !== "feed_update" && updateReason !== 1)
+            return
+    }
+
+    let iris = postJson.iris || []
+    let urls = postJson.urls || []
+    if (urls) {
+        iris = iris.concat(urls)
+    }
+    if (postJson.url) {
+        iris = [postJson.url]
     }
 
     const list = document.getElementById("posts");
-    for (let url of urls) {
-        // add ping
-        const message = `Feed updated - ${timestamp} - ${blockNumber} - ${transactionId} - ${url}`;
-        console.log(message)
 
-        const item = document.createElement("li");
-        item.appendChild(document.createTextNode(message))
-        list.appendChild(item)
+    // add ping
+    const transactionMessage = `Feed updated(s) - ${timestamp} - ${blockNumber} - ${transactionId} - ${updateReason} - ${medium}`;
+    console.log(transactionMessage)
 
+    const item = document.createElement("li");
+    item.appendChild(document.createTextNode(transactionMessage))
+    list.appendChild(item)
+
+    const subList = document.createElement("ul")
+    item.appendChild(subList)
+    for (let iri of iris) {
+        console.log(`  - ${iri}`)
+
+        const subItem = document.createElement("li");
+
+        const linkItem = document.createElement("a")
+        linkItem.href = iri
+        linkItem.target = "_blank"
+        linkItem.appendChild(document.createTextNode(iri))
+        subItem.appendChild(linkItem)
+
+        subList.appendChild(subItem)
     }
 }
 
@@ -163,7 +218,7 @@ function isAccountAllowed(required_posting_auths) {
     return intersect.size !== 0
 }
 
-client.database.call('get_following', [validAccounts[0], null, 'blog', 10])
+client.database.call('get_following', [validAccounts[0], null, 'blog', 100])
     .then(
         /**
          * Get all accounts that are accepted as a valid PodPing poster
@@ -185,8 +240,8 @@ client.database.call('get_following', [validAccounts[0], null, 'blog', 10])
                 .on('data', handleBlock)
                 .on('error',
                     function (error) {
-                        console.log('Error occurred parsing stream')
-                        console.log(error)
+                        console.error('Error occurred parsing stream')
+                        console.error(error)
                         // Note: when an error occurs, the `end` event is emitted (see below)
                     }
                 )

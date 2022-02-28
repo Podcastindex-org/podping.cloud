@@ -1,10 +1,14 @@
 import json
 import logging
-from datetime import datetime, time, timedelta
+import time
+import sys
+from datetime import timedelta
+from timeit import default_timer as timer
 from typing import Set
 
-import beem
-from beem.account import Account
+import pendulum
+from lighthive.client import Client
+from lighthive.helpers.event_listener import EventListener
 
 from config import Config
 
@@ -12,35 +16,60 @@ from config import Config
 class Pings:
     total_pings = 0
 
+
 class UnspecifiedHiveException(Exception):
     pass
 
 
-def get_allowed_accounts(acc_name: str = "podping") -> Set[str]:
+def get_client(
+    connect_timeout=3,
+    read_timeout=30,
+    loglevel=logging.WARN,
+    automatic_node_selection=False,
+    api_type="condenser_api",
+) -> Client:
+    try:
+        client = Client(
+            connect_timeout=connect_timeout,
+            read_timeout=read_timeout,
+            loglevel=loglevel,
+            automatic_node_selection=automatic_node_selection,
+        )
+        return client(api_type)
+    except Exception as ex:
+        raise ex
+
+
+def get_allowed_accounts(
+    client: Client = None, account_name: str = "podping"
+) -> Set[str]:
     """get a list of all accounts allowed to post by acc_name (podping)
     and only react to these accounts"""
 
-    # This is giving an error if I don't specify api server exactly.
-    # TODO reported as Issue on Beem library https://github.com/holgern/beem/issues/301
-    h = beem.Hive(node="https://api.hive.blog")
+    if not client:
+        client = get_client()
 
-    master_account = Account(acc_name, blockchain_instance=h, lazy=True)
-
-    return set(master_account.get_following())
+    master_account = client.account(account_name)
+    return set(master_account.following())
 
 
 def allowed_op_id(operation_id: str) -> bool:
     """Checks if the operation_id is in the allowed list"""
-    if operation_id in Config.WATCHED_OPERATION_IDS:
-        return True
-    else:
-        return False
+    return Config.OPERATION_REGEX.match(operation_id) is not None
 
 
 def output(post) -> int:
     """Prints out the post and extracts the custom_json"""
 
-    data = json.loads(post.get("json"))
+    data = json.loads(post["op"][1]['json'])
+    data["medium_reason"] = "podcast update"
+
+    # Check version of Podping and :
+    if data.get("version") == "1.0":
+        if data.get("iris"):
+            data["urls"] = data.get("iris")
+            data["num_urls"] = len(data["iris"])
+            data["medium_reason"] = f"{data.get('medium')} {data.get('reason')}"
 
     if Config.quiet:
         if data.get("num_urls"):
@@ -48,8 +77,11 @@ def output(post) -> int:
         else:
             return 1
 
-    if Config.urls_only:
-        if data.get("url"):
+    if Config.urls_only or Config.json:
+        if Config.json:
+            print(post["op"][1]['json'])
+            return data["num_urls"]
+        elif data.get("url"):
             print(data.get("url"))
             # These calls do nothing if sockets are not open
             # ZMQ Socket will block until it receives acknowledgement
@@ -77,9 +109,8 @@ def output(post) -> int:
             for url in data.get("urls"):
                 Config.zsocket_send(url)
 
-    data["required_posting_auths"] = post.get("required_posting_auths")
-    data["trx_id"] = post.get("trx_id")
-    data["timestamp"] = post.get("timestamp")
+    data["trx_id"] = post["trx_id"]
+    data["timestamp"] = post["timestamp"]
 
     count = 0
     if Config.use_test_node:
@@ -87,16 +118,18 @@ def output(post) -> int:
 
     if data.get("url"):
         logging.info(
-            f"Feed Updated - {data.get('timestamp')} - {data.get('trx_id')} "
-            f"- {data.get('url')} - {data['required_posting_auths']}"
+            f"Feed Updated | {data['timestamp']} | {data['trx_id']} "
+            f"| {data.get('url')} | {post['op'][1]['required_posting_auths']}"
+            f" | {data['medium_reason']}"
         )
         count = 1
     elif data.get("urls"):
         for url in data.get("urls"):
             count += 1
             logging.info(
-                f"Feed Updated - {data.get('timestamp')} - {data.get('trx_id')}"
-                f" - {url} - {data['required_posting_auths']}"
+                f"Feed Updated | {data['timestamp']} | {data['trx_id']}"
+                f" | {url} | {post['op'][1]['required_posting_auths']}"
+                f" | {data['medium_reason']}"
             )
     return count
 
@@ -106,8 +139,8 @@ def output_diagnostic(post: dict) -> None:
     data = json.loads(post.get("json"))
     if Config.diagnostic:
         logging.info(
-            f"Diagnostic - {post.get('timestamp')} "
-            f"- {data.get('server_account')} - {post.get('trx_id')} - {data.get('message')}"
+            f"Diagnostic | {post['timestamp']} "
+            f"| {data.get('server_account')} | {post['trx_id']} | {data.get('message')}"
         )
         logging.info(json.dumps(data, indent=2))
 
@@ -117,50 +150,70 @@ def output_status(
     pings: int,
     count_posts: int,
     time_to_now: timedelta = None,
-    current_block_num: int ="",
+    current_block_num: int = "",
 ) -> None:
     """Writes out a status update at with some count data"""
     if not Config.reports and Config.quiet:
         return None
     if time_to_now:
         logging.info(
-            f"{timestamp} - Podpings: {pings:7} / {Pings.total_pings:10} - Count:"
-            f" {count_posts:12} - BlockNum: {current_block_num} - Time Delta:"
+            f"{timestamp} | Podpings: {pings:7} / {Pings.total_pings:10} | Count:"
+            f" {count_posts:12} | BlockNum: {current_block_num} | Time Delta:"
             f" {time_to_now}"
         )
     else:
         logging.info(
-            f"{timestamp} - Podpings: {pings:7} / {Pings.total_pings:10} - Count:"
-            f" {count_posts:12} - BlockNum: {current_block_num}"
+            f"{timestamp} | Podpings: {pings:7} / {Pings.total_pings:10} | Count:"
+            f" {count_posts:12} | BlockNum: {current_block_num}"
         )
 
 
-def get_stream(block_num : int = None):
-    """Open up a stream from Hive either live or history"""
-
-    # If you want instant confirmation, you need to instantiate
-    # class:beem.blockchain.Blockchain with mode="head",
-    # otherwise, the call will wait until confirmed in an irreversible block.
-    # noinspection PyTypeChecker
-
-    if block_num:
-        # History
-        stream = Config.blockchain.stream(
-            opNames=["custom_json"],
-            start=block_num,
-            max_batch_size=50,
-            raw_ops=False,
-            threading=False,
-        )
-    else:
-        # Live
-        stream = Config.blockchain.stream(
-            opNames=["custom_json"], raw_ops=False, threading=False
-        )
-    return stream
+def historical_block_stream_generator(client, start_block, end_block):
+    batch_size = 50
+    num_in_batch = 0
+    for block_num in range(start_block, end_block):
+        client.get_ops_in_block(block_num, batch=True)
+        num_in_batch += 1
+        if num_in_batch == batch_size or block_num == end_block:
+            batch = client.process_batch()
+            for ops in batch:
+                for post in ops:
+                    if post['op'][0] == 'custom_json':
+                        yield post
+            num_in_batch = 0
 
 
-def scan_chain(history: bool):
+def listen_for_custom_json_operations(condenser_api_client, start_block):
+    current_block = start_block
+    if not current_block:
+        current_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
+    block_client = get_client(automatic_node_selection=True, api_type="block_api")
+    while True:
+        start_time = timer()
+        head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
+        while (head_block - current_block) > 0:
+            block = block_client.get_block({"block_num": current_block})
+            for op in [(trx_id, op) for trx_id, transaction in enumerate(block['block']['transactions']) for op in transaction['operations']]:
+                if op[1]['type'] == 'custom_json_operation':
+                    yield {
+                        "block": current_block,
+                        "timestamp": block['block']['timestamp'],
+                        "trx_id": op[0],
+                        "op": [
+                            'custom_json',
+                            op[1]['value'],
+                        ]
+                    }
+            current_block += 1
+            head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
+
+        end_time = timer()
+        sleep_time = 3 - (end_time - start_time)
+        if sleep_time > 0 and (head_block - current_block) <= 0:
+            time.sleep(sleep_time)
+
+
+def scan_chain(client: Client, history: bool, start_block=None):
     """Either scans the old chain (history == True) or watches the live blockchain"""
 
     # Very first transaction from Dave Testing:
@@ -169,92 +222,101 @@ def scan_chain(history: bool):
      - f0affd194524a6e0171d65d29d5c501865f0bd72
      - https://feeds.transistor.fm/retail-remix"""
 
-    scan_start_time = datetime.utcnow()
-    report_timedelta = timedelta(minutes=Config.report_minutes)
+    scan_start_time = pendulum.now()
+    report_timedelta = pendulum.duration(minutes=Config.report_minutes)
 
-    allowed_accounts = get_allowed_accounts()
+    allowed_accounts = get_allowed_accounts(client)
 
     count_posts = 0
     pings = 0
 
     if history:
         report_period_start_time = Config.start_time
-        current_block_num = Config.block_num
-        stream = get_stream(Config.block_num)
+        end_block = client.get_dynamic_global_properties()["head_block_number"]
+        stream = historical_block_stream_generator(client, start_block, end_block + 1)
         if Config.reports:
-            logging.info("Started catching up")
+            logging.info(f"Started catching up from block_num: {start_block}")
 
     else:
-        report_period_start_time = datetime.utcnow()
-        current_block_num = Config.blockchain.get_current_block_num()
-        stream = get_stream()
+        report_period_start_time = pendulum.now()
+        #event_listener = EventListener(client, "head", start_block=start_block)
+        #stream = event_listener.on("custom_json")
+        stream = listen_for_custom_json_operations(client, start_block)
         if Config.reports:
-            logging.info(f"Watching live from block_num: {current_block_num}")
+            logging.info(f"Watching live from block_num: {start_block}")
 
     post = None
     try:
         for post in stream:
-            post_time = post["timestamp"].replace(tzinfo=None)
+            post_time = pendulum.parse(post["timestamp"])
             time_dif = post_time - report_period_start_time
-            time_to_now = datetime.utcnow() - post_time
+            time_to_now = pendulum.now() - post_time
             count_posts += 1
             if Config.reports:
                 if time_dif > report_timedelta:
                     timestamp = post["timestamp"]
-                    current_block_num = post["block_num"]
-                    if time_to_now.seconds < 1: time_to_now = timedelta(seconds=1)
+                    current_block_num = post["block"]
+                    if time_to_now.seconds < 1:
+                        time_to_now = pendulum.duration(seconds=1)
                     output_status(
                         timestamp, pings, count_posts, time_to_now, current_block_num
                     )
-                    report_period_start_time = post["timestamp"].replace(tzinfo=None)
+                    report_period_start_time = pendulum.parse(post["timestamp"])
                     count_posts = 0
                     pings = 0
 
-            if allowed_op_id(post["id"]):
-                if set(post["required_posting_auths"]) & allowed_accounts:
+            if allowed_op_id(post["op"][1]["id"]):
+                if set(post["op"][1]["required_posting_auths"]) & allowed_accounts:
                     count = output(post)
                     pings += count
                     Pings.total_pings += count
 
             if Config.diagnostic:
-                if post["id"] in list(Config.DIAGNOSTIC_OPERATION_IDS):
+                if post["op"][1]["id"] in list(Config.DIAGNOSTIC_OPERATION_IDS):
                     output_diagnostic(post)
 
             if history:
-                if time_to_now < timedelta(seconds=2) or post_time > Config.stop_at:
+                if time_to_now < pendulum.duration(seconds=2) or post_time > Config.stop_at:
                     timestamp = post["timestamp"]
-                    current_block_num = post["block_num"]
-                    if Config.show_reports:
+                    current_block_num = post["block"]
+                    if Config.show_reports and not Config.urls_only:
                         output_status(
-                            timestamp, pings, count_posts, time_to_now, current_block_num
+                            timestamp,
+                            pings,
+                            count_posts,
+                            time_to_now,
+                            current_block_num,
                         )
 
                     if not (Config.urls_only):
-                        logging.info(f"block_num: {post['block_num']}")
+                        logging.info(f"block_num: {post['block']}")
                     # Break out of the for loop we've caught up.
                     break
             else:
-                if time_dif > timedelta(hours=1):
+                if time_dif > pendulum.duration(hours=1):
                     # Re-fetch the allowed_accounts every hour in case we add one.
                     allowed_accounts = get_allowed_accounts()
 
-
     except Exception as ex:
         logging.error(f"Exception: {ex}")
-        logging.warning("Exception being handled - restarting")
+        logging.warning("Exception being handled | restarting")
         raise UnspecifiedHiveException(ex)
 
     if post and (not (Config.urls_only)):
-        scan_time = datetime.utcnow() - scan_start_time
+        scan_time = pendulum.now() - scan_start_time
         logging.info(
-            f"Finished catching up at block_num: {post['block_num']} in {scan_time}"
+            f"Finished catching up at block_num: {post['block']} in {scan_time}"
         )
+
+    if post:
+        return post['block']
 
 
 def main() -> None:
+    logging.getLogger("beemapi.graphenerpc").setLevel(logging.CRITICAL)
     logging.basicConfig(
         level=logging.INFO,
-        format=f"%(asctime)s - %(levelname)s %(name)s %(threadName)s : -  %(message)s",
+        format=f"%(asctime)s | %(levelname)s %(name)s %(threadName)s : |  %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S%z",
     )
     Config.setup()
@@ -266,17 +328,26 @@ def main() -> None:
         else:
             logging.info("---------------> Using Main Hive Chain ")
 
+    client = get_client(automatic_node_selection=False)
+    start_block = None
+
     # scan_history will look back over the last 1 hour reporting every 15 minute chunk
     if Config.history:
-        scan_chain(history=True)
+        start_block = scan_chain(client, history=True, start_block=Config.block_num)
+
+    if start_block is None:
+        start_block = client.get_dynamic_global_properties()["head_block_number"]
+    else:
+        start_block += 1
 
     if not Config.history_only or Config.stop_after:
         # scan_live will resume live scanning the chain and report every 5 minutes or
         # when a notification
         #
-        scan_chain(history=False)
+        scan_chain(client, history=False, start_block=start_block)
     else:
         logging.info("history_only is set. exiting")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
@@ -284,7 +355,7 @@ if __name__ == "__main__":
         try:
             main()
         except Exception as ex:
-            logging.error(f"Error: {ex}")
+            logging.error(f"Error: {ex}", exc_info=True)
             logging.error("Restarting the watcher")
             Config.old = 1
             main()

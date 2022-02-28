@@ -77,7 +77,7 @@ There are two main modes of operation:
 1. Run as a server waiting for URLs either as a simple socket (--socket) or as ZMQ socket (--zmq)
 2. Send a single URL from the command line (--url)
 
-### Enviornment
+### Environment
 
 In order to operate, ```hive-writer.py``` must be given two ENV variables. The third ENV variable will use a test version of Hive which may or may not be available:
 ```

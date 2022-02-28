@@ -24,6 +24,7 @@ hive-watcher/config/__pycache__/__init__.cpython-38.pyc
 /podping/queue.db
 hive-watcher/err_prop.log
 hive-watcher/proposal-watcher.py
+**.DS_Store
 
 #mac
 **.DS_Store
