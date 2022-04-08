@@ -123,8 +123,6 @@ async fn main() {
                         }
 
                         println!("  Done sending and receiving.");
-                        println!("  Sleeping...");
-                        thread::sleep(time::Duration::from_millis(300));
                     }
                 },
                 Err(e) => {
