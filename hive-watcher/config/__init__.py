@@ -8,7 +8,7 @@ from ipaddress import IPv4Address, IPv6Address, AddressValueError
 import zmq
 from lighthive.client import Client
 import pendulum
-
+from lighthive.exceptions import RPCNodeException
 
 BLOCK_INTERVAL = 3
 
@@ -18,7 +18,12 @@ BLOCK_INTERVAL = 3
 def get_estimated_block_num(client: Client, date, accurate=True):
 
     last_block_num = client.get_dynamic_global_properties()["head_block_number"]
-    last_block = client.get_block(last_block_num)
+    while True:
+        try:
+            last_block = client.get_block(last_block_num)
+            break
+        except RPCNodeException:
+            pass
     time_diff = pendulum.parse(last_block['timestamp']) - date
     block_number = math.floor(last_block_num - time_diff.total_seconds() / BLOCK_INTERVAL)
     if block_number < 1:
@@ -33,7 +38,12 @@ def get_estimated_block_num(client: Client, date, accurate=True):
         second_last_block_time_diff_seconds = 10
 
         while block_time_diff.total_seconds() > BLOCK_INTERVAL or block_time_diff.total_seconds() < -BLOCK_INTERVAL:
-            block = client.get_block(block_number)
+            while True:
+                try:
+                    block = client.get_block(block_number)
+                    break
+                except RPCNodeException:
+                    pass
             second_last_block_time_diff_seconds = last_block_time_diff_seconds
             last_block_time_diff_seconds = block_time_diff.total_seconds()
             block_time_diff = date - pendulum.parse(block['timestamp'])
@@ -312,7 +322,12 @@ class Config:
             cls.history = True
             client = Client()
             if cls.block_num:
-                cls.start_time = pendulum.parse(client.get_block(cls.block_num)["timestamp"])
+                while True:
+                    try:
+                        cls.start_time = pendulum.parse(client.get_block(cls.block_num)["timestamp"])
+                        break
+                    except RPCNodeException:
+                        pass
             elif cls.hours_ago:
                 cls.start_time = pendulum.now() - cls.hours_ago
                 cls.block_num = get_estimated_block_num(client, cls.start_time)

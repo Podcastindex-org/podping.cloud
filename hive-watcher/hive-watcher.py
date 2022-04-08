@@ -8,6 +8,7 @@ from typing import Set
 
 import pendulum
 from lighthive.client import Client
+from lighthive.exceptions import RPCNodeException
 from lighthive.helpers.event_listener import EventListener
 
 from config import Config
@@ -192,7 +193,12 @@ def listen_for_custom_json_operations(condenser_api_client, start_block):
         start_time = timer()
         head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
         while (head_block - current_block) > 0:
-            block = block_client.get_block({"block_num": current_block})
+            while True:
+                try:
+                    block = block_client.get_block({"block_num": current_block})
+                    break
+                except RPCNodeException:
+                    pass
             for op in [(trx_id, op) for trx_id, transaction in enumerate(block['block']['transactions']) for op in transaction['operations']]:
                 if op[1]['type'] == 'custom_json_operation':
                     yield {
