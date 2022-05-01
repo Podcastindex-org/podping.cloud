@@ -31,7 +31,7 @@ def get_client(
 ) -> Client:
     try:
         client = Client(
-            nodes=frozenset(set(DEFAULT_NODES).difference({"https://api.hive.blog"})),
+            nodes=frozenset(set(DEFAULT_NODES).difference({"https://api.hive.blog", "https://rpc.ausbit.dev/"})),
             connect_timeout=connect_timeout,
             read_timeout=read_timeout,
             loglevel=loglevel,
