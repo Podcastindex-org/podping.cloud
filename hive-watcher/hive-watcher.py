@@ -192,7 +192,12 @@ def listen_for_custom_json_operations(condenser_api_client, start_block):
     block_client = get_client(automatic_node_selection=True, api_type="block_api")
     while True:
         start_time = timer()
-        head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
+        while True:
+            try:
+                head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
+                break
+            except RPCNodeException:
+                pass
         while (head_block - current_block) > 0:
             while True:
                 try:
@@ -212,8 +217,12 @@ def listen_for_custom_json_operations(condenser_api_client, start_block):
                         ]
                     }
             current_block += 1
-            head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
-
+            while True:
+                try:
+                    head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
+                    break
+                except RPCNodeException:
+                    pass
         end_time = timer()
         sleep_time = 3 - (end_time - start_time)
         if sleep_time > 0 and (head_block - current_block) <= 0:
