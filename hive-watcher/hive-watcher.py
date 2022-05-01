@@ -7,7 +7,7 @@ from timeit import default_timer as timer
 from typing import Set
 
 import pendulum
-from lighthive.client import Client
+from lighthive.client import Client, DEFAULT_NODES
 from lighthive.exceptions import RPCNodeException
 from lighthive.helpers.event_listener import EventListener
 
@@ -31,6 +31,7 @@ def get_client(
 ) -> Client:
     try:
         client = Client(
+            nodes=frozenset(set(DEFAULT_NODES).difference({"https://api.hive.blog"})),
             connect_timeout=connect_timeout,
             read_timeout=read_timeout,
             loglevel=loglevel,
