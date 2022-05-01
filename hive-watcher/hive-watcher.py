@@ -311,7 +311,13 @@ def scan_chain(client: Client, history: bool, start_block=None):
             else:
                 if time_dif > pendulum.duration(hours=1):
                     # Re-fetch the allowed_accounts every hour in case we add one.
-                    allowed_accounts = get_allowed_accounts()
+                    while True:
+                        try:
+                            allowed_accounts = get_allowed_accounts()
+                            break
+                        except RPCNodeException:
+                            pass
+
 
     except Exception as ex:
         logging.error(f"Exception: {ex}")
