@@ -9,7 +9,11 @@
 
 //Monitor hive-watcher.py output continuously
 while (1) {
+
+    sleep(1);
+
     //Vars
+    $timestamp = date(DATE_RFC2822);
     $reason = "update";
     $medium = "podcast";
     $version = "";
@@ -18,6 +22,8 @@ while (1) {
     //Get the incoming podping json payload from STDIN and parse it
     $json = trim(readline());
     $podping = json_decode($json, TRUE);
+
+    echo "--- $timestamp ---\n";
 
     //Bail on unknown payload schema
     if (!isset($podping['version']) || empty($podping['version'])) {
@@ -68,7 +74,7 @@ while (1) {
         loggit(3, "PODPING(v$version) - Mark to poll: [$iri].");
 
         //Attempt to mark the feed for immediate polling
-        poll_feed($iri);
+        $result = poll_feed($iri);
     }
 
     //logging - visual break
