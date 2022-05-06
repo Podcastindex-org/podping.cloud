@@ -52,7 +52,7 @@ def get_allowed_accounts(
     and only react to these accounts"""
 
     if not client:
-        client = get_client(connect_timeout=3, read_timeout=3)
+        client = get_client(connect_timeout=3, read_timeout=10)
 
     master_account = client.account(account_name)
     return set(master_account.following())
@@ -192,14 +192,14 @@ def listen_for_custom_json_operations(condenser_api_client, start_block):
     current_block = start_block
     if not current_block:
         current_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
-    block_client = get_client(connect_timeout=3, read_timeout=3, automatic_node_selection=True, api_type="block_api")
+    block_client = get_client(connect_timeout=3, read_timeout=10, automatic_node_selection=True, api_type="block_api")
     while True:
         start_time = timer()
         while True:
             try:
                 head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
                 break
-            except RPCNodeException:
+            except (KeyError, RPCNodeException):
                 pass
         while (head_block - current_block) > 0:
             while True:
@@ -208,23 +208,26 @@ def listen_for_custom_json_operations(condenser_api_client, start_block):
                     break
                 except RPCNodeException:
                     pass
-            for op in [(trx_id, op) for trx_id, transaction in enumerate(block['block']['transactions']) for op in transaction['operations']]:
-                if op[1]['type'] == 'custom_json_operation':
-                    yield {
-                        "block": current_block,
-                        "timestamp": block['block']['timestamp'],
-                        "trx_id": op[0],
-                        "op": [
-                            'custom_json',
-                            op[1]['value'],
-                        ]
-                    }
+            try:
+                for op in [(trx_id, op) for trx_id, transaction in enumerate(block['block']['transactions']) for op in transaction['operations']]:
+                    if op[1]['type'] == 'custom_json_operation':
+                        yield {
+                            "block": current_block,
+                            "timestamp": block['block']['timestamp'],
+                            "trx_id": op[0],
+                            "op": [
+                                'custom_json',
+                                op[1]['value'],
+                            ]
+                        }
+            except KeyError:
+                logging.warning(f"Block {current_block} is invalid")
             current_block += 1
             while True:
                 try:
                     head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
                     break
-                except RPCNodeException:
+                except (KeyError, RPCNodeException):
                     pass
         end_time = timer()
         sleep_time = 3 - (end_time - start_time)
@@ -353,7 +356,7 @@ def main() -> None:
         else:
             logging.info("---------------> Using Main Hive Chain ")
 
-    client = get_client(connect_timeout=3, read_timeout=3, automatic_node_selection=False)
+    client = get_client(connect_timeout=3, read_timeout=10, automatic_node_selection=False)
     start_block = None
 
     # scan_history will look back over the last 1 hour reporting every 15 minute chunk
