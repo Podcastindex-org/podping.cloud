@@ -52,7 +52,7 @@ def get_allowed_accounts(
     and only react to these accounts"""
 
     if not client:
-        client = get_client(connect_timeout=3, read_timeout=10)
+        client = get_client(connect_timeout=3, read_timeout=3)
 
     master_account = client.account(account_name)
     return set(master_account.following())
@@ -192,7 +192,7 @@ def listen_for_custom_json_operations(condenser_api_client, start_block):
     current_block = start_block
     if not current_block:
         current_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
-    block_client = get_client(connect_timeout=3, read_timeout=10, automatic_node_selection=True, api_type="block_api")
+    block_client = get_client(connect_timeout=3, read_timeout=3, automatic_node_selection=True, api_type="block_api")
     while True:
         start_time = timer()
         while True:
@@ -356,7 +356,7 @@ def main() -> None:
         else:
             logging.info("---------------> Using Main Hive Chain ")
 
-    client = get_client(connect_timeout=3, read_timeout=10, automatic_node_selection=False)
+    client = get_client(connect_timeout=3, read_timeout=3, automatic_node_selection=False)
     start_block = None
 
     # scan_history will look back over the last 1 hour reporting every 15 minute chunk
