@@ -30,13 +30,13 @@ def get_client(
     api_type="condenser_api",
 ) -> Client:
     try:
-        Client.backoff_mode = backoff.fibo
-        Client.backoff_max_tries = 3
         client = Client(
             connect_timeout=connect_timeout,
             read_timeout=read_timeout,
             loglevel=loglevel,
             automatic_node_selection=automatic_node_selection,
+            backoff_mode=backoff.fibo,
+            backoff_max_tries=3,
             load_balance_nodes=True,
             circuit_breaker=True,
         )
@@ -341,7 +341,7 @@ def scan_chain(client: Client, history: bool, start_block=None):
 
 
 def main() -> None:
-    logging.getLogger("beemapi.graphenerpc").setLevel(logging.CRITICAL)
+    logging.getLogger("lighthive.client").setLevel(logging.INFO)
     logging.basicConfig(
         level=logging.INFO,
         format=f"%(asctime)s | %(levelname)s %(name)s %(threadName)s : |  %(message)s",
