@@ -8,7 +8,7 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.7"
 pyzmq = "^22.1.0"
-lighthive = {git = "ssh://git@github.com/agates/lighthive.git", rev = "a2af5b83481924334ed6e681529118c13b361a8b"}
+lighthive = {git = "https://git@github.com/agates/lighthive.git", rev = "a2af5b83481924334ed6e681529118c13b361a8b"}
 pendulum = "^2.1.2"
 beem = "^0.24.26"
 
