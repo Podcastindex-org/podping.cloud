@@ -71,10 +71,9 @@ while (1) {
 
         //Logging
         echo " -- Poll: [$iri].\n";
-        loggit(3, "PODPING(v$version) - Mark to poll: [$iri].");
 
         //Attempt to mark the feed for immediate polling
-        $result = poll_feed($iri);
+        //$result = poll_feed($iri);
     }
 
     //logging - visual break
