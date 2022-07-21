@@ -261,7 +261,7 @@ pub fn get_pings_from_queue() -> Result<Vec<Ping>, Box<dyn Error>> {
     let conn = Connection::open(SQLITE_FILE_QUEUE)?;
     let mut urls: Vec<Ping> = Vec::new();
 
-    let mut stmt = conn.prepare("SELECT url,createdon FROM queue ORDER BY rowid ASC LIMIT 50")?;
+    let mut stmt = conn.prepare("SELECT url,createdon FROM queue ORDER BY rowid ASC")?;
     let rows = stmt.query_map([], |row| {
         Ok(Ping {
             url: row.get(0)?,
