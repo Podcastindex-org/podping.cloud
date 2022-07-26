@@ -13,7 +13,7 @@ use std::env;
 use drop_root::set_user_group;
 
 //Globals ----------------------------------------------------------------------------------------------------
-const ZMQ_SOCKET_ADDR: &str = "tcp://127.0.0.1:5555";
+const ZMQ_SOCKET_ADDR: &str = "tcp://127.0.0.1:9999";
 mod handler;
 mod router;
 type Response = hyper::Response<hyper::Body>;
