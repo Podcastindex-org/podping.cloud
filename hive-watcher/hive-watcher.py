@@ -1,7 +1,8 @@
+import itertools
 import json
 import logging
-import time
 import sys
+import time
 from datetime import timedelta
 from timeit import default_timer as timer
 from typing import Set
@@ -49,8 +50,16 @@ def get_allowed_accounts(
     if not client:
         client = get_client()
 
-    master_account = client.account(account_name)
-    return set(master_account.following())
+    for _ in itertools.repeat(None):
+        try:
+            master_account = client.account(account_name)
+            return set(master_account.following())
+        except KeyError:
+            logging.warning(f"Unable to get account followers - retrying")
+        except Exception as e:
+            logging.warning(f"Unable to get account followers: {e} - retrying")
+
+
 
 
 def allowed_op_id(operation_id: str) -> bool:
