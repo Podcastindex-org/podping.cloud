@@ -91,6 +91,14 @@ python2 = ["typed-ast (>=1.4.3)"]
 uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
+name = "cachetools"
+version = "5.2.0"
+description = "Extensible memoizing collections and decorators"
+category = "main"
+optional = false
+python-versions = "~=3.7"
+
+[[package]]
 name = "certifi"
 version = "2022.9.24"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -277,14 +285,15 @@ requirements-deprecated-finder = ["pip-api", "pipreqs"]
 
 [[package]]
 name = "lighthive"
-version = "0.3.3"
+version = "0.4.0"
 description = "A light python client to interact with the HIVE blockchain"
 category = "main"
 optional = false
 python-versions = "*"
 
 [package.dependencies]
-backoff = "*"
+backoff = ">=2.0,<3.0"
+cachetools = "*"
 dateutils = "*"
 ecdsa = "*"
 httpx = "*"
@@ -563,7 +572,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "1220064b5102a9e68ea866b6d68dfac1310a756ddb5ea9b621877a7424632795"
+content-hash = "fc9dca0632a6a1dfc046e6222d50928a76d05d36c78598017ad6c4d191be1c15"
 
 [metadata.files]
 anyio = [
@@ -589,6 +598,10 @@ beem = [
 black = [
     {file = "black-21.12b0-py3-none-any.whl", hash = "sha256:a615e69ae185e08fdd73e4715e260e2479c861b5740057fde6e8b4e3b7dd589f"},
     {file = "black-21.12b0.tar.gz", hash = "sha256:77b80f693a569e2e527958459634f18df9b0ba2625ba4e0c2d5da5be42e6f2b3"},
+]
+cachetools = [
+    {file = "cachetools-5.2.0-py3-none-any.whl", hash = "sha256:f9f17d2aec496a9aa6b76f53e3b614c965223c061982d434d160f930c698a9db"},
+    {file = "cachetools-5.2.0.tar.gz", hash = "sha256:6a94c6402995a99c3970cc7e4884bb60b4a8639938157eeed436098bf9831757"},
 ]
 certifi = [
     {file = "certifi-2022.9.24-py3-none-any.whl", hash = "sha256:90c1a32f1d68f940488354e36370f6cca89f0f106db09518524c88d6ed83f382"},
@@ -713,7 +726,7 @@ isort = [
     {file = "isort-5.10.1.tar.gz", hash = "sha256:e8443a5e7a020e9d7f97f1d7d9cd17c88bcb3bc7e218bf9cf5095fe550be2951"},
 ]
 lighthive = [
-    {file = "lighthive-0.3.3.tar.gz", hash = "sha256:8933c970d8fe2201499ac988f8db656f0587ed79ca74f405ff8e8a855b478e08"},
+    {file = "lighthive-0.4.0.tar.gz", hash = "sha256:2043a0728605459292fe13c526c32eaa85860e56338277193cb6979dc5cc7d93"},
 ]
 mypy-extensions = [
     {file = "mypy_extensions-0.4.3-py2.py3-none-any.whl", hash = "sha256:090fedd75945a69ae91ce1303b5824f428daf5a028d2f6ab8a299250a846f15d"},
