@@ -30,8 +30,15 @@ def get_client(
     api_type="condenser_api",
 ) -> Client:
     try:
+        nodes = [
+            "https://api.hive.blog",
+            "https://api.deathwing.me",
+            "https://hive-api.arcange.eu",
+            "https://api.openhive.network",
+        ]
         client = Client(
             connect_timeout=connect_timeout,
+            nodes=nodes,
             read_timeout=read_timeout,
             loglevel=loglevel,
             automatic_node_selection=automatic_node_selection,
@@ -222,6 +229,7 @@ def listen_for_custom_json_operations(condenser_api_client, start_block):
             time.sleep(sleep_time)
 
 
+
 def scan_chain(client: Client, history: bool, start_block=None):
     """Either scans the old chain (history == True) or watches the live blockchain"""
 
@@ -307,6 +315,7 @@ def scan_chain(client: Client, history: bool, start_block=None):
                     allowed_accounts = get_allowed_accounts()
 
     except Exception as ex:
+        logging.exception(ex)
         logging.error(f"Exception: {ex}")
         logging.warning("Exception being handled | restarting")
         raise UnspecifiedHiveException(ex)
@@ -322,7 +331,6 @@ def scan_chain(client: Client, history: bool, start_block=None):
 
 
 def main() -> None:
-    logging.getLogger("beemapi.graphenerpc").setLevel(logging.CRITICAL)
     logging.basicConfig(
         level=logging.INFO,
         format=f"%(asctime)s | %(levelname)s %(name)s %(threadName)s : |  %(message)s",
@@ -363,6 +371,9 @@ if __name__ == "__main__":
     while True:
         try:
             main()
+        except KeyboardInterrupt:
+            logging.info("Terminated with Ctrl-C")
+            sys.exit(1)
         except Exception as ex:
             logging.error(f"Error: {ex}", exc_info=True)
             logging.error("Restarting the watcher")
