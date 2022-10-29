@@ -6,9 +6,9 @@ authors = ["Your Name <you@example.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.7"
-pyzmq = "^22.1.0"
 lighthive = "0.4.0"
+python = "^3.8"
+pyzmq = "^24.0.0"
 pendulum = "^2.1.2"
 beem = "^0.24.26"
 
