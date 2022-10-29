@@ -1,15 +1,16 @@
+import itertools
 import json
 import logging
-import time
 import sys
+from collections import deque
 from datetime import timedelta
-from timeit import default_timer as timer
 from typing import Set
 
 import backoff
 import pendulum
 from lighthive.client import Client
 from lighthive.exceptions import RPCNodeException
+from lighthive.helpers.event_listener import EventListener
 
 from config import Config
 
@@ -30,8 +31,15 @@ def get_client(
     api_type="condenser_api",
 ) -> Client:
     try:
+        nodes = [
+            "https://api.hive.blog",
+            "https://api.deathwing.me",
+            "https://hive-api.arcange.eu",
+            "https://api.openhive.network",
+        ]
         client = Client(
             connect_timeout=connect_timeout,
+            nodes=nodes,
             read_timeout=read_timeout,
             loglevel=loglevel,
             automatic_node_selection=automatic_node_selection,
@@ -54,9 +62,14 @@ def get_allowed_accounts(
     if not client:
         client = get_client(connect_timeout=3, read_timeout=3)
 
-    master_account = client.account(account_name)
-    return set(master_account.following())
-
+    for _ in itertools.repeat(None):
+        try:
+            master_account = client.account(account_name)
+            return set(master_account.following())
+        except KeyError:
+            logging.warning(f"Unable to get account followers - retrying")
+        except Exception as e:
+            logging.warning(f"Unable to get account followers: {e} - retrying")
 
 def allowed_op_id(operation_id: str) -> bool:
     """Checks if the operation_id is in the allowed list"""
@@ -67,6 +80,19 @@ def output(post) -> int:
     """Prints out the post and extracts the custom_json"""
 
     data = json.loads(post["op"][1]['json'])
+
+    if Config.json:
+        data["hiveTxId"] = post["trx_id"]
+        data["hiveBlockNum"] = post["block"]
+        print(json.dumps(data))
+        if "iris" in data:
+            return len(data["iris"])
+        if "urls" in data:
+            return data["num_urls"]
+        if "url" in data:
+            return 1
+        return -1
+
     data["medium_reason"] = "podcast update"
 
     # Check version of Podping and :
@@ -83,10 +109,7 @@ def output(post) -> int:
             return 1
 
     if Config.urls_only or Config.json:
-        if Config.json:
-            print(post["op"][1]['json'])
-            return data["num_urls"]
-        elif data.get("url"):
+        if data.get("url"):
             print(data.get("url"))
             # These calls do nothing if sockets are not open
             # ZMQ Socket will block until it receives acknowledgement
@@ -176,63 +199,26 @@ def output_status(
 def historical_block_stream_generator(client, start_block, end_block):
     batch_size = 50
     num_in_batch = 0
+
+    current_batch = deque()
     for block_num in range(start_block, end_block):
         client.get_ops_in_block(block_num, batch=True)
+        current_batch.append(block_num)
         num_in_batch += 1
         if num_in_batch == batch_size or block_num == end_block:
-            batch = client.process_batch()
+            while True:
+                try:
+                    batch = client.process_batch()
+                    current_batch.clear()
+                    break
+                except RPCNodeException:
+                    for b in current_batch:
+                        client.get_ops_in_block(b, batch=True)
             for ops in batch:
                 for post in ops:
                     if post['op'][0] == 'custom_json':
                         yield post
             num_in_batch = 0
-
-
-def listen_for_custom_json_operations(condenser_api_client, start_block):
-    current_block = start_block
-    if not current_block:
-        current_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
-    block_client = get_client(connect_timeout=3, read_timeout=3, automatic_node_selection=True, api_type="block_api")
-    while True:
-        start_time = timer()
-        while True:
-            try:
-                head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
-                break
-            except (KeyError, RPCNodeException):
-                pass
-        while (head_block - current_block) > 0:
-            while True:
-                try:
-                    block = block_client.get_block({"block_num": current_block})
-                    break
-                except RPCNodeException:
-                    pass
-            try:
-                for op in [(trx_id, op) for trx_id, transaction in enumerate(block['block']['transactions']) for op in transaction['operations']]:
-                    if op[1]['type'] == 'custom_json_operation':
-                        yield {
-                            "block": current_block,
-                            "timestamp": block['block']['timestamp'],
-                            "trx_id": op[0],
-                            "op": [
-                                'custom_json',
-                                op[1]['value'],
-                            ]
-                        }
-            except KeyError:
-                logging.warning(f"Block {current_block} is invalid")
-            current_block += 1
-            while True:
-                try:
-                    head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
-                    break
-                except (KeyError, RPCNodeException):
-                    pass
-        end_time = timer()
-        sleep_time = 3 - (end_time - start_time)
-        if sleep_time > 0 and (head_block - current_block) <= 0:
-            time.sleep(sleep_time)
 
 
 def scan_chain(client: Client, history: bool, start_block=None):
@@ -261,9 +247,8 @@ def scan_chain(client: Client, history: bool, start_block=None):
 
     else:
         report_period_start_time = pendulum.now()
-        #event_listener = EventListener(client, "head", start_block=start_block)
-        #stream = event_listener.on("custom_json")
-        stream = listen_for_custom_json_operations(client, start_block)
+        event_listener = EventListener(client, "head", start_block=start_block)
+        stream = event_listener.on("custom_json")
         if Config.reports:
             logging.info(f"Watching live from block_num: {start_block}")
 
@@ -283,7 +268,7 @@ def scan_chain(client: Client, history: bool, start_block=None):
                     output_status(
                         timestamp, pings, count_posts, time_to_now, current_block_num
                     )
-                    report_period_start_time = pendulum.parse(post["timestamp"])
+                    report_period_start_time = post_time
                     count_posts = 0
                     pings = 0
 
@@ -326,7 +311,9 @@ def scan_chain(client: Client, history: bool, start_block=None):
 
 
     except Exception as ex:
+        logging.exception(ex)
         logging.error(f"Exception: {ex}")
+        logging.error(f"Error with node {client.current_node}")
         logging.warning("Exception being handled | restarting")
         raise UnspecifiedHiveException(ex)
 
@@ -382,6 +369,9 @@ if __name__ == "__main__":
     while True:
         try:
             main()
+        except KeyboardInterrupt:
+            logging.info("Terminated with Ctrl-C")
+            sys.exit(1)
         except Exception as ex:
             logging.error(f"Error: {ex}", exc_info=True)
             logging.error("Restarting the watcher")
