@@ -25,3 +25,6 @@ hive-watcher/config/__pycache__/__init__.cpython-38.pyc
 hive-watcher/err_prop.log
 hive-watcher/proposal-watcher.py
 **.DS_Store
+
+#mac
+**.DS_Store

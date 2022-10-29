@@ -1,7 +1,8 @@
+import itertools
 import json
 import logging
-import time
 import sys
+import time
 from datetime import timedelta
 from timeit import default_timer as timer
 from typing import Set
@@ -30,8 +31,15 @@ def get_client(
     api_type="condenser_api",
 ) -> Client:
     try:
+        nodes = [
+            "https://api.hive.blog",
+            "https://api.deathwing.me",
+            "https://hive-api.arcange.eu",
+            "https://api.openhive.network",
+        ]
         client = Client(
             connect_timeout=connect_timeout,
+            nodes=nodes,
             read_timeout=read_timeout,
             loglevel=loglevel,
             automatic_node_selection=automatic_node_selection,
@@ -54,8 +62,16 @@ def get_allowed_accounts(
     if not client:
         client = get_client(connect_timeout=3, read_timeout=3)
 
-    master_account = client.account(account_name)
-    return set(master_account.following())
+    for _ in itertools.repeat(None):
+        try:
+            master_account = client.account(account_name)
+            return set(master_account.following())
+        except KeyError:
+            logging.warning(f"Unable to get account followers - retrying")
+        except Exception as e:
+            logging.warning(f"Unable to get account followers: {e} - retrying")
+
+
 
 
 def allowed_op_id(operation_id: str) -> bool:
@@ -235,6 +251,7 @@ def listen_for_custom_json_operations(condenser_api_client, start_block):
             time.sleep(sleep_time)
 
 
+
 def scan_chain(client: Client, history: bool, start_block=None):
     """Either scans the old chain (history == True) or watches the live blockchain"""
 
@@ -326,6 +343,7 @@ def scan_chain(client: Client, history: bool, start_block=None):
 
 
     except Exception as ex:
+        logging.exception(ex)
         logging.error(f"Exception: {ex}")
         logging.warning("Exception being handled | restarting")
         raise UnspecifiedHiveException(ex)
@@ -382,6 +400,9 @@ if __name__ == "__main__":
     while True:
         try:
             main()
+        except KeyboardInterrupt:
+            logging.info("Terminated with Ctrl-C")
+            sys.exit(1)
         except Exception as ex:
             logging.error(f"Error: {ex}", exc_info=True)
             logging.error("Restarting the watcher")
