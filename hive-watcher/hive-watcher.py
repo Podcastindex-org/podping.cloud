@@ -83,6 +83,19 @@ def output(post) -> int:
     """Prints out the post and extracts the custom_json"""
 
     data = json.loads(post["op"][1]['json'])
+
+    if Config.json:
+        data["hiveTxId"] = post["trx_id"]
+        data["hiveBlockNum"] = post["block"]
+        print(json.dumps(data))
+        if "iris" in data:
+            return len(data["iris"])
+        if "urls" in data:
+            return data["num_urls"]
+        if "url" in data:
+            return 1
+        return -1
+
     data["medium_reason"] = "podcast update"
 
     # Check version of Podping and :
@@ -99,10 +112,7 @@ def output(post) -> int:
             return 1
 
     if Config.urls_only or Config.json:
-        if Config.json:
-            print(post["op"][1]['json'])
-            return data["num_urls"]
-        elif data.get("url"):
+        if data.get("url"):
             print(data.get("url"))
             # These calls do nothing if sockets are not open
             # ZMQ Socket will block until it receives acknowledgement
