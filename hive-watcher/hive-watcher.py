@@ -7,9 +7,10 @@ from datetime import timedelta
 from timeit import default_timer as timer
 from typing import Set
 
+import backoff
 import pendulum
 from lighthive.client import Client
-from lighthive.helpers.event_listener import EventListener
+from lighthive.exceptions import RPCNodeException
 
 from config import Config
 
@@ -42,6 +43,10 @@ def get_client(
             read_timeout=read_timeout,
             loglevel=loglevel,
             automatic_node_selection=automatic_node_selection,
+            backoff_mode=backoff.fibo,
+            backoff_max_tries=3,
+            load_balance_nodes=True,
+            circuit_breaker=True,
         )
         return client(api_type)
     except Exception as ex:
@@ -55,7 +60,7 @@ def get_allowed_accounts(
     and only react to these accounts"""
 
     if not client:
-        client = get_client()
+        client = get_client(connect_timeout=3, read_timeout=3)
 
     for _ in itertools.repeat(None):
         try:
@@ -203,26 +208,43 @@ def listen_for_custom_json_operations(condenser_api_client, start_block):
     current_block = start_block
     if not current_block:
         current_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
-    block_client = get_client(automatic_node_selection=True, api_type="block_api")
+    block_client = get_client(connect_timeout=3, read_timeout=3, automatic_node_selection=True, api_type="block_api")
     while True:
         start_time = timer()
-        head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
+        while True:
+            try:
+                head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
+                break
+            except (KeyError, RPCNodeException):
+                pass
         while (head_block - current_block) > 0:
-            block = block_client.get_block({"block_num": current_block})
-            for op in [(trx_id, op) for trx_id, transaction in enumerate(block['block']['transactions']) for op in transaction['operations']]:
-                if op[1]['type'] == 'custom_json_operation':
-                    yield {
-                        "block": current_block,
-                        "timestamp": block['block']['timestamp'],
-                        "trx_id": op[0],
-                        "op": [
-                            'custom_json',
-                            op[1]['value'],
-                        ]
-                    }
+            while True:
+                try:
+                    block = block_client.get_block({"block_num": current_block})
+                    break
+                except RPCNodeException:
+                    pass
+            try:
+                for op in [(trx_id, op) for trx_id, transaction in enumerate(block['block']['transactions']) for op in transaction['operations']]:
+                    if op[1]['type'] == 'custom_json_operation':
+                        yield {
+                            "block": current_block,
+                            "timestamp": block['block']['timestamp'],
+                            "trx_id": op[0],
+                            "op": [
+                                'custom_json',
+                                op[1]['value'],
+                            ]
+                        }
+            except KeyError:
+                logging.warning(f"Block {current_block} is invalid")
             current_block += 1
-            head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
-
+            while True:
+                try:
+                    head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
+                    break
+                except (KeyError, RPCNodeException):
+                    pass
         end_time = timer()
         sleep_time = 3 - (end_time - start_time)
         if sleep_time > 0 and (head_block - current_block) <= 0:
@@ -312,7 +334,13 @@ def scan_chain(client: Client, history: bool, start_block=None):
             else:
                 if time_dif > pendulum.duration(hours=1):
                     # Re-fetch the allowed_accounts every hour in case we add one.
-                    allowed_accounts = get_allowed_accounts()
+                    while True:
+                        try:
+                            allowed_accounts = get_allowed_accounts()
+                            break
+                        except RPCNodeException:
+                            pass
+
 
     except Exception as ex:
         logging.exception(ex)
@@ -331,6 +359,7 @@ def scan_chain(client: Client, history: bool, start_block=None):
 
 
 def main() -> None:
+    logging.getLogger("lighthive.client").setLevel(logging.INFO)
     logging.basicConfig(
         level=logging.INFO,
         format=f"%(asctime)s | %(levelname)s %(name)s %(threadName)s : |  %(message)s",
@@ -345,7 +374,7 @@ def main() -> None:
         else:
             logging.info("---------------> Using Main Hive Chain ")
 
-    client = get_client(automatic_node_selection=False)
+    client = get_client(connect_timeout=3, read_timeout=3, automatic_node_selection=False)
     start_block = None
 
     # scan_history will look back over the last 1 hour reporting every 15 minute chunk

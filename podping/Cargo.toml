@@ -1,6 +1,6 @@
 [package]
 name = "podping"
-version = "0.1.9"
+version = "0.1.10"
 authors = ["Dave Jones"]
 edition = "2018"
 

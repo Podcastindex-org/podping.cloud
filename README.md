@@ -134,7 +134,7 @@ This will start up and wait for a ZMQ connection on port 9999. The server waits 
 
 ## Blockchain Watcher (hive-watcher.py)
 
-The stream of *podpings* can be watched with the ```hive-watcher.py``` code. In addition there is a simplified version of this code ```simple-watcher.py``` which should be used to understand what is going on. There is javascript version in [hive-watcher.js](https://github.com/Podcastindex-org/podping.cloud/blob/main/hive-watcher-js/hive-watcher.js)
+The stream of *podpings* can be watched with the ```hive-watcher.py``` code.  There is javascript version in [hive-watcher.js](https://github.com/Podcastindex-org/podping.cloud/blob/main/hive-watcher-js/hive-watcher.js)
 
 
 ```
@@ -211,36 +211,37 @@ The write operation usually takes about 0.8s. At present ```hive-writer``` is no
 
 <br>
 
-## Blockchain Watcher (hive-watcher.py)
+## Podping Watcher (hive-watcher.py)
 
 The watcher script is how you see which podcast feed urls have signaled an update.
 
-The python script `hive-watcher.py` is more full featured - allowing for socket listening, and other options.
-
-<br>
-
-### Simple Watcher (simple-watcher.py)
-
-This is the easiest way to get started watching the blockchain for feed updates.  Simply do the following:
+This is the easiest way to watch the blockchain for feed updates.  Simply do the following:
 
 1. Clone this repo.
 2. Switch to the `hive-watcher` sub-directory.
-3. Make sure python3 and pip3 are installed.
-4. Run `pip3 install beem`.
-5. Launch the watcher script like this: `python3 -u ./hive-watcher.py --old=1 --urls_only`
+3. Make sure python3, pip3 and [poetry](https://python-poetry.org/docs/#installation) are installed.
+4. Run `poetry install`.
+5. Launch the watcher script like this: `poetry run python3 -u ./hive-watcher.py --json`
 
-Each time a feed update notification is detected on the blockchain, the full url of the feed is printed to STDOUT on a new line.  Each
+Each time a feed update notification is detected on the blockchain, the full json payload of the feed update is printed to STDOUT on a new line.  Each
 FQDN that is output represents a new episode that has been published, or some other significant update to that podcast feed.
 
 You can watch this output as a way to signal your system to re-parse a podcast feed.  Or you can use it as a starting template to
 develop a more customized script for your environment.  It's dead simple!
 
-The `--old=1` argument tells the watcher to look back 1 hours and return all the changes that happened since then.  It's good to use that for times when
-you may need to bounce an aggregator or some other down time.
+There is an example PHP script [here](examples/podping_watcher.php) that you can pipe this output to as a way to update your system every
+time a new podping url comes through.  You would do that like this:
+
+```bash
+poetry run python3 -u ./hive-watcher.py --json --unix_epoch=$((`date +'%s'` - 30)) | php ../examples/podping_watcher.php
+```
+
+The `--unix_epoch` argument above tells the hive-watcher script to look back 30 seconds in the past and start watching from that point in time.  You
+can adjust that argument value to look back to any arbitrary point in time and start catching up from there.
 
 <br>
 
-## Running a Node
+## Running a Full Podping.cloud Node
 
 First clone this repo.
 

@@ -290,6 +290,7 @@ description = "A light python client to interact with the HIVE blockchain"
 category = "main"
 optional = false
 python-versions = "*"
+develop = false
 
 [package.dependencies]
 backoff = ">=2.0,<3.0"
@@ -301,6 +302,12 @@ requests = "*"
 
 [package.extras]
 dev = ["requests_mock"]
+
+[package.source]
+type = "git"
+url = "https://git@github.com/agates/lighthive.git"
+reference = "a2af5b83481924334ed6e681529118c13b361a8b"
+resolved_reference = "a2af5b83481924334ed6e681529118c13b361a8b"
 
 [[package]]
 name = "mypy-extensions"

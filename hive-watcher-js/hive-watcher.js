@@ -30,6 +30,8 @@ PodpingReason = [
     REASON_UPDATE,
 ]
 
+let lastBlockNumber = undefined
+
 /**
  * Shuffles items in an array. Shuffles in place
  *
@@ -90,6 +92,7 @@ function handleBlock(block) {
 function handleTransaction(transaction, timestamp) {
     let blockNumber = transaction.block_num
     let transactionId = transaction.transaction_id
+    lastBlockNumber = blockNumber
 
     const block_num_span = document.getElementById("block_num");
     block_num_span.innerText = blockNumber.toLocaleString()
@@ -232,24 +235,32 @@ client.database.call('get_following', [validAccounts[0], null, 'blog', 100])
         }
     )
     .then(
-        function () {
-            // can pass the block number to start searching from. By default, uses the current block
-            // note: using mode BlockchainMode.Latest does not seem to return data using `getOperationsStream` so
-            // `getBlockStream` is used instead and transactions are parsed by block
-            client.blockchain.getBlockStream({mode: dhive.BlockchainMode.Latest})
-                .on('data', handleBlock)
-                .on('error',
-                    function (error) {
-                        console.error('Error occurred parsing stream')
-                        console.error(error)
-                        // Note: when an error occurs, the `end` event is emitted (see below)
-                    }
-                )
-                .on('end',
-                    function () {
-                        console.log('Reached end of stream')
-                        // Note: could add a stream restart here
-                    }
-                );
-        }
-    );
+        startStream
+    )
+;
+
+function startStream(blockNumber = undefined) {
+    // can pass the block number to start searching from. By default, uses the current block
+    // note: using mode BlockchainMode.Latest does not seem to return data using `getOperationsStream` so
+    // `getBlockStream` is used instead and transactions are parsed by block
+    client.blockchain.getBlockStream({
+        from: blockNumber,
+        mode: dhive.BlockchainMode.Latest
+    })
+        .on('data', handleBlock)
+        .on('error',
+            function (error) {
+                console.error('Error occurred parsing stream')
+                console.error(error)
+                // Note: when an error occurs, the `end` event is emitted (see below)
+            }
+        )
+        .on('end',
+            function () {
+                console.log('Reached end of stream')
+                // Note: this restart the stream
+                startStream(lastBlockNumber);
+            }
+        );
+
+}
