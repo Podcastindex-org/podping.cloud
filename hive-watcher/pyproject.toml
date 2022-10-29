@@ -13,7 +13,7 @@ pendulum = "^2.1.2"
 beem = "^0.24.26"
 
 [tool.poetry.dev-dependencies]
-black = "^21.5b1"
+black = "^22.0.0"
 isort = "^5.8.0"
 
 [build-system]
@@ -21,7 +21,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
-target-version = ['py37', 'py38', 'py39', 'py310']
+target-version = ['py37', 'py38', 'py39', 'py310', 'py311']
 
 [tool.isort]
 profile = "black"
