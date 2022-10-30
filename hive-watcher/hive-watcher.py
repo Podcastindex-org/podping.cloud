@@ -248,7 +248,7 @@ def listen_for_custom_json_operations(condenser_api_client, start_block):
                         yield {
                             "block": current_block,
                             "timestamp": block['block']['timestamp'],
-                            "trx_id": op[0],
+                            "trx_id": block['block']['transaction_ids'][op[0]],
                             "op": [
                                 'custom_json',
                                 op[1]['value'],
