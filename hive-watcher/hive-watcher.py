@@ -2,15 +2,16 @@ import itertools
 import json
 import logging
 import sys
+import time
 from collections import deque
 from datetime import timedelta
+from timeit import default_timer as timer
 from typing import Set
 
 import backoff
 import pendulum
 from lighthive.client import Client
 from lighthive.exceptions import RPCNodeException
-from lighthive.helpers.event_listener import EventListener
 
 from config import Config
 
@@ -221,6 +222,54 @@ def historical_block_stream_generator(client, start_block, end_block):
             num_in_batch = 0
 
 
+def listen_for_custom_json_operations(condenser_api_client, start_block):
+    current_block = start_block
+    if not current_block:
+        current_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
+    block_client = get_client(connect_timeout=3, read_timeout=3, automatic_node_selection=True, api_type="block_api")
+    while True:
+        start_time = timer()
+        while True:
+            try:
+                head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
+                break
+            except (KeyError, RPCNodeException):
+                pass
+        while (head_block - current_block) > 0:
+            while True:
+                try:
+                    block = block_client.get_block({"block_num": current_block})
+                    break
+                except RPCNodeException:
+                    pass
+            try:
+                for op in [(trx_id, op) for trx_id, transaction in enumerate(block['block']['transactions']) for op in transaction['operations']]:
+                    if op[1]['type'] == 'custom_json_operation':
+                        yield {
+                            "block": current_block,
+                            "timestamp": block['block']['timestamp'],
+                            "trx_id": op[0],
+                            "op": [
+                                'custom_json',
+                                op[1]['value'],
+                            ]
+                        }
+            except KeyError:
+                logging.warning(f"Block {current_block} is invalid")
+            current_block += 1
+            while True:
+                try:
+                    head_block = condenser_api_client.get_dynamic_global_properties()["head_block_number"]
+                    break
+                except (KeyError, RPCNodeException):
+                    pass
+        end_time = timer()
+        sleep_time = 3 - (end_time - start_time)
+        if sleep_time > 0 and (head_block - current_block) <= 0:
+            time.sleep(sleep_time)
+
+
+
 def scan_chain(client: Client, history: bool, start_block=None):
     """Either scans the old chain (history == True) or watches the live blockchain"""
 
@@ -247,8 +296,9 @@ def scan_chain(client: Client, history: bool, start_block=None):
 
     else:
         report_period_start_time = pendulum.now()
-        event_listener = EventListener(client, "head", start_block=start_block)
-        stream = event_listener.on("custom_json")
+        #event_listener = EventListener(client, "head", start_block=start_block)
+        #stream = event_listener.on("custom_json")
+        stream = listen_for_custom_json_operations(client, start_block)
         if Config.reports:
             logging.info(f"Watching live from block_num: {start_block}")
 
@@ -268,7 +318,7 @@ def scan_chain(client: Client, history: bool, start_block=None):
                     output_status(
                         timestamp, pings, count_posts, time_to_now, current_block_num
                     )
-                    report_period_start_time = post_time
+                    report_period_start_time = pendulum.parse(post["timestamp"])
                     count_posts = 0
                     pings = 0
 
@@ -351,7 +401,12 @@ def main() -> None:
         start_block = scan_chain(client, history=True, start_block=Config.block_num)
 
     if start_block is None:
-        start_block = client.get_dynamic_global_properties()["head_block_number"]
+        while True:
+            try:
+                start_block = client.get_dynamic_global_properties()["head_block_number"]
+                break
+            except RPCNodeException:
+                pass
     else:
         start_block += 1
 
