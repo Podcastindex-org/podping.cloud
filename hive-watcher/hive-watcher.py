@@ -55,7 +55,7 @@ def get_client(
 
 
 def get_allowed_accounts(
-    client: Client = None, account_name: str = "podping"
+    client: Client = None, account_name: str = "podping", num_retires = 3
 ) -> Set[str]:
     """get a list of all accounts allowed to post by acc_name (podping)
     and only react to these accounts"""
@@ -63,11 +63,11 @@ def get_allowed_accounts(
     if not client:
         client = get_client(connect_timeout=3, read_timeout=3)
 
-    for _ in itertools.repeat(None):
+    for _ in range(num_retires):
         try:
             master_account = client.account(account_name)
             return set(master_account.following())
-        except KeyError:
+        except (KeyError, RPCNodeException):
             logging.warning(f"Unable to get account followers - retrying")
         except Exception as e:
             logging.warning(f"Unable to get account followers: {e} - retrying")
@@ -352,12 +352,7 @@ def scan_chain(client: Client, history: bool, start_block=None):
             else:
                 if time_dif > pendulum.duration(hours=1):
                     # Re-fetch the allowed_accounts every hour in case we add one.
-                    while True:
-                        try:
-                            allowed_accounts = get_allowed_accounts()
-                            break
-                        except RPCNodeException:
-                            pass
+                    allowed_accounts = get_allowed_accounts()
 
 
     except Exception as ex:
