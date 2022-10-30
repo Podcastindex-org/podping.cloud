@@ -71,6 +71,8 @@ def get_allowed_accounts(
             logging.warning(f"Unable to get account followers - retrying")
         except Exception as e:
             logging.warning(f"Unable to get account followers: {e} - retrying")
+        finally:
+            client.next_node()
 
 def allowed_op_id(operation_id: str) -> bool:
     """Checks if the operation_id is in the allowed list"""
@@ -283,6 +285,7 @@ def scan_chain(client: Client, history: bool, start_block=None):
     report_timedelta = pendulum.duration(minutes=Config.report_minutes)
 
     allowed_accounts = get_allowed_accounts(client)
+    allowed_accounts_start_time = pendulum.now()
 
     count_posts = 0
     pings = 0
@@ -350,9 +353,11 @@ def scan_chain(client: Client, history: bool, start_block=None):
                     # Break out of the for loop we've caught up.
                     break
             else:
-                if time_dif > pendulum.duration(hours=1):
+                allowed_accounts_time_diff = pendulum.now() - allowed_accounts_start_time
+                if allowed_accounts_time_diff > pendulum.duration(hours=1):
                     # Re-fetch the allowed_accounts every hour in case we add one.
                     allowed_accounts = get_allowed_accounts()
+                    allowed_accounts_start_time = pendulum.now()
 
 
     except Exception as ex:
