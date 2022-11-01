@@ -85,8 +85,9 @@ def output(post) -> int:
     data = json.loads(post["op"][1]['json'])
 
     if Config.json:
-        data["hiveTxId"] = post["trx_id"]
-        data["hiveBlockNum"] = post["block"]
+        if Config.hive_properties:
+            data["hiveTxId"] = post["trx_id"]
+            data["hiveBlockNum"] = post["block"]
         print(json.dumps(data))
         if "iris" in data:
             return len(data["iris"])

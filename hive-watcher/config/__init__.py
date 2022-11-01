@@ -175,6 +175,14 @@ my_parser.add_argument(
 )
 
 my_parser.add_argument(
+    "-p",
+    "--hive-properties",
+    action="store_true",
+    required=False,
+    help=("Include Hive attribues in JSON output"),
+)
+
+my_parser.add_argument(
     "-r",
     "--reports",
     action="store",
@@ -252,6 +260,7 @@ class Config:
     diagnostic = my_args["diagnostic"]
     urls_only = my_args["urls_only"]
     json = my_args["json"]
+    hive_properties = my_args["hive_properties"]
     stop_after = my_args["stop_after"]
     use_socket = my_args["socket"]
     use_zmq = my_args["zmq"]
