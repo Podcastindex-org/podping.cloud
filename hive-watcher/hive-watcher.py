@@ -33,7 +33,6 @@ def get_client(
 ) -> Client:
     try:
         nodes = [
-            "https://rpc.podping.org",
             "https://api.hive.blog",
             "https://api.deathwing.me",
             "https://hive-api.arcange.eu",
@@ -47,7 +46,7 @@ def get_client(
             automatic_node_selection=automatic_node_selection,
             backoff_mode=backoff.fibo,
             backoff_max_tries=3,
-            load_balance_nodes=False,
+            load_balance_nodes=True,
             circuit_breaker=True,
         )
         return client(api_type)
