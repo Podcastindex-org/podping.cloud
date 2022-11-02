@@ -33,6 +33,7 @@ def get_client(
 ) -> Client:
     try:
         nodes = [
+            "https://rpc.podping.org",
             "https://api.hive.blog",
             "https://api.deathwing.me",
             "https://hive-api.arcange.eu",
@@ -46,7 +47,7 @@ def get_client(
             automatic_node_selection=automatic_node_selection,
             backoff_mode=backoff.fibo,
             backoff_max_tries=3,
-            load_balance_nodes=True,
+            load_balance_nodes=False,
             circuit_breaker=True,
         )
         return client(api_type)
@@ -285,8 +286,8 @@ def scan_chain(client: Client, history: bool, start_block=None):
     scan_start_time = pendulum.now()
     report_timedelta = pendulum.duration(minutes=Config.report_minutes)
 
-    allowed_accounts = get_allowed_accounts(client)
-    allowed_accounts_start_time = pendulum.now()
+    #allowed_accounts = get_allowed_accounts(client)
+    #allowed_accounts_start_time = pendulum.now()
 
     count_posts = 0
     pings = 0
@@ -327,10 +328,10 @@ def scan_chain(client: Client, history: bool, start_block=None):
                     pings = 0
 
             if allowed_op_id(post["op"][1]["id"]):
-                if set(post["op"][1]["required_posting_auths"]) & allowed_accounts:
-                    count = output(post)
-                    pings += count
-                    Pings.total_pings += count
+                #if set(post["op"][1]["required_posting_auths"]) & allowed_accounts:
+                count = output(post)
+                pings += count
+                Pings.total_pings += count
 
             if Config.diagnostic:
                 if post["op"][1]["id"] in list(Config.DIAGNOSTIC_OPERATION_IDS):
@@ -353,12 +354,12 @@ def scan_chain(client: Client, history: bool, start_block=None):
                         logging.info(f"block_num: {post['block']}")
                     # Break out of the for loop we've caught up.
                     break
-            else:
-                allowed_accounts_time_diff = pendulum.now() - allowed_accounts_start_time
-                if allowed_accounts_time_diff > pendulum.duration(hours=1):
-                    # Re-fetch the allowed_accounts every hour in case we add one.
-                    allowed_accounts = get_allowed_accounts()
-                    allowed_accounts_start_time = pendulum.now()
+            #else:
+            #    allowed_accounts_time_diff = pendulum.now() - allowed_accounts_start_time
+            #    if allowed_accounts_time_diff > pendulum.duration(hours=1):
+            #        # Re-fetch the allowed_accounts every hour in case we add one.
+            #        allowed_accounts = get_allowed_accounts()
+            #        allowed_accounts_start_time = pendulum.now()
 
 
     except Exception as ex:
