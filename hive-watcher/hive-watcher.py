@@ -35,8 +35,9 @@ def get_client(
         nodes = [
             "https://api.hive.blog",
             "https://api.deathwing.me",
-            "https://hive-api.arcange.eu",
             "https://api.openhive.network",
+            "https://hive-api.3speak.tv",
+            "https://rpc.ausbit.dev",
         ]
         client = Client(
             connect_timeout=connect_timeout,
