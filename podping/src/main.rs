@@ -11,6 +11,8 @@ use std::thread;
 use std::time;
 use std::env;
 use drop_root::set_user_group;
+use capnp;
+//use capnpc;
 
 //Globals ----------------------------------------------------------------------------------------------------
 const ZMQ_SOCKET_ADDR: &str = "tcp://127.0.0.1:9999";
@@ -36,6 +38,20 @@ pub struct Context {
 }
 
 
+//Testing ----------------------------------------------------------------------------------------------------
+pub mod podping_reason_capnp {
+    include!("../podping-schemas/built/org/podcastindex/podping/hivewriter/podping_reason_capnp.rs");
+}
+
+pub mod podping_medium_capnp {
+    include!("../podping-schemas/built/org/podcastindex/podping/hivewriter/podping_medium_capnp.rs");
+}
+
+pub mod podping_write_capnp {
+    include!("../podping-schemas/built/org/podcastindex/podping/hivewriter/podping_write_capnp.rs");
+}
+
+
 //Functions --------------------------------------------------------------------------------------------------
 #[tokio::main]
 async fn main() {
@@ -48,7 +64,11 @@ async fn main() {
     //ZMQ socket version
     thread::spawn(move || {
         let context = zmq::Context::new();
-        let mut requester = context.socket(zmq::REQ).unwrap(); 
+        let mut requester = context.socket(zmq::REQ).unwrap();
+
+        use crate::podping_write_capnp::{podping_write};
+        use crate::podping_medium_capnp::{PodpingMedium};
+        use capnp::serialize_packed;
 
         //Set up and connect the socket
         //requester.set_rcvtimeo(500);
@@ -59,10 +79,12 @@ async fn main() {
             eprintln!("  Failed to connect to the hive-writer socket.");
         }
 
+        println!("ZMQ socket: [{}] connected.", ZMQ_SOCKET_ADDR);
+
         //Spawn a queue checker threader.  Every X seconds, get all the pings from the Queue and attempt to write them 
         //to the socket that the Hive-writer should be listening on
         loop {
-            thread::sleep(time::Duration::from_secs(20));
+            thread::sleep(time::Duration::from_secs(2));
 
             println!("\n");
             println!("Start tickcheck...");            
@@ -81,8 +103,19 @@ async fn main() {
 
                         println!("  Sending {} over the socket.", ping.url.clone());
 
+                        //Construct the capnp buffer
+                        let mut message = ::capnp::message::Builder::new_default();
+                        let mut podping_write = message.init_root::<podping_write::Builder>();
+                        podping_write.set_iri(ping.url.as_str());
+                        podping_write.set_medium(podping_medium_capnp::PodpingMedium::Podcast);
+
+                        //DEBUG
+                        println!("Test");
+
+                        //Send the url as a string
                         match requester.send(ping.url.as_str(), 0) {
-                            Ok(_) => {                                    
+                            Ok(_) => {
+                                println!("Test2");
                                 match requester.recv_msg(0) {
                                     Ok(message) => {
                                         let status_msg = message.as_str().clone().unwrap();
