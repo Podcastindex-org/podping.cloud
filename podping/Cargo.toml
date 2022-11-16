@@ -2,7 +2,7 @@
 name = "podping"
 version = "0.1.2-dev"
 authors = ["Dave Jones"]
-edition = "2018"
+edition = "2021"
 build = "build.rs"
 
 [build-dependencies]

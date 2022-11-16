@@ -11,7 +11,7 @@ use std::thread;
 use std::time;
 use std::env;
 use drop_root::set_user_group;
-use capnp;
+//use capnp;
 //use capnpc;
 
 //Globals ----------------------------------------------------------------------------------------------------
@@ -55,7 +55,7 @@ pub mod podping_write_capnp {
 //Functions --------------------------------------------------------------------------------------------------
 #[tokio::main]
 async fn main() {
-    
+
     //TODO: Allow command line args to give a single publisher auth token which will override the "auth.db" check
     //and just use that one each time.  This would be for single use inside a publisher where there would be no
     //other publishers using the system.  This param could be passed to docker with an env
@@ -64,11 +64,10 @@ async fn main() {
     //ZMQ socket version
     thread::spawn(move || {
         let context = zmq::Context::new();
-        let mut requester = context.socket(zmq::REQ).unwrap();
+        let mut requester = context.socket(zmq::PAIR).unwrap();
 
         use crate::podping_write_capnp::{podping_write};
-        use crate::podping_medium_capnp::{PodpingMedium};
-        use capnp::serialize_packed;
+        //use capnp::serialize_packed;
 
         //Set up and connect the socket
         //requester.set_rcvtimeo(500);
@@ -76,18 +75,18 @@ async fn main() {
             eprintln!("  Failed to set zmq to zero linger.");
         }
         if requester.connect(ZMQ_SOCKET_ADDR).is_err() {
-            eprintln!("  Failed to connect to the hive-writer socket.");
+            eprintln!("  Failed to connect to the podping writer socket.");
         }
 
         println!("ZMQ socket: [{}] connected.", ZMQ_SOCKET_ADDR);
 
-        //Spawn a queue checker threader.  Every X seconds, get all the pings from the Queue and attempt to write them 
+        //Spawn a queue checker threader.  Every X seconds, get all the pings from the Queue and attempt to write them
         //to the socket that the Hive-writer should be listening on
         loop {
             thread::sleep(time::Duration::from_secs(2));
 
             println!("\n");
-            println!("Start tickcheck...");            
+            println!("Start tickcheck...");
 
             //Get the most recent X number of pings from the queue database
             let pinglist = handler::get_pings_from_queue();
@@ -108,52 +107,62 @@ async fn main() {
                         let mut podping_write = message.init_root::<podping_write::Builder>();
                         podping_write.set_iri(ping.url.as_str());
                         podping_write.set_medium(podping_medium_capnp::PodpingMedium::Podcast);
+                        podping_write.set_reason(podping_reason_capnp::PodpingReason::Update);
 
                         //DEBUG
                         println!("Test");
 
-                        //Send the url as a string
-                        match requester.send(ping.url.as_str(), 0) {
-                            Ok(_) => {
-                                println!("Test2");
-                                match requester.recv_msg(0) {
-                                    Ok(message) => {
-                                        let status_msg = message.as_str().clone().unwrap();
-                                        println!("  Received reply {}", status_msg);
-    
-                                        if status_msg == "OK" || status_msg == "ERR" {
-                                            //If the write was successful, remove this url from the queue
-                                            match handler::delete_ping_from_queue(ping.url.clone()) {
-                                                Ok(_) => {
-                                                    println!("  Removed {} from the queue.", ping.url.clone());
-                                                },
-                                                Err(_) => {
-                                                    eprintln!("  Failed to remove {} from the queue.", ping.url.clone());                                            
-                                                }
-                                            }                                                    
-                                        }
-                                    },
-                                    Err(_) => {
-                                        eprintln!("  No reply. Waiting...");                                                   
-                                    }
-                                }
-                            },
-                            Err(e) => {                            
-                                eprintln!("  {}", e);                                    
-                                if requester.disconnect(ZMQ_SOCKET_ADDR).is_err() {
-                                    eprintln!("  Failed to disconnect zmq socket.");
-                                }
-                                requester = context.socket(zmq::REQ).unwrap(); 
-                                //requester.set_rcvtimeo(500);
-                                if requester.set_linger(0).is_err() {
-                                    eprintln!("  Failed to set zmq to zero linger.");
-                                }
-                                if requester.connect(ZMQ_SOCKET_ADDR).is_err() {
-                                    eprintln!("  Failed to re-connect to the hive-writer socket.");
-                                }
-                                break;
+                        //Send the buffer
+                        let segments = message.get_segments_for_output();
+                        for ii in 0..segments.len() {
+                            let flags = if ii == segments.len() - 1 { 0 } else { zmq::SNDMORE };
+                            match requester.send(slice_cast(segments[ii]), flags) {
+                                Ok(_) => {}
+                                Err(_) => {panic!();} // XXX
                             }
                         }
+
+                        // match requester.send(ping.url.as_str(), 0) {
+                        //     Ok(_) => {
+                        //         println!("Test2");
+                        //         match requester.recv_msg(0) {
+                        //             Ok(message) => {
+                        //                 let status_msg = message.as_str().clone().unwrap();
+                        //                 println!("  Received reply {}", status_msg);
+                        //
+                        //                 if status_msg == "OK" || status_msg == "ERR" {
+                        //                     //If the write was successful, remove this url from the queue
+                        //                     match handler::delete_ping_from_queue(ping.url.clone()) {
+                        //                         Ok(_) => {
+                        //                             println!("  Removed {} from the queue.", ping.url.clone());
+                        //                         },
+                        //                         Err(_) => {
+                        //                             eprintln!("  Failed to remove {} from the queue.", ping.url.clone());
+                        //                         }
+                        //                     }
+                        //                 }
+                        //             },
+                        //             Err(_) => {
+                        //                 eprintln!("  No reply. Waiting...");
+                        //             }
+                        //         }
+                        //     },
+                        //     Err(e) => {
+                        //         eprintln!("  {}", e);
+                        //         if requester.disconnect(ZMQ_SOCKET_ADDR).is_err() {
+                        //             eprintln!("  Failed to disconnect zmq socket.");
+                        //         }
+                        //         requester = context.socket(zmq::REQ).unwrap();
+                        //         //requester.set_rcvtimeo(500);
+                        //         if requester.set_linger(0).is_err() {
+                        //             eprintln!("  Failed to set zmq to zero linger.");
+                        //         }
+                        //         if requester.connect(ZMQ_SOCKET_ADDR).is_err() {
+                        //             eprintln!("  Failed to re-connect to the hive-writer socket.");
+                        //         }
+                        //         break;
+                        //     }
+                        // }
 
                         println!("  Done sending and receiving.");
                         println!("  Sleeping...");
@@ -173,7 +182,7 @@ async fn main() {
         //println!("Queue checker thread exited.");
     });
 
- 
+
 
     let some_state = "state".to_string();
 
@@ -209,7 +218,7 @@ async fn main() {
                     println!("RunAs: {}", runas_user.as_str());
                 },
                 Err(e) => {
-                    eprintln!("RunAs Error: {} - Check that your PODPING_RUNAS_USER env var is set correctly.", e); 
+                    eprintln!("RunAs Error: {} - Check that your PODPING_RUNAS_USER env var is set correctly.", e);
                 }
             }
         },
@@ -219,6 +228,14 @@ async fn main() {
     }
 
     let _ = server.await;
+}
+
+
+fn slice_cast<'a, T, V>(s : &'a [T]) -> &'a [V] {
+    unsafe {
+        ::std::slice::from_raw_parts(::std::mem::transmute(s.as_ptr()),
+                                     s.len() * std::mem::size_of::<T>() / std::mem::size_of::<V>())
+    }
 }
 
 async fn route(
