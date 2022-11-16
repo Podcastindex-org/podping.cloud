@@ -10,7 +10,11 @@ use hyper::server::conn::AddrStream;
 use std::thread;
 use std::time;
 use std::env;
+use std::io::{Cursor, Seek, SeekFrom};
+use capnp::data::Reader;
 use drop_root::set_user_group;
+use hyper::body::Buf;
+use zmq::Message;
 //use capnp;
 //use capnpc;
 
@@ -39,6 +43,10 @@ pub struct Context {
 
 
 //Testing ----------------------------------------------------------------------------------------------------
+pub mod plexo_message_capnp {
+    include!("../plexo-schemas/built/dev/plexo/plexo_message_capnp.rs");
+}
+
 pub mod podping_reason_capnp {
     include!("../podping-schemas/built/org/podcastindex/podping/hivewriter/podping_reason_capnp.rs");
 }
@@ -66,6 +74,7 @@ async fn main() {
         let context = zmq::Context::new();
         let mut requester = context.socket(zmq::PAIR).unwrap();
 
+        use crate::plexo_message_capnp::{plexo_message};
         use crate::podping_write_capnp::{podping_write};
         //use capnp::serialize_packed;
 
@@ -103,24 +112,55 @@ async fn main() {
                         println!("  Sending {} over the socket.", ping.url.clone());
 
                         //Construct the capnp buffer
-                        let mut message = ::capnp::message::Builder::new_default();
-                        let mut podping_write = message.init_root::<podping_write::Builder>();
+                        let mut podping_message = ::capnp::message::Builder::new_default();
+                        let mut podping_write = podping_message.init_root::<podping_write::Builder>();
                         podping_write.set_iri(ping.url.as_str());
                         podping_write.set_medium(podping_medium_capnp::PodpingMedium::Podcast);
                         podping_write.set_reason(podping_reason_capnp::PodpingReason::Update);
+
+                        let mut write_message_buffer = Vec::new();
+                        capnp::serialize::write_message(&mut write_message_buffer, &podping_message).unwrap();
+
+                        let mut message = ::capnp::message::Builder::new_default();
+                        let mut plexo_message = message.init_root::<plexo_message::Builder>();
+                        plexo_message.set_type_name("org.podcastindex.podping.hivewriter.PodpingWrite.capnp");
+                        let podping_write_reader = Reader::from(write_message_buffer.as_slice());
+                        plexo_message.set_payload(podping_write_reader);
 
                         //DEBUG
                         println!("Test");
 
                         //Send the buffer
-                        let segments = message.get_segments_for_output();
-                        for ii in 0..segments.len() {
+                        let mut send_buffer = Vec::new();
+                        capnp::serialize::write_message(&mut send_buffer, &message).unwrap();
+
+
+                        match requester.send(send_buffer, 0) {
+                            Ok(_) => {
+                                let mut response =  Message::new();
+                                match requester.recv(&mut response, 0) {
+                                    Ok(_) => {
+                                        let message_reader = capnp::serialize::read_message(
+                                            response.reader(),
+                                            ::capnp::message::ReaderOptions::new()
+                                        ).unwrap();
+                                        let plexo_message = message_reader.get_root::<plexo_message::Reader>().unwrap();
+
+                                        println!("  Response type: {}", plexo_message.get_type_name().unwrap());
+                                    }
+                                    Err(_) => {panic!();} // XXX
+                                }
+                            }
+                            Err(_) => {panic!();} // XXX
+                        }
+
+                        /*for ii in 0..segments.len() {
                             let flags = if ii == segments.len() - 1 { 0 } else { zmq::SNDMORE };
                             match requester.send(slice_cast(segments[ii]), flags) {
                                 Ok(_) => {}
                                 Err(_) => {panic!();} // XXX
                             }
-                        }
+                        }*/
 
                         // match requester.send(ping.url.as_str(), 0) {
                         //     Ok(_) => {
@@ -205,7 +245,7 @@ async fn main() {
         }
     });
 
-    let addr = "0.0.0.0:80".parse().expect("address creation works");
+    let addr = "0.0.0.0:8081".parse().expect("address creation works");
     let server = Server::bind(&addr).serve(new_service);
     println!("Listening on http://{}", addr);
 
