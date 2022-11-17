@@ -10,7 +10,7 @@ use hyper::server::conn::AddrStream;
 use std::thread;
 use std::time;
 use std::env;
-use std::io::{Cursor, Seek, SeekFrom};
+//use std::io::{Cursor, Seek, SeekFrom};
 use capnp::data::Reader;
 use drop_root::set_user_group;
 use hyper::body::Buf;
@@ -72,7 +72,7 @@ async fn main() {
     //ZMQ socket version
     thread::spawn(move || {
         let context = zmq::Context::new();
-        let mut requester = context.socket(zmq::PAIR).unwrap();
+        let requester = context.socket(zmq::PAIR).unwrap();
 
         use crate::plexo_message_capnp::{plexo_message};
         use crate::podping_write_capnp::{podping_write};
@@ -92,7 +92,7 @@ async fn main() {
         //Spawn a queue checker threader.  Every X seconds, get all the pings from the Queue and attempt to write them
         //to the socket that the Hive-writer should be listening on
         loop {
-            thread::sleep(time::Duration::from_secs(2));
+            thread::sleep(time::Duration::from_secs(3));
 
             println!("\n");
             println!("Start tickcheck...");
@@ -154,13 +154,6 @@ async fn main() {
                             Err(_) => {panic!();} // XXX
                         }
 
-                        /*for ii in 0..segments.len() {
-                            let flags = if ii == segments.len() - 1 { 0 } else { zmq::SNDMORE };
-                            match requester.send(slice_cast(segments[ii]), flags) {
-                                Ok(_) => {}
-                                Err(_) => {panic!();} // XXX
-                            }
-                        }*/
 
                         // match requester.send(ping.url.as_str(), 0) {
                         //     Ok(_) => {
@@ -245,7 +238,7 @@ async fn main() {
         }
     });
 
-    let addr = "0.0.0.0:8081".parse().expect("address creation works");
+    let addr = "0.0.0.0:80".parse().expect("address creation works");
     let server = Server::bind(&addr).serve(new_service);
     println!("Listening on http://{}", addr);
 
@@ -268,14 +261,6 @@ async fn main() {
     }
 
     let _ = server.await;
-}
-
-
-fn slice_cast<'a, T, V>(s : &'a [T]) -> &'a [V] {
-    unsafe {
-        ::std::slice::from_raw_parts(::std::mem::transmute(s.as_ptr()),
-                                     s.len() * std::mem::size_of::<T>() / std::mem::size_of::<V>())
-    }
 }
 
 async fn route(

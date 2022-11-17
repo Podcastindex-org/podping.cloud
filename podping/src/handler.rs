@@ -4,19 +4,21 @@ use std::collections::HashMap;
 use rusqlite::{params, Connection};
 use std::error::Error;
 use std::fmt;
+use std::fs;
 use std::time::{SystemTime};
 use percent_encoding::percent_decode;
+use std::str::FromStr;
 
 
 //Globals ----------------------------------------------------------------------------------------------------
 const SQLITE_FILE_AUTH: &str = "auth.db";
 const SQLITE_FILE_QUEUE: &str = "queue.db";
-const HTML_LANDING_PAGE: &str = "<!doctype html><meta charset=utf-8><head><title>Podping.cloud</title></head><body><center style='margin-top:100px;'><svg width='20mm' height='20mm' version='1.1' viewBox='0 0 260 260' xmlns='http://www.w3.org/2000/svg'> <g transform='translate(1021.5 843.78)'> <rect x='-1022.2' y='-843.76' width='260' height='260' fill='#aa0100'/> <g transform='rotate(30 1021.7 -6836.5)'> <path d='m2523-522.92-1.6328-111.21-97.477-54.198-95.844 57.016 1.6328 111.21 97.477 54.198z' fill='none' stroke='#fff' stroke-linecap='square' stroke-width='14.023'/> <path d='m2426.3-504.03a32.489 43.368 0 0 0-26.282 17.874l27.191 20.254 25.386-20.231a32.489 43.368 0 0 0-26.295-17.897z' fill='#fff'/> <g fill='none' stroke='#fff' stroke-linecap='square'> <path d='m2382.9-519.36c29.104-22.135 57.158-19.812 84.459 0.021' stroke-width='11.377'/> <path d='m2364.8-552.52c41.645-35.108 81.788-31.424 120.86 0.0332' stroke-width='15.081'/> <path d='m2335.4-585.72c61.865-56.473 121.5-50.547 179.53 0.0535' stroke-width='19.844'/> </g> </g> </g> </svg><h1 style='font-family: Arial, Helvetica, sans-serif;'>podping.cloud <small style='font-size:14px;'>(<a style='text-decoration:none;' href='https://github.com/Podcastindex-org/podping.cloud/blob/main/overviewandpurpose.md'>v0.1.10</a>)</small></h1><p>To see all new episode notifications follow the instructions <a href='https://github.com/Podcastindex-org/podping.cloud#simple-watcher-simple-watcherpy'>here</a>.</center></body></html>";
 
 
 //Structs ----------------------------------------------------------------------------------------------------
 #[derive(Debug)]
 struct HydraError(String);
+
 impl fmt::Display for HydraError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Fatal error: {}", self.0)
@@ -24,13 +26,113 @@ impl fmt::Display for HydraError {
 }
 
 impl Error for HydraError {}
+
 pub struct Publisher {
-    pub name: String
+    pub name: String,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Reason {
+    Update,
+    Live,
+    LiveEnd,
+}
+
+impl FromStr for Reason {
+    type Err = ();
+    fn from_str(input: &str) -> Result<Reason, Self::Err> {
+        match input.to_lowercase().as_str() {
+            "update"  => Ok(Reason::Update),
+            "live"    => Ok(Reason::Live),
+            "liveend" => Ok(Reason::LiveEnd),
+            _         => Ok(Reason::Update),
+        }
+    }
+}
+impl fmt::Display for Reason {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Reason::Update  => write!(f, "update"),
+            Reason::Live    => write!(f, "live"),
+            Reason::LiveEnd => write!(f, "liveend"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Medium {
+    Podcast,
+    PodcastL,
+    Music,
+    MusicL,
+    Video,
+    VideoL,
+    Film,
+    FilmL,
+    Audiobook,
+    AudiobookL,
+    Newsletter,
+    NewsletterL,
+    Blog,
+    BlogL,
+}
+impl FromStr for Medium {
+    type Err = ();
+    fn from_str(input: &str) -> Result<Medium, Self::Err> {
+        match input.to_lowercase().as_str() {
+            "podcast"  => Ok(Medium::Podcast),
+            "podcastl" => Ok(Medium::PodcastL),
+            "music"    => Ok(Medium::Music),
+            "musicl"   => Ok(Medium::MusicL),
+            "video"    => Ok(Medium::Video),
+            "videol"   => Ok(Medium::VideoL),
+            "film"     => Ok(Medium::Film),
+            "filml"    => Ok(Medium::FilmL),
+            "audiobook"   => Ok(Medium::Audiobook),
+            "audiobookl"  => Ok(Medium::AudiobookL),
+            "newsletter"  => Ok(Medium::Newsletter),
+            "newsletterl" => Ok(Medium::NewsletterL),
+            "blog"  => Ok(Medium::Blog),
+            "blogl" => Ok(Medium::BlogL),
+            _       => Ok(Medium::Podcast),
+        }
+    }
+}
+impl fmt::Display for Medium {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Medium::Podcast  => write!(f, "podcast"),
+            Medium::PodcastL => write!(f, "podcastl"),
+            Medium::Music    => write!(f, "music"),
+            Medium::MusicL   => write!(f, "musicl"),
+            Medium::Video    => write!(f, "video"),
+            Medium::VideoL   => write!(f, "videol"),
+            Medium::Film     => write!(f, "film"),
+            Medium::FilmL    => write!(f, "filml"),
+            Medium::Audiobook   => write!(f, "audiobook"),
+            Medium::AudiobookL  => write!(f, "audiobookl"),
+            Medium::Newsletter  => write!(f, "newsletter"),
+            Medium::NewsletterL => write!(f, "newsletterl"),
+            Medium::Blog  => write!(f, "blog"),
+            Medium::BlogL => write!(f, "blogl"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Ping {
     pub url: String,
-    pub time: u64
+    pub time: u64,
+    pub reason: Reason,
+    pub medium: Medium,
+}
+
+#[derive(Debug, Clone)]
+pub struct PingRow {
+    pub url: String,
+    pub time: u64,
+    pub reason: String,
+    pub medium: String,
 }
 
 
@@ -40,6 +142,14 @@ pub async fn ping(ctx: Context) -> Response {
     let timestamp: u64 = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
         Ok(n) => n.as_secs() - (86400 * 90),
         Err(_) => panic!("SystemTime before UNIX EPOCH!"),
+    };
+
+    //Prep a Ping struct to receive what we're getting
+    let mut ping_in = Ping {
+        url: "".to_string(),
+        time: timestamp,
+        reason: Reason::Update,
+        medium: Medium::Podcast,
     };
 
     //println!("{:#?}", ctx);
@@ -54,8 +164,8 @@ pub async fn ping(ctx: Context) -> Response {
     //Get the real IP of the connecting client
     match ctx.req.headers().get("cf-connecting-ip") {
         Some(remote_ip) => {
-            println!("\nREQUEST[CloudFlare]: {}", remote_ip.to_str().unwrap()); 
-        },
+            println!("\nREQUEST[CloudFlare]: {}", remote_ip.to_str().unwrap());
+        }
         None => {
             println!("\nREQUEST: {}", ctx.state.remote_ip);
         }
@@ -63,10 +173,11 @@ pub async fn ping(ctx: Context) -> Response {
 
     //Give a landing page if no parameters were given
     if params.len() == 0 {
+        let doc = fs::read_to_string("home.html").expect("Something went wrong reading the home page file.");
         return hyper::Response::builder()
-        .status(StatusCode::OK)
-        .body(format!("{}", HTML_LANDING_PAGE).into())
-        .unwrap();
+            .status(StatusCode::OK)
+            .body(format!("{}", doc).into())
+            .unwrap();
     }
 
     //Check for a valid authorization header in the request
@@ -76,48 +187,48 @@ pub async fn ping(ctx: Context) -> Response {
             match authtest {
                 Ok(authtest) => {
                     println!("  Publisher: {}", authtest);
-                },
+                }
                 Err(e) => {
                     eprintln!("  Publisher token not found: {}", e);
                     let authtest2 = check_auth_hybrid(auth_header.to_str().unwrap());
                     match authtest2 {
                         Ok(authtest2) => {
                             println!("  Publisher Hybrid: {}", authtest2);
-                        },
+                        }
                         Err(e) => {
                             eprintln!("  Hybrid token not found: {}", e);
                             return hyper::Response::builder()
                                 .status(StatusCode::UNAUTHORIZED)
                                 .body(format!("Bad Authorization header check").into())
-                                .unwrap()
+                                .unwrap();
                         }
                     }
                 }
             }
-
-        },
+        }
         None => {
             return hyper::Response::builder()
-              .status(StatusCode::UNAUTHORIZED)
-              .body(format!("Invalid Authorization header").into())
-              .unwrap()
+                .status(StatusCode::UNAUTHORIZED)
+                .body(format!("Invalid Authorization header").into())
+                .unwrap();
         }
     }
 
     //Check the user-agent
     match ctx.req.headers().get("user-agent") {
         Some(ua_string) => {
-            println!("  User-Agent: {}", ua_string.to_str().unwrap()); 
-        },
+            println!("  User-Agent: {}", ua_string.to_str().unwrap());
+        }
         None => {
             return hyper::Response::builder()
-              .status(StatusCode::UNAUTHORIZED)
-              .body(format!("User-Agent header is required").into())
-              .unwrap()
+                .status(StatusCode::UNAUTHORIZED)
+                .body(format!("User-Agent header is required").into())
+                .unwrap();
         }
     }
 
     //Check for a valid url parameter in the request
+    //TODO: This should be a function call
     let url_incoming = params.get("url");
     match url_incoming {
         Some(url_incoming) => {
@@ -127,11 +238,11 @@ pub async fn ping(ctx: Context) -> Response {
             if url_incoming.len() == 0 {
                 println!("    Url parameter is missing.  Call as /?url=<podcast_url>");
                 return hyper::Response::builder()
-                  .status(StatusCode::BAD_REQUEST)
-                  .body(format!("Url parameter is missing.  Call as /?url=<podcast_url>").into())
-                  .unwrap();
+                    .status(StatusCode::BAD_REQUEST)
+                    .body(format!("Url parameter is missing.  Call as /?url=<podcast_url>").into())
+                    .unwrap();
             }
-            
+
             //Make sure it's an fqdn
             let proto_scheme_pos = url_incoming.to_lowercase().find("http");
             match proto_scheme_pos {
@@ -139,17 +250,17 @@ pub async fn ping(ctx: Context) -> Response {
                     if proto_scheme_pos != 0 {
                         println!("Urls must contain a valid protocol schema prefix, like http:// or https://");
                         return hyper::Response::builder()
-                          .status(StatusCode::BAD_REQUEST)
-                          .body(format!("Urls must contain a valid protocol schema prefix, like http:// or https://").into())
-                          .unwrap()
+                            .status(StatusCode::BAD_REQUEST)
+                            .body(format!("Urls must contain a valid protocol schema prefix, like http:// or https://").into())
+                            .unwrap();
                     }
-                },
+                }
                 None => {
                     println!("Urls must contain a valid protocol schema prefix, like http:// or https://");
                     return hyper::Response::builder()
-                      .status(StatusCode::BAD_REQUEST)
-                      .body(format!("Urls must contain a valid protocol schema prefix, like http:// or https://").into())
-                      .unwrap()
+                        .status(StatusCode::BAD_REQUEST)
+                        .body(format!("Urls must contain a valid protocol schema prefix, like http:// or https://").into())
+                        .unwrap();
                 }
             }
 
@@ -157,42 +268,63 @@ pub async fn ping(ctx: Context) -> Response {
             match percent_decode(url_incoming.as_bytes()).decode_utf8() {
                 Ok(result_url) => {
                     println!("ResultUrl: {}", result_url);
-                },
+                }
                 Err(e) => {
                     eprintln!("ResultUrlError: {:#?}", e);
                 }
             }
 
-            //Queue the ping
-            let ping_in = Ping {
-                url: url_incoming.clone(),
-                time: timestamp
-            };
-            let url = ping_in.url.clone();
-            match add_ping_to_queue(ping_in) {
-                Ok(_) => {
-                    println!("  Added: [{}] to the queue.", url);
-                },
-                Err(e) => {
-                    eprintln!("  Err: {:#?}", e);
-                }
-            }
-
-            println!(" ");
-            return hyper::Response::builder()
-              .status(StatusCode::OK)
-              .body(format!("Success!").into())
-              .unwrap()
-        },
+            //Add the url to the Ping we will be storing
+            ping_in.url = url_incoming.clone();
+        }
         None => {
             println!("Url parameter is missing.  Call as /?url=<podcast_url>");
             return hyper::Response::builder()
-              .status(StatusCode::BAD_REQUEST)
-              .body(format!("Url parameter is missing.  Call as /?url=<podcast_url>").into())
-              .unwrap()
+                .status(StatusCode::BAD_REQUEST)
+                .body(format!("Url parameter is missing.  Call as /?url=<podcast_url>").into())
+                .unwrap();
         }
     };
 
+    //Check if a reason code exists
+    if let Some(reason_incoming) = params.get("reason") {
+        println!("  REASON: {}", reason_incoming);
+
+        //Process the reason
+        let reason_code = Reason::from_str(reason_incoming).unwrap();
+
+        //Add the reason to the ping we will store
+        ping_in.reason = reason_code;
+    }
+
+    //Check if a medium code exists
+    if let Some(medium_incoming) = params.get("medium") {
+        println!("  MEDIUM: {}", medium_incoming);
+
+        //Process the reason
+        let medium_code = Medium::from_str(medium_incoming).unwrap();
+
+        //Add the reason to the ping we will store
+        ping_in.medium = medium_code;
+    }
+
+    //Put the ping in the database
+    match add_ping_to_queue(&ping_in) {
+        Ok(_) => {
+            println!("  Added: [{:#?}] to the queue.", ping_in);
+            println!(" ");
+        }
+        Err(e) => {
+            eprintln!("  Err: {:#?}", e);
+        }
+    }
+
+    //Return success all the time so we don't burden the outside world with
+    //our own internal struggles :-)
+    return hyper::Response::builder()
+        .status(StatusCode::OK)
+        .body(format!("Success!").into())
+        .unwrap();
 }
 
 pub async fn publishers(ctx: Context) -> Response {
@@ -201,8 +333,8 @@ pub async fn publishers(ctx: Context) -> Response {
     //Get the real IP of the connecting client
     match ctx.req.headers().get("cf-connecting-ip") {
         Some(remote_ip) => {
-            println!("\nREQUEST[CloudFlare] - /publishers: {}", remote_ip.to_str().unwrap()); 
-        },
+            println!("\nREQUEST[CloudFlare] - /publishers: {}", remote_ip.to_str().unwrap());
+        }
         None => {
             println!("\nREQUEST - /publishers: {}", ctx.state.remote_ip);
         }
@@ -211,13 +343,13 @@ pub async fn publishers(ctx: Context) -> Response {
     //Check the user-agent
     match ctx.req.headers().get("user-agent") {
         Some(ua_string) => {
-            println!("  User-Agent: {}", ua_string.to_str().unwrap()); 
-        },
+            println!("  User-Agent: {}", ua_string.to_str().unwrap());
+        }
         None => {
             return hyper::Response::builder()
-              .status(StatusCode::UNAUTHORIZED)
-              .body(format!("User-Agent header is required").into())
-              .unwrap()
+                .status(StatusCode::UNAUTHORIZED)
+                .body(format!("User-Agent header is required").into())
+                .unwrap();
         }
     }
 
@@ -231,16 +363,16 @@ pub async fn publishers(ctx: Context) -> Response {
                 htmlpage.push_str("\n");
             }
             return hyper::Response::builder()
-            .status(StatusCode::OK)
-            .body(format!("{}", htmlpage).into())
-            .unwrap()
-        },
+                .status(StatusCode::OK)
+                .body(format!("{}", htmlpage).into())
+                .unwrap();
+        }
         Err(e) => {
             eprintln!("Error getting publisher list: {}", e);
             return hyper::Response::builder()
-              .status(StatusCode::NO_CONTENT)
-              .body(format!("Error getting publishers list.").into())
-              .unwrap()
+                .status(StatusCode::NO_CONTENT)
+                .body(format!("Error getting publishers list.").into())
+                .unwrap();
         }
     }
 }
@@ -269,33 +401,55 @@ pub fn get_publishers() -> Result<Vec<Publisher>, Box<dyn Error>> {
 //Returns a vector of Ping structs from the queue or an Error
 pub fn get_pings_from_queue() -> Result<Vec<Ping>, Box<dyn Error>> {
     let conn = Connection::open(SQLITE_FILE_QUEUE)?;
-    let mut urls: Vec<Ping> = Vec::new();
+    let mut pings: Vec<Ping> = Vec::new();
 
-    let mut stmt = conn.prepare("SELECT url,createdon FROM queue ORDER BY rowid ASC LIMIT 50")?;
+    let mut stmt = conn.prepare("SELECT url,\
+                                        createdon, \
+                                        reason, \
+                                        medium \
+                                 FROM queue \
+                                 ORDER BY rowid ASC \
+                                 LIMIT 50")?;
     let rows = stmt.query_map([], |row| {
-        Ok(Ping {
+        Ok(PingRow {
             url: row.get(0)?,
-            time: row.get(1)?
+            time: row.get(1)?,
+            reason: row.get(2)?,
+            medium: row.get(3)?,
         })
     }).unwrap();
 
-    for urlrow in rows {
-        let ping: Ping = urlrow.unwrap();
+    for row in rows {
+        let pingrow = row.unwrap();
+        let ping = Ping {
+            url: pingrow.url,
+            time: pingrow.time,
+            reason: Reason::from_str(&pingrow.reason).unwrap(),
+            medium: Medium::from_str(&pingrow.medium).unwrap(),
+        };
         //println!("  {:#?}", ping.url);
-        urls.push(ping);
+        pings.push(ping);
     }
 
-    Ok(urls)
+    Ok(pings)
 }
 
 //Adds a url to the queue. Takes a Ping struct as input. Returns Ok(true/false) or an Error
-pub fn add_ping_to_queue(ping: Ping) -> Result<bool, Box<dyn Error>> {
+pub fn add_ping_to_queue(ping: &Ping) -> Result<bool, Box<dyn Error>> {
     let conn = Connection::open(SQLITE_FILE_QUEUE)?;
 
-    match conn.execute("INSERT INTO queue (url, createdon) VALUES (?1, ?2)", params![ping.url, ping.time]) {
+    match conn.execute("INSERT INTO queue (url, createdon, reason, medium) \
+                                   VALUES (?1,  ?2,        ?3,     ?4    )",
+                       params![
+                           ping.url,
+                           ping.time,
+                           ping.reason.to_string(),
+                           ping.medium.to_string(),
+                       ])
+    {
         Ok(_) => {
             Ok(true)
-        },
+        }
         Err(_e) => {
             // match e {
             //     Error::SqliteFailure(err, _) => {
@@ -305,7 +459,7 @@ pub fn add_ping_to_queue(ping: Ping) -> Result<bool, Box<dyn Error>> {
             //     err => panic!("Unexpected error {}", err),
             // }
             return Err(Box::new(HydraError(format!("URL already in queue: [{}].", ping.url).into())));
-        },
+        }
     }
 }
 
