@@ -8,6 +8,8 @@ use std::fs;
 use std::time::{SystemTime};
 use percent_encoding::percent_decode;
 use std::str::FromStr;
+use serde_json::json;
+use handlebars::Handlebars;
 
 
 //Globals ----------------------------------------------------------------------------------------------------
@@ -173,10 +175,12 @@ pub async fn ping(ctx: Context) -> Response {
 
     //Give a landing page if no parameters were given
     if params.len() == 0 {
-        let doc = fs::read_to_string("home.html").expect("Something went wrong reading the home page file.");
+        let reg = Handlebars::new();
+        let doc = fs::read_to_string("home.html").expect("Something went wrong reading the file.");
+        let doc_rendered = reg.render_template(&doc, &json!({"version": ctx.state.version})).expect("Something went wrong rendering the file");
         return hyper::Response::builder()
             .status(StatusCode::OK)
-            .body(format!("{}", doc).into())
+            .body(format!("{}", doc_rendered).into())
             .unwrap();
     }
 

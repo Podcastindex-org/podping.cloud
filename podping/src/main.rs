@@ -30,7 +30,8 @@ type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[derive(Clone, Debug)]
 pub struct AppState {
     pub state_thing: String,
-    pub remote_ip: String
+    pub remote_ip: String,
+    pub version: String,
 }
 
 #[derive(Debug)]
@@ -68,6 +69,10 @@ async fn main() {
     //and just use that one each time.  This would be for single use inside a publisher where there would be no
     //other publishers using the system.  This param could be passed to docker with an env
 
+    //Get what version we are
+    let version = env!("CARGO_PKG_VERSION");
+    println!("Version: {}", version);
+    println!("--------------------");
 
     //ZMQ socket version
     thread::spawn(move || {
@@ -227,7 +232,8 @@ async fn main() {
     let new_service = make_service_fn(move |conn: &AddrStream| {
         let app_state = AppState {
             state_thing: some_state.clone(),
-            remote_ip: conn.remote_addr().to_string().clone()
+            remote_ip: conn.remote_addr().to_string().clone(),
+            version: version.to_string(),
         };
 
         let router_capture = shared_router.clone();
