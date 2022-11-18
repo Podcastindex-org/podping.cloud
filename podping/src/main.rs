@@ -77,14 +77,14 @@ async fn main() {
     //ZMQ socket version
     thread::spawn(move || {
         let context = zmq::Context::new();
-        let requester = context.socket(zmq::PAIR).unwrap();
+        let mut requester = context.socket(zmq::PAIR).unwrap();
 
         use crate::plexo_message_capnp::{plexo_message};
         use crate::podping_write_capnp::{podping_write};
         //use capnp::serialize_packed;
 
         //Set up and connect the socket
-        //requester.set_rcvtimeo(500);
+        requester.set_rcvtimeo(500);
         if requester.set_linger(0).is_err() {
             eprintln!("  Failed to set zmq to zero linger.");
         }
@@ -132,75 +132,55 @@ async fn main() {
                         let podping_write_reader = Reader::from(write_message_buffer.as_slice());
                         plexo_message.set_payload(podping_write_reader);
 
-                        //DEBUG
-                        println!("Test");
-
-                        //Send the buffer
+                        //Attempt to send any outstanding messages
                         let mut send_buffer = Vec::new();
                         capnp::serialize::write_message(&mut send_buffer, &message).unwrap();
-
-
                         match requester.send(send_buffer, 0) {
                             Ok(_) => {
-                                let mut response =  Message::new();
-                                match requester.recv(&mut response, 0) {
+                                println!("  Message sent.");
+                                //If the write was successful, remove this url from the queue
+                                match handler::delete_ping_from_queue(ping.url.clone()) {
                                     Ok(_) => {
-                                        let message_reader = capnp::serialize::read_message(
-                                            response.reader(),
-                                            ::capnp::message::ReaderOptions::new()
-                                        ).unwrap();
-                                        let plexo_message = message_reader.get_root::<plexo_message::Reader>().unwrap();
-
-                                        println!("  Response type: {}", plexo_message.get_type_name().unwrap());
+                                        println!("  Removed {} from the queue.", ping.url.clone());
+                                    },
+                                    Err(_) => {
+                                        eprintln!("  Failed to remove {} from the queue.", ping.url.clone());
                                     }
-                                    Err(_) => {panic!();} // XXX
                                 }
+                            },
+                            Err(e) => {
+                                eprintln!("  {}", e);
+                                if requester.disconnect(ZMQ_SOCKET_ADDR).is_err() {
+                                    eprintln!("  Failed to disconnect zmq socket.");
+                                }
+                                requester = context.socket(zmq::PAIR).unwrap();
+                                requester.set_rcvtimeo(500);
+                                if requester.set_linger(0).is_err() {
+                                    eprintln!("  Failed to set zmq to zero linger.");
+                                }
+                                if requester.connect(ZMQ_SOCKET_ADDR).is_err() {
+                                    eprintln!("  Failed to re-connect to the hive-writer socket.");
+                                }
+                                break;
                             }
-                            Err(_) => {panic!();} // XXX
                         }
 
+                        //Any messages waiting to receive?
+                        let mut response =  Message::new();
+                        match requester.recv(&mut response, 0) {
+                            Ok(_) => {
+                                let message_reader = capnp::serialize::read_message(
+                                    response.reader(),
+                                    ::capnp::message::ReaderOptions::new()
+                                ).unwrap();
+                                let plexo_message = message_reader.get_root::<plexo_message::Reader>().unwrap();
 
-                        // match requester.send(ping.url.as_str(), 0) {
-                        //     Ok(_) => {
-                        //         println!("Test2");
-                        //         match requester.recv_msg(0) {
-                        //             Ok(message) => {
-                        //                 let status_msg = message.as_str().clone().unwrap();
-                        //                 println!("  Received reply {}", status_msg);
-                        //
-                        //                 if status_msg == "OK" || status_msg == "ERR" {
-                        //                     //If the write was successful, remove this url from the queue
-                        //                     match handler::delete_ping_from_queue(ping.url.clone()) {
-                        //                         Ok(_) => {
-                        //                             println!("  Removed {} from the queue.", ping.url.clone());
-                        //                         },
-                        //                         Err(_) => {
-                        //                             eprintln!("  Failed to remove {} from the queue.", ping.url.clone());
-                        //                         }
-                        //                     }
-                        //                 }
-                        //             },
-                        //             Err(_) => {
-                        //                 eprintln!("  No reply. Waiting...");
-                        //             }
-                        //         }
-                        //     },
-                        //     Err(e) => {
-                        //         eprintln!("  {}", e);
-                        //         if requester.disconnect(ZMQ_SOCKET_ADDR).is_err() {
-                        //             eprintln!("  Failed to disconnect zmq socket.");
-                        //         }
-                        //         requester = context.socket(zmq::REQ).unwrap();
-                        //         //requester.set_rcvtimeo(500);
-                        //         if requester.set_linger(0).is_err() {
-                        //             eprintln!("  Failed to set zmq to zero linger.");
-                        //         }
-                        //         if requester.connect(ZMQ_SOCKET_ADDR).is_err() {
-                        //             eprintln!("  Failed to re-connect to the hive-writer socket.");
-                        //         }
-                        //         break;
-                        //     }
-                        // }
+                                println!("  Response: {:#?}", plexo_message.get_payload());
+                            },
+                            Err(_) => {
+                                eprintln!("  No reply. Waiting...");
+                            }
+                        }
 
                         println!("  Done sending and receiving.");
                         println!("  Sleeping...");
