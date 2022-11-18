@@ -111,7 +111,24 @@ async fn main() {
                         println!("  Found items...");
                     }
 
-                    //Iterate through the pings and send each one to the hive-writer through the socket
+                    //Receive any messages from the writer(s)
+                    let mut response =  Message::new();
+                    match requester.recv(&mut response, 0) {
+                        Ok(_) => {
+                            let message_reader = capnp::serialize::read_message(
+                                response.reader(),
+                                ::capnp::message::ReaderOptions::new()
+                            ).unwrap();
+                            let plexo_message = message_reader.get_root::<plexo_message::Reader>().unwrap();
+
+                            println!("  Response: {:#?}", plexo_message.get_payload());
+                        },
+                        Err(_) => {
+                            eprintln!("  No reply. Waiting...");
+                        }
+                    }
+
+                    //Send any outstanding pings to the writer(s)
                     for ping in pings {
 
                         println!("  Sending {} over the socket.", ping.url.clone());
@@ -165,24 +182,7 @@ async fn main() {
                             }
                         }
 
-                        //Any messages waiting to receive?
-                        let mut response =  Message::new();
-                        match requester.recv(&mut response, 0) {
-                            Ok(_) => {
-                                let message_reader = capnp::serialize::read_message(
-                                    response.reader(),
-                                    ::capnp::message::ReaderOptions::new()
-                                ).unwrap();
-                                let plexo_message = message_reader.get_root::<plexo_message::Reader>().unwrap();
-
-                                println!("  Response: {:#?}", plexo_message.get_payload());
-                            },
-                            Err(_) => {
-                                eprintln!("  No reply. Waiting...");
-                            }
-                        }
-
-                        println!("  Done sending and receiving.");
+                        println!("  Done sending.");
                         println!("  Sleeping...");
                         thread::sleep(time::Duration::from_millis(300));
                     }
