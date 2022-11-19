@@ -49,15 +49,15 @@ pub mod plexo_message_capnp {
 }
 
 pub mod podping_reason_capnp {
-    include!("../podping-schemas/built/org/podcastindex/podping/hivewriter/podping_reason_capnp.rs");
+    include!("../podping-schemas/built/org/podcastindex/podping/podping_reason_capnp.rs");
 }
 
 pub mod podping_medium_capnp {
-    include!("../podping-schemas/built/org/podcastindex/podping/hivewriter/podping_medium_capnp.rs");
+    include!("../podping-schemas/built/org/podcastindex/podping/podping_medium_capnp.rs");
 }
 
 pub mod podping_write_capnp {
-    include!("../podping-schemas/built/org/podcastindex/podping/hivewriter/podping_write_capnp.rs");
+    include!("../podping-schemas/built/org/podcastindex/podping/podping_write_capnp.rs");
 }
 
 

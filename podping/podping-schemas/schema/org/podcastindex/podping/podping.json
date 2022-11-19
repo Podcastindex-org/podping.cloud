@@ -1,0 +1,108 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "title": "Podping",
+    "type": "object",
+    "properties": {
+        "version": {
+            "type": "string"
+        },
+        "medium": {
+            "oneOf": [
+                {
+                    "title": "mixed",
+                    "type": "string"
+                },
+                {
+                    "title": "podcast",
+                    "type": "string"
+                },
+                {
+                    "title": "podcastL",
+                    "type": "string"
+                },
+                {
+                    "title": "music",
+                    "type": "string"
+                },
+                {
+                    "title": "musicL",
+                    "type": "string"
+                },
+                {
+                    "title": "video",
+                    "type": "string"
+                },
+                {
+                    "title": "videoL",
+                    "type": "string"
+                },
+                {
+                    "title": "film",
+                    "type": "string"
+                },
+                {
+                    "title": "filmL",
+                    "type": "string"
+                },
+                {
+                    "title": "audiobook",
+                    "type": "string"
+                },
+                {
+                    "title": "audiobookL",
+                    "type": "string"
+                },
+                {
+                    "title": "newsletter",
+                    "type": "string"
+                },
+                {
+                    "title": "newsletterL",
+                    "type": "string"
+                },
+                {
+                    "title": "blog",
+                    "type": "string"
+                },
+                {
+                    "title": "blogL",
+                    "type": "string"
+                }
+            ]
+        },
+        "reason": {
+            "oneOf": [
+                {
+                    "title": "update",
+                    "type": "string"
+                },
+                {
+                    "title": "live",
+                    "type": "string"
+                },
+                {
+                    "title": "liveEnd",
+                    "type": "string"
+                }
+            ]
+        },
+        "iris": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "timestampNs": {
+            "type": "integer"
+        },
+        "sessionId": {
+            "type": "integer"
+        }
+    },
+    "required": [
+        "version",
+        "medium",
+        "reason",
+        "iris"
+    ]
+}

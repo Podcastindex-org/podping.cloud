@@ -1,12 +1,9 @@
 @0xb804df1ba3cc0461;
 
-using import "podping_medium.capnp".PodpingMedium;
-using import "podping_reason.capnp".PodpingReason;
+using import "../podping.capnp".Podping;
 
 struct PodpingHiveTransaction {
-    medium @0 :PodpingMedium;
-    reason @1 :PodpingReason;
-    iris @2 :List(Text);
-    hiveTxId @3 :Text;
-    hiveBlockNum @4 :UInt64;
+    podpings @0 :List(Podping);
+    hiveTxId @1 :Text;
+    hiveBlockNum @2 :UInt64;
 }
