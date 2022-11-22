@@ -48,6 +48,10 @@ pub mod plexo_message_capnp {
     include!("../plexo-schemas/built/dev/plexo/plexo_message_capnp.rs");
 }
 
+pub mod podping_capnp {
+    include!("../podping-schemas/built/org/podcastindex/podping/podping_capnp.rs");
+}
+
 pub mod podping_reason_capnp {
     include!("../podping-schemas/built/org/podcastindex/podping/podping_reason_capnp.rs");
 }
@@ -60,6 +64,9 @@ pub mod podping_write_capnp {
     include!("../podping-schemas/built/org/podcastindex/podping/podping_write_capnp.rs");
 }
 
+pub mod podping_hive_transaction_capnp {
+    include!("../podping-schemas/built/org/podcastindex/podping/hivewriter/podping_hive_transaction_capnp.rs");
+}
 
 //Functions --------------------------------------------------------------------------------------------------
 #[tokio::main]
@@ -80,11 +87,16 @@ async fn main() {
         let mut requester = context.socket(zmq::PAIR).unwrap();
 
         use crate::plexo_message_capnp::{plexo_message};
+        #[allow(unused_imports)]
+        use crate::podping_capnp::{podping};
         use crate::podping_write_capnp::{podping_write};
+        use crate::podping_hive_transaction_capnp::{podping_hive_transaction};
         //use capnp::serialize_packed;
 
         //Set up and connect the socket
-        requester.set_rcvtimeo(500);
+        if requester.set_rcvtimeo(500).is_err() {
+            eprintln!("  Failed to set zmq receive timeout.");
+        }
         if requester.set_linger(0).is_err() {
             eprintln!("  Failed to set zmq to zero linger.");
         }
@@ -102,30 +114,64 @@ async fn main() {
             println!("\n");
             println!("Start tickcheck...");
 
+            //Reset old inflight pings that may have never been sent
+            println!("  Resetting old in-flight pings...");
+            if handler::reset_pings_in_flight().is_err() {
+                eprintln!("  Failed to reset old in-flight pings.");
+            }
+
+            //Receive any messages from the writer(s)
+            //TODO: handle error scenario here where hive writer returns a write error by marking the url not inflight
+            let mut response =  Message::new();
+            match requester.recv(&mut response, 0) {
+                Ok(_) => {
+                    println!("  Incoming writer message...");
+
+                    //Read the plexo message from the ZMQ socket
+                    let message_reader = capnp::serialize::read_message(
+                        response.reader(),
+                        ::capnp::message::ReaderOptions::new()
+                    ).unwrap();
+                    let plexo_message = message_reader.get_root::<plexo_message::Reader>().unwrap();
+
+                    //Extract the hive_transaction from the plexo message
+                    let hivetx_reader = capnp::serialize::read_message(
+                        plexo_message.get_payload().unwrap(),
+                        ::capnp::message::ReaderOptions::new()
+                    ).unwrap();
+                    let hive_transaction = hivetx_reader.get_root::<podping_hive_transaction::Reader>().unwrap();
+
+                    //If this reply message has podpings in it, remove them from the queue
+                    if hive_transaction.has_podpings() {
+                        println!("    --Hive tx id: [{:#?}]", hive_transaction.get_hive_tx_id().unwrap());
+                        println!("    --Hive block num: [{:#?}]", hive_transaction.get_hive_block_num());
+
+                        let podpings_written = hive_transaction.get_podpings().unwrap();
+                        for podping_written in podpings_written {
+                            let podping_iris = podping_written.get_iris().unwrap();
+                            for podping_iri in podping_iris {
+                                let iri_to_remove = podping_iri.unwrap();
+                                println!("    --Removing: [{:#?}] from queue...", iri_to_remove);
+                                if handler::delete_ping_from_queue(iri_to_remove.to_string()).is_err() {
+                                    eprintln!("Error removing ping: [{}] from queue.", iri_to_remove);
+                                }
+                            }
+
+                        }
+                    }
+                },
+                Err(_) => {
+                    eprintln!("  No reply. Waiting...");
+                }
+            }
+
             //Get the most recent X number of pings from the queue database
-            let pinglist = handler::get_pings_from_queue();
+            let pinglist = handler::get_pings_from_queue(false);
             match pinglist {
                 Ok(pings) => {
                     println!("  Flushing the queue...");
                     if pings.len() > 0 {
                         println!("  Found items...");
-                    }
-
-                    //Receive any messages from the writer(s)
-                    let mut response =  Message::new();
-                    match requester.recv(&mut response, 0) {
-                        Ok(_) => {
-                            let message_reader = capnp::serialize::read_message(
-                                response.reader(),
-                                ::capnp::message::ReaderOptions::new()
-                            ).unwrap();
-                            let plexo_message = message_reader.get_root::<plexo_message::Reader>().unwrap();
-
-                            println!("  Response: {:#?}", plexo_message.get_payload());
-                        },
-                        Err(_) => {
-                            eprintln!("  No reply. Waiting...");
-                        }
                     }
 
                     //Send any outstanding pings to the writer(s)
@@ -137,31 +183,71 @@ async fn main() {
                         let mut podping_message = ::capnp::message::Builder::new_default();
                         let mut podping_write = podping_message.init_root::<podping_write::Builder>();
                         podping_write.set_iri(ping.url.as_str());
-                        podping_write.set_medium(podping_medium_capnp::PodpingMedium::Podcast);
-                        podping_write.set_reason(podping_reason_capnp::PodpingReason::Update);
 
+                        //Set the proper reason code (maps an internal enum to a capnp enum)
+                        let pp_reason;
+                        match ping.reason {
+                            handler::Reason::Live => pp_reason = podping_reason_capnp::PodpingReason::Live,
+                            handler::Reason::LiveEnd => pp_reason = podping_reason_capnp::PodpingReason::LiveEnd,
+                            handler::Reason::Update => pp_reason = podping_reason_capnp::PodpingReason::Update,
+                        }
+                        podping_write.set_reason(pp_reason);
+
+                        //Set the proper medium code (maps an internal enum to a capnp enum)
+                        let pp_medium;
+                        match ping.medium {
+                            handler::Medium::Podcast => pp_medium = podping_medium_capnp::PodpingMedium::Podcast,
+                            handler::Medium::PodcastL => pp_medium = podping_medium_capnp::PodpingMedium::PodcastL,
+                            handler::Medium::Music => pp_medium = podping_medium_capnp::PodpingMedium::Music,
+                            handler::Medium::MusicL => pp_medium = podping_medium_capnp::PodpingMedium::MusicL,
+                            handler::Medium::Video => pp_medium = podping_medium_capnp::PodpingMedium::Video,
+                            handler::Medium::VideoL => pp_medium = podping_medium_capnp::PodpingMedium::VideoL,
+                            handler::Medium::Film => pp_medium = podping_medium_capnp::PodpingMedium::Film,
+                            handler::Medium::FilmL => pp_medium = podping_medium_capnp::PodpingMedium::FilmL,
+                            handler::Medium::Audiobook => pp_medium = podping_medium_capnp::PodpingMedium::Audiobook,
+                            handler::Medium::AudiobookL => pp_medium = podping_medium_capnp::PodpingMedium::AudiobookL,
+                            handler::Medium::Newsletter => pp_medium = podping_medium_capnp::PodpingMedium::Newsletter,
+                            handler::Medium::NewsletterL => pp_medium = podping_medium_capnp::PodpingMedium::NewsletterL,
+                            handler::Medium::Blog => pp_medium = podping_medium_capnp::PodpingMedium::Blog,
+                            handler::Medium::BlogL => pp_medium = podping_medium_capnp::PodpingMedium::BlogL,
+                        }
+                        podping_write.set_medium(pp_medium);
+
+                        //Create a raw buffer that will hold the plexo wrapper
                         let mut write_message_buffer = Vec::new();
                         capnp::serialize::write_message(&mut write_message_buffer, &podping_message).unwrap();
 
+                        //Write a podping_write message into the plexo wrapper
                         let mut message = ::capnp::message::Builder::new_default();
                         let mut plexo_message = message.init_root::<plexo_message::Builder>();
                         plexo_message.set_type_name("org.podcastindex.podping.hivewriter.PodpingWrite.capnp");
                         let podping_write_reader = Reader::from(write_message_buffer.as_slice());
                         plexo_message.set_payload(podping_write_reader);
 
-                        //Attempt to send any outstanding messages
+                        //Attempt to send the message over the ZMQ socket
                         let mut send_buffer = Vec::new();
                         capnp::serialize::write_message(&mut send_buffer, &message).unwrap();
                         match requester.send(send_buffer, 0) {
                             Ok(_) => {
                                 println!("  Message sent.");
-                                //If the write was successful, remove this url from the queue
-                                match handler::delete_ping_from_queue(ping.url.clone()) {
+                                //If the write was successful, mark this ping as "in flight"
+                                //match handler::delete_ping_from_queue(ping.url.clone()) {
+                                match handler::set_ping_as_inflight(&ping) {
                                     Ok(_) => {
-                                        println!("  Removed {} from the queue.", ping.url.clone());
+                                        println!("  Marked: [{}|{}|{}|{}] as in flight.",
+                                             ping.url.clone(),
+                                             ping.time,
+                                             ping.reason,
+                                             ping.medium
+                                        );
                                     },
                                     Err(_) => {
-                                        eprintln!("  Failed to remove {} from the queue.", ping.url.clone());
+                                        eprintln!("  Failed to mark: [{}|{}|{}|{}] as in flight.",
+                                                 ping.url.clone(),
+                                                 ping.time,
+                                                 ping.reason,
+                                                 ping.medium
+                                        );
                                     }
                                 }
                             },
@@ -171,7 +257,9 @@ async fn main() {
                                     eprintln!("  Failed to disconnect zmq socket.");
                                 }
                                 requester = context.socket(zmq::PAIR).unwrap();
-                                requester.set_rcvtimeo(500);
+                                if requester.set_rcvtimeo(500).is_err() {
+                                    eprintln!("  Failed to set zmq receive timeout.");
+                                }
                                 if requester.set_linger(0).is_err() {
                                     eprintln!("  Failed to set zmq to zero linger.");
                                 }
@@ -283,4 +371,9 @@ impl Context {
         };
         Ok(serde_json::from_slice(&body_bytes)?)
     }
+}
+
+#[allow(dead_code)]
+fn print_type_of<T>(_: &T) {
+    println!("{}", std::any::type_name::<T>())
 }
