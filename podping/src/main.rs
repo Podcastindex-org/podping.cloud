@@ -114,7 +114,7 @@ async fn main() {
             eprintln!("  Failed to connect to the podping writer socket.");
         }
 
-        println!("ZMQ socket: [{}] connected.", ZMQ_SOCKET_ADDR);
+        println!("ZMQ socket: [{}] connected.", zmq_address);
 
         //Spawn a queue checker threader.  Every X seconds, get all the pings from the Queue and attempt to write them
         //to the socket that the Hive-writer should be listening on
