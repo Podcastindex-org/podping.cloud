@@ -10,13 +10,11 @@ use hyper::server::conn::AddrStream;
 use std::thread;
 use std::time;
 use std::env;
-//use std::io::{Cursor, Seek, SeekFrom};
 use capnp::data::Reader;
 use drop_root::set_user_group;
 use hyper::body::Buf;
 use zmq::Message;
-//use capnp;
-//use capnpc;
+use dbif::{Reason, Medium};
 
 //Globals ----------------------------------------------------------------------------------------------------
 const ZMQ_SOCKET_ADDR: &str = "tcp://127.0.0.1:9999";
@@ -116,7 +114,7 @@ async fn main() {
 
             //Reset old inflight pings that may have never been sent
             println!("  Resetting old in-flight pings...");
-            if handler::reset_pings_in_flight().is_err() {
+            if dbif::reset_pings_in_flight().is_err() {
                 eprintln!("  Failed to reset old in-flight pings.");
             }
 
@@ -144,6 +142,9 @@ async fn main() {
                     //If this reply message has podpings in it, remove them from the queue
                     if hive_transaction.has_podpings() {
                         println!("    --Hive tx id: [{:#?}]", hive_transaction.get_hive_tx_id().unwrap());
+                        println!("    --Hive td details: [https://hive.ausbit.dev/tx/{}]",
+                                 hive_transaction.get_hive_tx_id().unwrap()
+                        );
                         println!("    --Hive block num: [{:#?}]", hive_transaction.get_hive_block_num());
 
                         let podpings_written = hive_transaction.get_podpings().unwrap();
@@ -152,7 +153,7 @@ async fn main() {
                             for podping_iri in podping_iris {
                                 let iri_to_remove = podping_iri.unwrap();
                                 println!("    --Removing: [{:#?}] from queue...", iri_to_remove);
-                                if handler::delete_ping_from_queue(iri_to_remove.to_string()).is_err() {
+                                if dbif::delete_ping_from_queue(iri_to_remove.to_string()).is_err() {
                                     eprintln!("Error removing ping: [{}] from queue.", iri_to_remove);
                                 }
                             }
@@ -166,7 +167,7 @@ async fn main() {
             }
 
             //Get the most recent X number of pings from the queue database
-            let pinglist = handler::get_pings_from_queue(false);
+            let pinglist = dbif::get_pings_from_queue(false);
             match pinglist {
                 Ok(pings) => {
                     println!("  Flushing the queue...");
@@ -187,29 +188,29 @@ async fn main() {
                         //Set the proper reason code (maps an internal enum to a capnp enum)
                         let pp_reason;
                         match ping.reason {
-                            handler::Reason::Live => pp_reason = podping_reason_capnp::PodpingReason::Live,
-                            handler::Reason::LiveEnd => pp_reason = podping_reason_capnp::PodpingReason::LiveEnd,
-                            handler::Reason::Update => pp_reason = podping_reason_capnp::PodpingReason::Update,
+                            Reason::Live => pp_reason = podping_reason_capnp::PodpingReason::Live,
+                            Reason::LiveEnd => pp_reason = podping_reason_capnp::PodpingReason::LiveEnd,
+                            Reason::Update => pp_reason = podping_reason_capnp::PodpingReason::Update,
                         }
                         podping_write.set_reason(pp_reason);
 
                         //Set the proper medium code (maps an internal enum to a capnp enum)
                         let pp_medium;
                         match ping.medium {
-                            handler::Medium::Podcast => pp_medium = podping_medium_capnp::PodpingMedium::Podcast,
-                            handler::Medium::PodcastL => pp_medium = podping_medium_capnp::PodpingMedium::PodcastL,
-                            handler::Medium::Music => pp_medium = podping_medium_capnp::PodpingMedium::Music,
-                            handler::Medium::MusicL => pp_medium = podping_medium_capnp::PodpingMedium::MusicL,
-                            handler::Medium::Video => pp_medium = podping_medium_capnp::PodpingMedium::Video,
-                            handler::Medium::VideoL => pp_medium = podping_medium_capnp::PodpingMedium::VideoL,
-                            handler::Medium::Film => pp_medium = podping_medium_capnp::PodpingMedium::Film,
-                            handler::Medium::FilmL => pp_medium = podping_medium_capnp::PodpingMedium::FilmL,
-                            handler::Medium::Audiobook => pp_medium = podping_medium_capnp::PodpingMedium::Audiobook,
-                            handler::Medium::AudiobookL => pp_medium = podping_medium_capnp::PodpingMedium::AudiobookL,
-                            handler::Medium::Newsletter => pp_medium = podping_medium_capnp::PodpingMedium::Newsletter,
-                            handler::Medium::NewsletterL => pp_medium = podping_medium_capnp::PodpingMedium::NewsletterL,
-                            handler::Medium::Blog => pp_medium = podping_medium_capnp::PodpingMedium::Blog,
-                            handler::Medium::BlogL => pp_medium = podping_medium_capnp::PodpingMedium::BlogL,
+                            Medium::Podcast => pp_medium = podping_medium_capnp::PodpingMedium::Podcast,
+                            Medium::PodcastL => pp_medium = podping_medium_capnp::PodpingMedium::PodcastL,
+                            Medium::Music => pp_medium = podping_medium_capnp::PodpingMedium::Music,
+                            Medium::MusicL => pp_medium = podping_medium_capnp::PodpingMedium::MusicL,
+                            Medium::Video => pp_medium = podping_medium_capnp::PodpingMedium::Video,
+                            Medium::VideoL => pp_medium = podping_medium_capnp::PodpingMedium::VideoL,
+                            Medium::Film => pp_medium = podping_medium_capnp::PodpingMedium::Film,
+                            Medium::FilmL => pp_medium = podping_medium_capnp::PodpingMedium::FilmL,
+                            Medium::Audiobook => pp_medium = podping_medium_capnp::PodpingMedium::Audiobook,
+                            Medium::AudiobookL => pp_medium = podping_medium_capnp::PodpingMedium::AudiobookL,
+                            Medium::Newsletter => pp_medium = podping_medium_capnp::PodpingMedium::Newsletter,
+                            Medium::NewsletterL => pp_medium = podping_medium_capnp::PodpingMedium::NewsletterL,
+                            Medium::Blog => pp_medium = podping_medium_capnp::PodpingMedium::Blog,
+                            Medium::BlogL => pp_medium = podping_medium_capnp::PodpingMedium::BlogL,
                         }
                         podping_write.set_medium(pp_medium);
 
@@ -231,8 +232,8 @@ async fn main() {
                             Ok(_) => {
                                 println!("  Message sent.");
                                 //If the write was successful, mark this ping as "in flight"
-                                //match handler::delete_ping_from_queue(ping.url.clone()) {
-                                match handler::set_ping_as_inflight(&ping) {
+                                //match dbif::delete_ping_from_queue(ping.url.clone()) {
+                                match dbif::set_ping_as_inflight(&ping) {
                                     Ok(_) => {
                                         println!("  Marked: [{}|{}|{}|{}] as in flight.",
                                              ping.url.clone(),
