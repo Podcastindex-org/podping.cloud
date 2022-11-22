@@ -5,8 +5,8 @@ use std::str::FromStr;
 
 
 //Globals ----------------------------------------------------------------------------------------------------
-const SQLITE_FILE_AUTH: &str = "auth.db";
-const SQLITE_FILE_QUEUE: &str = "queue.db";
+const SQLITE_FILE_AUTH: &str = "/data/auth.db";
+const SQLITE_FILE_QUEUE: &str = "/data/queue.db";
 
 
 //Structs & Enums --------------------------------------------------------------------------------------------
