@@ -142,7 +142,7 @@ pub struct PingRow {
 pub async fn ping(ctx: Context) -> Response {
     //Get a current timestamp
     let timestamp: u64 = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => n.as_secs() - (86400 * 90),
+        Ok(n) => n.as_secs(),
         Err(_) => panic!("SystemTime before UNIX EPOCH!"),
     };
 
@@ -408,7 +408,7 @@ pub fn get_pings_from_queue(with_in_flight:bool) -> Result<Vec<Ping>, Box<dyn Er
     let mut pings: Vec<Ping> = Vec::new();
 
     //With in flights also?
-    let mut inflight_clause = "inflight=0";
+    let mut inflight_clause = "inflight = 0";
     if with_in_flight {
         inflight_clause = "inflight >= 0";
     }
@@ -418,8 +418,8 @@ pub fn get_pings_from_queue(with_in_flight:bool) -> Result<Vec<Ping>, Box<dyn Er
                                reason, \
                                medium \
                         FROM queue \
-                        WHERE {}
-                        ORDER BY reason ASC,
+                        WHERE {} \
+                        ORDER BY reason ASC, \
                                   rowid ASC \
                         LIMIT 50", inflight_clause);
 
@@ -481,11 +481,11 @@ pub fn update_ping_in_queue(ping: &Ping) -> Result<bool, Box<dyn Error>> {
 
 
     match conn.execute("UPDATE queue \
-                        SET inflight=0,\
-                            createdon=?,\
-                            reason=?,\
-                            medium=?\
-                        WHERE url=?",
+                        SET inflight = 0, \
+                            createdon = ?, \
+                            reason = ?, \
+                            medium = ? \
+                        WHERE url = ?",
                        params![
                            ping.time,
                            ping.reason.to_string(),
@@ -508,29 +508,17 @@ pub fn set_ping_as_inflight(ping: &Ping) -> Result<bool, Box<dyn Error>> {
     let conn = Connection::open(SQLITE_FILE_QUEUE)?;
 
     match conn.execute("UPDATE queue \
-                        SET inflight=1 \
-                        WHERE url=? \
-                          AND createdon=? \
-                          AND reason=? \
-                          AND medium=?",
+                        SET inflight = 1 \
+                        WHERE url = ?",
                        params![
-                           ping.url,
-                           ping.time,
-                           ping.reason.to_string(),
-                           ping.medium.to_string(),
+                           ping.url
                        ])
     {
         Ok(_) => {
             Ok(true)
         }
-        Err(_e) => {
-            // match e {
-            //     Error::SqliteFailure(err, _) => {
-            //         assert_eq!(err.code, ErrorCode::ConstraintViolation);
-            //         check_extended_code(err.extended_code);
-            //     }
-            //     err => panic!("Unexpected error {}", err),
-            // }
+        Err(e) => {
+            eprintln!("{}", e);
             return Err(Box::new(HydraError(format!("Marking ping as inflight failed: [{:#?}].", ping).into())));
         }
     }
@@ -541,22 +529,17 @@ pub fn reset_pings_in_flight() -> Result<bool, Box<dyn Error>> {
     let conn = Connection::open(SQLITE_FILE_QUEUE)?;
 
     match conn.execute("UPDATE queue \
-                        SET inflight=0 \
-                        WHERE inflight=1\
-                          AND createdon < (strftime('%s', 'now') - 180)",
+                        SET inflight = 0, \
+                            createdon = STRFTIME('%s') \
+                        WHERE inflight = 1 \
+                          AND createdon < (STRFTIME('%s') - 180)",
                        params![])
     {
         Ok(_) => {
             Ok(true)
         }
-        Err(_e) => {
-            // match e {
-            //     Error::SqliteFailure(err, _) => {
-            //         assert_eq!(err.code, ErrorCode::ConstraintViolation);
-            //         check_extended_code(err.extended_code);
-            //     }
-            //     err => panic!("Unexpected error {}", err),
-            // }
+        Err(e) => {
+            eprintln!("{}", e);
             return Err(Box::new(HydraError(format!("Filed to reset old, inflight pings").into())));
         }
     }
