@@ -1,0 +1,40 @@
+version: "3.7"
+
+services:
+  podping-cloud:
+    image: podcastindexorg/podcasting20-podping.cloud:testing
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 1m
+    user: "1000:1000"
+    ports:
+      - 80:80
+    volumes:
+      - /data:/data
+    environment:
+      ZMQ_SOCKET_ADDR: "tcp://192.168.69.69:9999"
+    networks:
+      podping:
+        ipv4_address: 192.168.69.68
+
+  hive-writer:
+    image: docker.io/podcastindexorg/podping-hivewriter:pr-67
+    command: ["server"]
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 1m
+    user: "1000:1000"
+    ports:
+      - 9999:9999
+    env_file:
+      - /opt/podping.cloud/hivewriter.env
+    networks:
+      podping:
+        ipv4_address: 192.168.69.69
+
+networks:
+  podping:
+    ipam:
+      driver: default
+      config:
+        - subnet: "192.168.69.0/24"

@@ -8,6 +8,8 @@ RUN apt-get upgrade -y
 RUN apt-get install -y apt-utils
 RUN apt-get install -y sqlite3
 RUN apt-get install -y openssl
+RUN apt-get install -y capnproto
+RUN apt-get install -y libzmq3-dev
 
 WORKDIR /opt
 ARG GIT_REPO=https://github.com/Podcastindex-org/podping.cloud.git
@@ -19,7 +21,7 @@ RUN cp target/release/podping .
 
 
 ##: Bundle stage
-FROM debian:buster-slim AS runner
+FROM debian:bullseye-slim AS runner
 
 USER root
 
@@ -28,6 +30,8 @@ RUN apt-get upgrade -y
 RUN apt-get install -y apt-utils
 RUN apt-get install -y sqlite3
 RUN apt-get install -y openssl
+RUN apt-get install -y capnproto
+RUN apt-get install -y libzmq3-dev
 
 RUN chown -R 1000:1000 /opt
 RUN mkdir /data && chown -R 1000:1000 /data

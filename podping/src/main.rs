@@ -84,6 +84,18 @@ async fn main() {
         let context = zmq::Context::new();
         let mut requester = context.socket(zmq::PAIR).unwrap();
 
+        //Get the socket address to connect to
+        println!("\nDiscovering ZMQ socket address...");
+        let zmq_address;
+        let env_zmq_socket_url = std::env::var("ZMQ_SOCKET_ADDR");
+        if env_zmq_socket_url.is_ok() {
+            zmq_address = "https://".to_owned() + env_zmq_socket_url.unwrap().as_str();
+            println!(" - Trying environment var(ZMQ_SOCKET_ADDR): [{}]", zmq_address);
+        } else {
+            zmq_address = String::from(ZMQ_SOCKET_ADDR);
+            println!(" - Trying localhost default: [{}].", zmq_address);
+        }
+
         use crate::plexo_message_capnp::{plexo_message};
         #[allow(unused_imports)]
         use crate::podping_capnp::{podping};
@@ -98,7 +110,7 @@ async fn main() {
         if requester.set_linger(0).is_err() {
             eprintln!("  Failed to set zmq to zero linger.");
         }
-        if requester.connect(ZMQ_SOCKET_ADDR).is_err() {
+        if requester.connect(&zmq_address).is_err() {
             eprintln!("  Failed to connect to the podping writer socket.");
         }
 
@@ -254,7 +266,7 @@ async fn main() {
                             },
                             Err(e) => {
                                 eprintln!("  {}", e);
-                                if requester.disconnect(ZMQ_SOCKET_ADDR).is_err() {
+                                if requester.disconnect(&zmq_address).is_err() {
                                     eprintln!("  Failed to disconnect zmq socket.");
                                 }
                                 requester = context.socket(zmq::PAIR).unwrap();
@@ -264,7 +276,7 @@ async fn main() {
                                 if requester.set_linger(0).is_err() {
                                     eprintln!("  Failed to set zmq to zero linger.");
                                 }
-                                if requester.connect(ZMQ_SOCKET_ADDR).is_err() {
+                                if requester.connect(&zmq_address).is_err() {
                                     eprintln!("  Failed to re-connect to the hive-writer socket.");
                                 }
                                 break;
