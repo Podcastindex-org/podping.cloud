@@ -8,10 +8,33 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::io::BufReader;
 use futures::stream::StreamExt;
+use rand::Rng;
 
 const AUTH_HEADER_TOKEN: &str = "Blahblah^^12345678";
 const PODPING_URL: &str = "http://localhost/?url=";
-const MAX_CONCURRENT: usize = 20;
+const MAX_CONCURRENT: usize = 50;
+
+const REASONS: [&'static str; 3] = [
+    "update",
+    "live",
+    "liveEnd",
+];
+const MEDIUMS: [&'static str; 14] = [
+    "podcast",
+    "podcastl",
+    "music",
+    "musicl",
+    "video",
+    "videol",
+    "film",
+    "filml",
+    "audiobook",
+    "audiobookl",
+    "newsletter",
+    "newsletterl",
+    "blog",
+    "blogl",
+];
 
 
 fn read_lines(path: &str) -> std::io::Result<Vec<String>> {
@@ -29,10 +52,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fetches = futures::stream::iter(
     paths.into_iter().map(|path| {
         async move {
+            //Generate a random reason/medium
+            let reason = REASONS.get(rand::thread_rng().gen_range(0..2)).unwrap();
+            let medium = MEDIUMS.get(rand::thread_rng().gen_range(0..13)).unwrap();
+
             //Build the request url
-            let mut pp_get_url: String = String::new();
-            pp_get_url.push_str(PODPING_URL);
-            pp_get_url.push_str(path.as_str());
+            let pp_get_url = format!("{}{}&medium={}&reason={}",
+                PODPING_URL,
+                path,
+                medium,
+                reason,
+            );
+            // let mut pp_get_url: String = String::new();
+            // pp_get_url.push_str(PODPING_URL);
+            // pp_get_url.push_str(path.as_str());
+            // pp_get_url.push_str
+            println!("Sending: [{}]...", pp_get_url);
+
             let client = reqwest::Client::new();
             match client.get(&pp_get_url)
               .header("Authorization", AUTH_HEADER_TOKEN)

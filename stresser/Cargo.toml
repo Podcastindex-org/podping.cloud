@@ -1,6 +1,6 @@
 [package]
 name = "stresser"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Dave Jones"]
 edition = "2018"
 
@@ -8,3 +8,4 @@ edition = "2018"
 tokio = { version = "1.5", features = ["full"] }
 reqwest = { version = "0.11.3" }
 futures = "0.3"
+rand = "0.8.5"
