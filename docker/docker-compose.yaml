@@ -12,7 +12,7 @@ services:
     volumes:
       - /data:/data
     environment:
-      ZMQ_SOCKET_ADDR: "tcp://192.168.69.69:9999"
+      ZMQ_SOCKET_ADDR: "192.168.69.69:9999"
     networks:
       podping:
         ipv4_address: 192.168.69.68

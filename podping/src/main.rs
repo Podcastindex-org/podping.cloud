@@ -1,3 +1,4 @@
+//Uses -----------------------------------------------------------------------------------------------------------------
 use hyper::{
     body::to_bytes,
     service::{make_service_fn, service_fn},
@@ -16,15 +17,16 @@ use hyper::body::Buf;
 use zmq::Message;
 use dbif::{Reason, Medium};
 
-//Globals ----------------------------------------------------------------------------------------------------
-const ZMQ_SOCKET_ADDR: &str = "tcp://127.0.0.1:9999";
+
+//Globals --------------------------------------------------------------------------------------------------------------
+const ZMQ_SOCKET_ADDR: &str = "127.0.0.1:9999";
 mod handler;
 mod router;
 type Response = hyper::Response<hyper::Body>;
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 
-//Structs ----------------------------------------------------------------------------------------------------
+//Structs --------------------------------------------------------------------------------------------------------------
 #[derive(Clone, Debug)]
 pub struct AppState {
     pub state_thing: String,
@@ -40,33 +42,57 @@ pub struct Context {
     body_bytes: Option<hyper::body::Bytes>,
 }
 
+impl Context {
+    pub fn new(state: AppState, req: Request<Body>, params: Params) -> Context {
+        Context {
+            state,
+            req,
+            params,
+            body_bytes: None,
+        }
+    }
 
-//Testing ----------------------------------------------------------------------------------------------------
+    pub async fn body_json<T: serde::de::DeserializeOwned>(&mut self) -> Result<T, Error> {
+        let body_bytes = match self.body_bytes {
+            Some(ref v) => v,
+            _ => {
+                let body = to_bytes(self.req.body_mut()).await?;
+                self.body_bytes = Some(body);
+                self.body_bytes.as_ref().expect("body_bytes was set above")
+            }
+        };
+        Ok(serde_json::from_slice(&body_bytes)?)
+    }
+}
+
+
+//Capnproto ------------------------------------------------------------------------------------------------------------
 pub mod plexo_message_capnp {
     include!("../plexo-schemas/built/dev/plexo/plexo_message_capnp.rs");
 }
-
 pub mod podping_capnp {
     include!("../podping-schemas/built/org/podcastindex/podping/podping_capnp.rs");
 }
-
 pub mod podping_reason_capnp {
     include!("../podping-schemas/built/org/podcastindex/podping/podping_reason_capnp.rs");
 }
-
 pub mod podping_medium_capnp {
     include!("../podping-schemas/built/org/podcastindex/podping/podping_medium_capnp.rs");
 }
-
 pub mod podping_write_capnp {
     include!("../podping-schemas/built/org/podcastindex/podping/podping_write_capnp.rs");
 }
-
 pub mod podping_hive_transaction_capnp {
     include!("../podping-schemas/built/org/podcastindex/podping/hivewriter/podping_hive_transaction_capnp.rs");
 }
+#[allow(unused_imports)]
+use crate::podping_capnp::{podping};
+use crate::plexo_message_capnp::{plexo_message};
+use crate::podping_write_capnp::{podping_write};
+use crate::podping_hive_transaction_capnp::{podping_hive_transaction};
 
-//Functions --------------------------------------------------------------------------------------------------
+
+//Main -----------------------------------------------------------------------------------------------------------------
 #[tokio::main]
 async fn main() {
 
@@ -81,29 +107,22 @@ async fn main() {
 
     //ZMQ socket version
     thread::spawn(move || {
-        let context = zmq::Context::new();
-        let mut requester = context.socket(zmq::PAIR).unwrap();
 
         //Get the socket address to connect to
         println!("\nDiscovering ZMQ socket address...");
         let zmq_address;
         let env_zmq_socket_url = std::env::var("ZMQ_SOCKET_ADDR");
         if env_zmq_socket_url.is_ok() {
-            zmq_address = "https://".to_owned() + env_zmq_socket_url.unwrap().as_str();
+            zmq_address = "tcp://".to_owned() + env_zmq_socket_url.unwrap().as_str();
             println!(" - Trying environment var(ZMQ_SOCKET_ADDR): [{}]", zmq_address);
         } else {
-            zmq_address = String::from(ZMQ_SOCKET_ADDR);
+            zmq_address = "tcp://".to_owned() + String::from(ZMQ_SOCKET_ADDR).as_str();
             println!(" - Trying localhost default: [{}].", zmq_address);
         }
 
-        use crate::plexo_message_capnp::{plexo_message};
-        #[allow(unused_imports)]
-        use crate::podping_capnp::{podping};
-        use crate::podping_write_capnp::{podping_write};
-        use crate::podping_hive_transaction_capnp::{podping_hive_transaction};
-        //use capnp::serialize_packed;
-
         //Set up and connect the socket
+        let context = zmq::Context::new();
+        let mut requester = context.socket(zmq::PAIR).unwrap();
         if requester.set_rcvtimeo(500).is_err() {
             eprintln!("  Failed to set zmq receive timeout.");
         }
@@ -350,6 +369,8 @@ async fn main() {
     let _ = server.await;
 }
 
+
+//Functions ------------------------------------------------------------------------------------------------------------
 async fn route(
     router: Arc<Router>,
     req: Request<hyper::Body>,
@@ -361,29 +382,6 @@ async fn route(
         .invoke(Context::new(app_state, req, found_handler.params))
         .await;
     Ok(resp)
-}
-
-impl Context {
-    pub fn new(state: AppState, req: Request<Body>, params: Params) -> Context {
-        Context {
-            state,
-            req,
-            params,
-            body_bytes: None,
-        }
-    }
-
-    pub async fn body_json<T: serde::de::DeserializeOwned>(&mut self) -> Result<T, Error> {
-        let body_bytes = match self.body_bytes {
-            Some(ref v) => v,
-            _ => {
-                let body = to_bytes(self.req.body_mut()).await?;
-                self.body_bytes = Some(body);
-                self.body_bytes.as_ref().expect("body_bytes was set above")
-            }
-        };
-        Ok(serde_json::from_slice(&body_bytes)?)
-    }
 }
 
 #[allow(dead_code)]
