@@ -7,6 +7,7 @@ use std::str::FromStr;
 //Globals ----------------------------------------------------------------------------------------------------
 const SQLITE_FILE_AUTH: &str = "/data/auth.db";
 const SQLITE_FILE_QUEUE: &str = "/data/queue.db";
+const PING_BATCH_SIZE: u64 = 5000;
 
 
 //Structs & Enums --------------------------------------------------------------------------------------------
@@ -173,7 +174,7 @@ pub fn get_pings_from_queue(with_in_flight:bool) -> Result<Vec<Ping>, Box<dyn Er
                         WHERE {} \
                         ORDER BY reason ASC, \
                                   rowid ASC \
-                        LIMIT 50", inflight_clause);
+                        LIMIT {}", inflight_clause, PING_BATCH_SIZE);
 
     let mut stmt = conn.prepare(&sqltxt)?;
     let rows = stmt.query_map([], |row| {

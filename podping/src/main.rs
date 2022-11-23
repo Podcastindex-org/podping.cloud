@@ -20,6 +20,7 @@ use dbif::{Reason, Medium};
 
 //Globals --------------------------------------------------------------------------------------------------------------
 const ZMQ_SOCKET_ADDR: &str = "127.0.0.1:9999";
+const LOOP_TIMER_SECONDS: u64 = 3;
 mod handler;
 mod router;
 type Response = hyper::Response<hyper::Body>;
@@ -138,7 +139,7 @@ async fn main() {
         //Spawn a queue checker threader.  Every X seconds, get all the pings from the Queue and attempt to write them
         //to the socket that the Hive-writer should be listening on
         loop {
-            thread::sleep(time::Duration::from_secs(3));
+            thread::sleep(time::Duration::from_secs(LOOP_TIMER_SECONDS));
 
             println!("\n");
             println!("Start tickcheck...");
