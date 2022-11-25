@@ -7,11 +7,12 @@
 use std::io::prelude::*;
 use std::fs::File;
 use std::io::BufReader;
+use std::env;
 use futures::stream::StreamExt;
 use rand::Rng;
 
 const AUTH_HEADER_TOKEN: &str = "Blahblah^^12345678";
-const PODPING_URL: &str = "http://localhost/?url=";
+const PODPING_URL: &str = "http://172.104.199.144/?url=";
 const MAX_CONCURRENT: usize = 50;
 
 const REASONS: [&'static str; 3] = [
@@ -47,10 +48,13 @@ fn read_lines(path: &str) -> std::io::Result<Vec<String>> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = env::args().collect();
     let paths: Vec<String> = read_lines("urls.txt")?;
 
+    let url_count: usize = args[1].parse().unwrap();
+
     let fetches = futures::stream::iter(
-    paths.into_iter().map(|path| {
+    paths[..url_count].into_iter().map(|path| {
         async move {
             //Generate a random reason/medium
             let reason = REASONS.get(rand::thread_rng().gen_range(0..2)).unwrap();
@@ -63,10 +67,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 medium,
                 reason,
             );
-            // let mut pp_get_url: String = String::new();
-            // pp_get_url.push_str(PODPING_URL);
-            // pp_get_url.push_str(path.as_str());
-            // pp_get_url.push_str
             println!("Sending: [{}]...", pp_get_url);
 
             let client = reqwest::Client::new();
