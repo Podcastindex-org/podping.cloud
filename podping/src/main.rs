@@ -20,7 +20,7 @@ use dbif::{Reason, Medium};
 
 //Globals --------------------------------------------------------------------------------------------------------------
 const ZMQ_SOCKET_ADDR: &str = "127.0.0.1:9999";
-const LOOP_TIMER_SECONDS: u64 = 3;
+const LOOP_TIMER_SECONDS: u64 = 15;
 mod handler;
 mod router;
 type Response = hyper::Response<hyper::Body>;
