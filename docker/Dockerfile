@@ -41,6 +41,7 @@ RUN mkdir /opt/podping
 
 WORKDIR /opt/podping
 COPY --from=builder /opt/podping.cloud/podping/target/release/podping .
+COPY --from=builder /opt/podping.cloud/podping/home.html .
 
 EXPOSE 80/tcp
 
