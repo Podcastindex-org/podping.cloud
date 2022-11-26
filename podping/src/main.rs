@@ -141,11 +141,11 @@ async fn main() {
         loop {
             thread::sleep(time::Duration::from_secs(LOOP_TIMER_SECONDS));
 
-            println!("\n");
-            println!("Start tickcheck...");
+            //println!("\n");
+            //println!("Start tickcheck...");
 
             //Reset old inflight pings that may have never been sent
-            println!("  Resetting old in-flight pings...");
+            //println!("  Resetting old in-flight pings...");
             if dbif::reset_pings_in_flight().is_err() {
                 eprintln!("  Failed to reset old in-flight pings.");
             }
@@ -189,12 +189,12 @@ async fn main() {
                                     eprintln!("Error removing ping: [{}] from queue.", iri_to_remove);
                                 }
                             }
-
+                            println!("    --Removed: [{}] iri's from the queue.", podping_iris.len());
                         }
                     }
                 },
                 Err(_) => {
-                    eprintln!("  No reply. Waiting...");
+                    //eprintln!("  No reply. Waiting...");
                 }
             }
 
@@ -202,15 +202,15 @@ async fn main() {
             let pinglist = dbif::get_pings_from_queue(false);
             match pinglist {
                 Ok(pings) => {
-                    println!("  Flushing the queue...");
+                    //println!("  Flushing the queue...");
                     if pings.len() > 0 {
-                        println!("  Found items...");
+                        println!("  Sending: [{}] items over socket...", pings.len());
                     }
 
                     //Send any outstanding pings to the writer(s)
                     for ping in pings {
 
-                        println!("  Sending {} over the socket.", ping.url.clone());
+                        println!("    --Sending: [{}]...", ping.url.clone());
 
                         //Construct the capnp buffer
                         let mut podping_message = ::capnp::message::Builder::new_default();
@@ -262,12 +262,12 @@ async fn main() {
                         capnp::serialize::write_message(&mut send_buffer, &message).unwrap();
                         match requester.send(send_buffer, 0) {
                             Ok(_) => {
-                                println!("  Message sent.");
+                                println!("      IRI sent.");
                                 //If the write was successful, mark this ping as "in flight"
                                 //match dbif::delete_ping_from_queue(ping.url.clone()) {
                                 match dbif::set_ping_as_inflight(&ping) {
                                     Ok(_) => {
-                                        println!("  Marked: [{}|{}|{}|{}] as in flight.",
+                                        println!("      Marked: [{}|{}|{}|{}] as in flight.",
                                              ping.url.clone(),
                                              ping.time,
                                              ping.reason,
@@ -275,7 +275,7 @@ async fn main() {
                                         );
                                     },
                                     Err(_) => {
-                                        eprintln!("  Failed to mark: [{}|{}|{}|{}] as in flight.",
+                                        eprintln!("      Failed to mark: [{}|{}|{}|{}] as in flight.",
                                                  ping.url.clone(),
                                                  ping.time,
                                                  ping.reason,
@@ -285,26 +285,26 @@ async fn main() {
                                 }
                             },
                             Err(e) => {
-                                eprintln!("  {}", e);
+                                eprintln!("      {}", e);
                                 if requester.disconnect(&zmq_address).is_err() {
-                                    eprintln!("  Failed to disconnect zmq socket.");
+                                    eprintln!("      Failed to disconnect zmq socket.");
                                 }
                                 requester = context.socket(zmq::PAIR).unwrap();
                                 if requester.set_rcvtimeo(500).is_err() {
-                                    eprintln!("  Failed to set zmq receive timeout.");
+                                    eprintln!("      Failed to set zmq receive timeout.");
                                 }
                                 if requester.set_linger(0).is_err() {
-                                    eprintln!("  Failed to set zmq to zero linger.");
+                                    eprintln!("      Failed to set zmq to zero linger.");
                                 }
                                 if requester.connect(&zmq_address).is_err() {
-                                    eprintln!("  Failed to re-connect to the hive-writer socket.");
+                                    eprintln!("      Failed to re-connect to the hive-writer socket.");
                                 }
                                 break;
                             }
                         }
 
-                        println!("  Done sending.");
-                        println!("  Sleeping...");
+                        //println!("  Done sending.");
+                        //println!("  Sleeping...");
                         thread::sleep(time::Duration::from_millis(300));
                     }
                 },
@@ -313,7 +313,7 @@ async fn main() {
                 }
             }
 
-            println!("  End tickcheck...");
+            //println!("  End tickcheck...");
 
             //eprintln!("Timer thread exiting.");
         }
