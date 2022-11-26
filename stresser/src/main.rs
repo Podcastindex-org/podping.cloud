@@ -8,11 +8,12 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::io::BufReader;
 use std::env;
+use std::process;
 use futures::stream::StreamExt;
 use rand::Rng;
 
 const AUTH_HEADER_TOKEN: &str = "Blahblah^^12345678";
-const PODPING_URL: &str = "http://172.104.199.144/?url=";
+const USAGE_TEXT: &str = "stresser [hostname|ip] [url count]";
 const MAX_CONCURRENT: usize = 50;
 
 const REASONS: [&'static str; 3] = [
@@ -51,7 +52,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let paths: Vec<String> = read_lines("urls.txt")?;
 
-    let url_count: usize = args[1].parse().unwrap();
+    let mut hostname = "";
+    if let Some(arg_host) = &args.get(1) {
+        hostname = arg_host;
+    } else {
+        eprintln!("{}", USAGE_TEXT);
+        process::exit(1);
+    }
+    println!("Host: [{}].", hostname);
+
+    //Urls to send
+    let mut url_count = 5;
+    if let Ok(arg_count) = args[2].parse() {
+        url_count = arg_count;
+    }
+    println!("Sending: [{}] urls.", url_count);
 
     let fetches = futures::stream::iter(
     paths[..url_count].into_iter().map(|path| {
@@ -61,8 +76,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let medium = MEDIUMS.get(rand::thread_rng().gen_range(0..13)).unwrap();
 
             //Build the request url
-            let pp_get_url = format!("{}{}&medium={}&reason={}",
-                PODPING_URL,
+            let pp_get_url = format!("http://{}/?url={}&medium={}&reason={}",
+                hostname,
                 path,
                 medium,
                 reason,
