@@ -172,6 +172,7 @@ pub fn get_pings_from_queue(with_in_flight:bool) -> Result<Vec<Ping>, Box<dyn Er
                                medium \
                         FROM queue \
                         WHERE {} \
+                          AND createdon < (STRFTIME('%s') - 15) \
                         ORDER BY reason ASC, \
                                   rowid ASC \
                         LIMIT {}", inflight_clause, PING_BATCH_SIZE);
