@@ -106,20 +106,23 @@ async fn main() {
     println!("Version: {}", version);
     println!("--------------------");
 
-    //ZMQ socket version
-    thread::spawn(move || {
 
-        //Get the socket address to connect to
-        println!("\nDiscovering ZMQ socket address...");
-        let zmq_address;
-        let env_zmq_socket_url = std::env::var("ZMQ_SOCKET_ADDR");
-        if env_zmq_socket_url.is_ok() {
-            zmq_address = "tcp://".to_owned() + env_zmq_socket_url.unwrap().as_str();
-            println!(" - Trying environment var(ZMQ_SOCKET_ADDR): [{}]", zmq_address);
-        } else {
-            zmq_address = "tcp://".to_owned() + String::from(ZMQ_SOCKET_ADDR).as_str();
-            println!(" - Trying localhost default: [{}].", zmq_address);
-        }
+    //Get the socket address to connect to
+    println!("\nDiscovering ZMQ socket address...");
+    let zmq_address;
+    let env_zmq_socket_url = std::env::var("ZMQ_SOCKET_ADDR");
+    if env_zmq_socket_url.is_ok() {
+        zmq_address = "tcp://".to_owned() + env_zmq_socket_url.unwrap().as_str();
+        println!(" - Trying environment var(ZMQ_SOCKET_ADDR): [{}]", zmq_address);
+    } else {
+        zmq_address = "tcp://".to_owned() + String::from(ZMQ_SOCKET_ADDR).as_str();
+        println!(" - Trying localhost default: [{}].", zmq_address);
+    }
+    let zmq_address_recv = zmq_address.clone();
+
+
+
+    thread::spawn(move || {
 
         //Set up and connect the socket
         let context = zmq::Context::new();
@@ -130,25 +133,14 @@ async fn main() {
         if requester.set_linger(0).is_err() {
             eprintln!("  Failed to set zmq to zero linger.");
         }
-        if requester.connect(&zmq_address).is_err() {
+        if requester.connect(&zmq_address_recv).is_err() {
             eprintln!("  Failed to connect to the podping writer socket.");
         }
 
-        println!("ZMQ socket: [{}] connected.", zmq_address);
+        println!("ZMQ socket: [{}] connected.", zmq_address_recv);
 
-        //Spawn a queue checker threader.  Every X seconds, get all the pings from the Queue and attempt to write them
-        //to the socket that the Hive-writer should be listening on
         loop {
             thread::sleep(time::Duration::from_secs(LOOP_TIMER_SECONDS));
-
-            //println!("\n");
-            //println!("Start tickcheck...");
-
-            //Reset old inflight pings that may have never been sent
-            //println!("  Resetting old in-flight pings...");
-            if dbif::reset_pings_in_flight().is_err() {
-                eprintln!("  Failed to reset old in-flight pings.");
-            }
 
             //Receive any messages from the writer(s)
             //TODO: handle error scenario here where hive writer returns a write error by marking the url not inflight
@@ -197,6 +189,43 @@ async fn main() {
                     //eprintln!("  No reply. Waiting...");
                 }
             }
+        }
+    });
+
+
+    //ZMQ socket version
+    thread::spawn(move || {
+
+        //Set up and connect the socket
+        let context = zmq::Context::new();
+        let mut requester = context.socket(zmq::PAIR).unwrap();
+        if requester.set_rcvtimeo(500).is_err() {
+            eprintln!("  Failed to set zmq receive timeout.");
+        }
+        if requester.set_linger(0).is_err() {
+            eprintln!("  Failed to set zmq to zero linger.");
+        }
+        if requester.connect(&zmq_address).is_err() {
+            eprintln!("  Failed to connect to the podping writer socket.");
+        }
+
+        println!("ZMQ socket: [{}] connected.", zmq_address);
+
+        //Spawn a queue checker threader.  Every X seconds, get all the pings from the Queue and attempt to write them
+        //to the socket that the Hive-writer should be listening on
+        loop {
+            thread::sleep(time::Duration::from_secs(LOOP_TIMER_SECONDS));
+
+            //println!("\n");
+            //println!("Start tickcheck...");
+
+            //Reset old inflight pings that may have never been sent
+            //println!("  Resetting old in-flight pings...");
+            if dbif::reset_pings_in_flight().is_err() {
+                eprintln!("  Failed to reset old in-flight pings.");
+            }
+
+            //TODO: Receive placeholder
 
             //Get the most recent X number of pings from the queue database
             let pinglist = dbif::get_pings_from_queue(false);
