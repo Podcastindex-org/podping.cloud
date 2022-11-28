@@ -1,6 +1,6 @@
 [package]
 name = "podping"
-version = "0.2.1-beta7"
+version = "0.2.1-beta8"
 authors = ["Dave Jones"]
 edition = "2021"
 build = "build.rs"

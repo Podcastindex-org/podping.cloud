@@ -22,8 +22,8 @@ use dbif::{Reason, Medium};
 //Globals --------------------------------------------------------------------------------------------------------------
 const ZMQ_SOCKET_ADDR: &str = "127.0.0.1:9999";
 const ZMQ_RECV_TIMEOUT: i32 = 10;
-// const LOOP_TIMER_SECONDS: u64 = 1;
-const LOOP_TIMER_MILLISECONDS: u64 = 300;
+//const LOOP_TIMER_SECONDS: u64 = 1;
+const LOOP_TIMER_MILLISECONDS: u64 = 500;
 mod handler;
 mod router;
 type Response = hyper::Response<hyper::Body>;
@@ -127,7 +127,6 @@ async fn main() {
         //Set up and connect the socket
         let context = zmq::Context::new();
         let mut requester = context.socket(zmq::PAIR).unwrap();
-        print_type_of(&requester);
         if requester.set_rcvtimeo(ZMQ_RECV_TIMEOUT).is_err() {
             eprintln!("  Failed to set zmq receive timeout.");
         }
@@ -143,31 +142,26 @@ async fn main() {
         //Spawn a queue checker threader.  Every X seconds, get all the pings from the Queue and attempt to write them
         //to the socket that the Hive-writer should be listening on
         loop {
-            //thread::sleep(time::Duration::from_secs(LOOP_TIMER_SECONDS));
-
-            //println!("\n");
-            //println!("Start tickcheck...");
+            let mut sent = 0;
 
             //Reset old inflight pings that may have never been sent
-            //println!("  Resetting old in-flight pings...");
             if dbif::reset_pings_in_flight().is_err() {
                 eprintln!("  Failed to reset old in-flight pings.");
             }
 
+            //We always want to try and receive any waiting socket messages before moving on to sending
             receive_messages(&requester);
 
             //Get the most recent X number of pings from the queue database
             let pinglist = dbif::get_pings_from_queue(false);
             match pinglist {
                 Ok(pings) => {
-                    //println!("  Flushing the queue...");
                     if pings.len() > 0 {
-                        println!("  Sending: [{}] items over socket...", pings.len());
+                        println!("  Sending: [{}] items to writer...", pings.len());
                     }
 
                     //Send any outstanding pings to the writer(s)
                     for ping in pings {
-
                         println!("    --Sending: [{}]...", ping.url.clone());
 
                         //Construct the capnp buffer
@@ -222,7 +216,6 @@ async fn main() {
                             Ok(_) => {
                                 println!("      IRI sent.");
                                 //If the write was successful, mark this ping as "in flight"
-                                //match dbif::delete_ping_from_queue(ping.url.clone()) {
                                 match dbif::set_ping_as_inflight(&ping) {
                                     Ok(_) => {
                                         println!("      Marked: [{}|{}|{}|{}] as in flight.",
@@ -261,10 +254,10 @@ async fn main() {
                             }
                         }
 
-                        //println!("  Done sending.");
-                        //println!("  Sleeping...");
-
+                        //Again, try to receive any messages waiting on the socket so that we effectively
+                        //interleave the receives and sends to speed things up and not have one "block" the other
                         receive_messages(&requester);
+                        sent += 1;
                     }
                 },
                 Err(e) => {
@@ -272,14 +265,10 @@ async fn main() {
                 }
             }
 
-            thread::sleep(time::Duration::from_millis(LOOP_TIMER_MILLISECONDS));
-
-            //println!("  End tickcheck...");
-
-            //eprintln!("Timer thread exiting.");
+            if sent < 5 {
+                thread::sleep(time::Duration::from_millis(LOOP_TIMER_MILLISECONDS));
+            }
         }
-
-        //println!("Queue checker thread exited.");
     });
 
     // We want a thread panic on the ZMQ thread to exit the whole process
