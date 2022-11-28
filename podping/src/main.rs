@@ -21,8 +21,9 @@ use dbif::{Reason, Medium};
 
 //Globals --------------------------------------------------------------------------------------------------------------
 const ZMQ_SOCKET_ADDR: &str = "127.0.0.1:9999";
-const ZMQ_RECV_TIMEOUT: i32 = 200;
-const LOOP_TIMER_SECONDS: u64 = 1;
+const ZMQ_RECV_TIMEOUT: i32 = 10;
+// const LOOP_TIMER_SECONDS: u64 = 1;
+const LOOP_TIMER_MILLISECONDS: u64 = 300;
 mod handler;
 mod router;
 type Response = hyper::Response<hyper::Body>;
@@ -262,7 +263,6 @@ async fn main() {
 
                         //println!("  Done sending.");
                         //println!("  Sleeping...");
-                        //thread::sleep(time::Duration::from_millis(300));
 
                         receive_messages(&requester);
                     }
@@ -271,6 +271,8 @@ async fn main() {
                     println!("  Error: [{}] checking queue.", e);
                 }
             }
+
+            thread::sleep(time::Duration::from_millis(LOOP_TIMER_MILLISECONDS));
 
             //println!("  End tickcheck...");
 

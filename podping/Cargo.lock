@@ -687,7 +687,7 @@ checksum = "6ac9a59f73473f1b8d852421e59e64809f025994837ef743615c6d0c5b305160"
 
 [[package]]
 name = "podping"
-version = "0.2.1-beta6"
+version = "0.2.1-beta7"
 dependencies = [
  "async-trait",
  "bytes 0.5.6",
