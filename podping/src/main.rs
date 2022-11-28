@@ -20,6 +20,7 @@ use dbif::{Reason, Medium};
 
 //Globals --------------------------------------------------------------------------------------------------------------
 const ZMQ_SOCKET_ADDR: &str = "127.0.0.1:9999";
+const ZMQ_RECV_TIMEOUT: i32 = 300;
 const LOOP_TIMER_SECONDS: u64 = 1;
 mod handler;
 mod router;
@@ -106,100 +107,26 @@ async fn main() {
     println!("Version: {}", version);
     println!("--------------------");
 
-
-    //Get the socket address to connect to
-    println!("\nDiscovering ZMQ socket address...");
-    let zmq_address;
-    let env_zmq_socket_url = std::env::var("ZMQ_SOCKET_ADDR");
-    if env_zmq_socket_url.is_ok() {
-        zmq_address = "tcp://".to_owned() + env_zmq_socket_url.unwrap().as_str();
-        println!(" - Trying environment var(ZMQ_SOCKET_ADDR): [{}]", zmq_address);
-    } else {
-        zmq_address = "tcp://".to_owned() + String::from(ZMQ_SOCKET_ADDR).as_str();
-        println!(" - Trying localhost default: [{}].", zmq_address);
-    }
-    let zmq_address_recv = zmq_address.clone();
-
-
-
-    thread::spawn(move || {
-
-        //Set up and connect the socket
-        let context = zmq::Context::new();
-        let mut requester = context.socket(zmq::PAIR).unwrap();
-        if requester.set_rcvtimeo(500).is_err() {
-            eprintln!("  Failed to set zmq receive timeout.");
-        }
-        if requester.set_linger(0).is_err() {
-            eprintln!("  Failed to set zmq to zero linger.");
-        }
-        if requester.connect(&zmq_address_recv).is_err() {
-            eprintln!("  Failed to connect to the podping writer socket.");
-        }
-
-        println!("ZMQ socket: [{}] connected.", zmq_address_recv);
-
-        loop {
-            thread::sleep(time::Duration::from_secs(LOOP_TIMER_SECONDS));
-
-            //Receive any messages from the writer(s)
-            //TODO: handle error scenario here where hive writer returns a write error by marking the url not inflight
-            let mut response =  Message::new();
-            match requester.recv(&mut response, 0) {
-                Ok(_) => {
-                    println!("  Incoming writer message...");
-
-                    //Read the plexo message from the ZMQ socket
-                    let message_reader = capnp::serialize::read_message(
-                        response.reader(),
-                        ::capnp::message::ReaderOptions::new()
-                    ).unwrap();
-                    let plexo_message = message_reader.get_root::<plexo_message::Reader>().unwrap();
-
-                    //Extract the hive_transaction from the plexo message
-                    let hivetx_reader = capnp::serialize::read_message(
-                        plexo_message.get_payload().unwrap(),
-                        ::capnp::message::ReaderOptions::new()
-                    ).unwrap();
-                    let hive_transaction = hivetx_reader.get_root::<podping_hive_transaction::Reader>().unwrap();
-
-                    //If this reply message has podpings in it, remove them from the queue
-                    if hive_transaction.has_podpings() {
-                        println!("    --Hive tx id: [{:#?}]", hive_transaction.get_hive_tx_id().unwrap());
-                        println!("    --Hive td details: [https://hive.ausbit.dev/tx/{}]",
-                                 hive_transaction.get_hive_tx_id().unwrap()
-                        );
-                        println!("    --Hive block num: [{:#?}]", hive_transaction.get_hive_block_num());
-
-                        let podpings_written = hive_transaction.get_podpings().unwrap();
-                        for podping_written in podpings_written {
-                            let podping_iris = podping_written.get_iris().unwrap();
-                            for podping_iri in podping_iris {
-                                let iri_to_remove = podping_iri.unwrap();
-                                println!("    --Removing: [{:#?}] from queue...", iri_to_remove);
-                                if dbif::delete_ping_from_queue(iri_to_remove.to_string()).is_err() {
-                                    eprintln!("Error removing ping: [{}] from queue.", iri_to_remove);
-                                }
-                            }
-                            println!("    --Removed: [{}] iri's from the queue.", podping_iris.len());
-                        }
-                    }
-                },
-                Err(_) => {
-                    //eprintln!("  No reply. Waiting...");
-                }
-            }
-        }
-    });
-
-
     //ZMQ socket version
     thread::spawn(move || {
 
+        //Get the socket address to connect to
+        println!("\nDiscovering ZMQ socket address...");
+        let zmq_address;
+        let env_zmq_socket_url = std::env::var("ZMQ_SOCKET_ADDR");
+        if env_zmq_socket_url.is_ok() {
+            zmq_address = "tcp://".to_owned() + env_zmq_socket_url.unwrap().as_str();
+            println!(" - Trying environment var(ZMQ_SOCKET_ADDR): [{}]", zmq_address);
+        } else {
+            zmq_address = "tcp://".to_owned() + String::from(ZMQ_SOCKET_ADDR).as_str();
+            println!(" - Trying localhost default: [{}].", zmq_address);
+        }
+
         //Set up and connect the socket
         let context = zmq::Context::new();
         let mut requester = context.socket(zmq::PAIR).unwrap();
-        if requester.set_rcvtimeo(500).is_err() {
+        print_type_of(&requester);
+        if requester.set_rcvtimeo(ZMQ_RECV_TIMEOUT).is_err() {
             eprintln!("  Failed to set zmq receive timeout.");
         }
         if requester.set_linger(0).is_err() {
@@ -225,7 +152,7 @@ async fn main() {
                 eprintln!("  Failed to reset old in-flight pings.");
             }
 
-            //TODO: Receive placeholder
+            receive_messages(&requester);
 
             //Get the most recent X number of pings from the queue database
             let pinglist = dbif::get_pings_from_queue(false);
@@ -319,7 +246,7 @@ async fn main() {
                                     eprintln!("      Failed to disconnect zmq socket.");
                                 }
                                 requester = context.socket(zmq::PAIR).unwrap();
-                                if requester.set_rcvtimeo(500).is_err() {
+                                if requester.set_rcvtimeo(ZMQ_RECV_TIMEOUT).is_err() {
                                     eprintln!("      Failed to set zmq receive timeout.");
                                 }
                                 if requester.set_linger(0).is_err() {
@@ -334,7 +261,9 @@ async fn main() {
 
                         //println!("  Done sending.");
                         //println!("  Sleeping...");
-                        thread::sleep(time::Duration::from_millis(300));
+                        //thread::sleep(time::Duration::from_millis(300));
+
+                        receive_messages(&requester);
                     }
                 },
                 Err(e) => {
@@ -401,6 +330,60 @@ async fn main() {
 
 
 //Functions ------------------------------------------------------------------------------------------------------------
+fn receive_messages(requester: &zmq::Socket) -> bool {
+
+    //Receive any messages from the writer(s)
+    //TODO: handle error scenario here where hive writer returns a write error by marking the url not inflight
+    let mut response =  Message::new();
+    match requester.recv(&mut response, 0) {
+        Ok(_) => {
+            println!("  Incoming writer message...");
+
+            //Read the plexo message from the ZMQ socket
+            let message_reader = capnp::serialize::read_message(
+                response.reader(),
+                ::capnp::message::ReaderOptions::new()
+            ).unwrap();
+            let plexo_message = message_reader.get_root::<plexo_message::Reader>().unwrap();
+
+            //Extract the hive_transaction from the plexo message
+            let hivetx_reader = capnp::serialize::read_message(
+                plexo_message.get_payload().unwrap(),
+                ::capnp::message::ReaderOptions::new()
+            ).unwrap();
+            let hive_transaction = hivetx_reader.get_root::<podping_hive_transaction::Reader>().unwrap();
+
+            //If this reply message has podpings in it, remove them from the queue
+            if hive_transaction.has_podpings() {
+                println!("    --Hive tx id: [{:#?}]", hive_transaction.get_hive_tx_id().unwrap());
+                println!("    --Hive td details: [https://hive.ausbit.dev/tx/{}]",
+                         hive_transaction.get_hive_tx_id().unwrap()
+                );
+                println!("    --Hive block num: [{:#?}]", hive_transaction.get_hive_block_num());
+
+                let podpings_written = hive_transaction.get_podpings().unwrap();
+                for podping_written in podpings_written {
+                    let podping_iris = podping_written.get_iris().unwrap();
+                    for podping_iri in podping_iris {
+                        let iri_to_remove = podping_iri.unwrap();
+                        println!("    --Removing: [{:#?}] from queue...", iri_to_remove);
+                        if dbif::delete_ping_from_queue(iri_to_remove.to_string()).is_err() {
+                            eprintln!("Error removing ping: [{}] from queue.", iri_to_remove);
+                        }
+                    }
+                    println!("    --Removed: [{}] iri's from the queue.", podping_iris.len());
+                }
+            }
+
+            true
+        },
+        Err(_) => {
+            //eprintln!("  No reply. Waiting...");
+            false
+        }
+    }
+}
+
 async fn route(
     router: Arc<Router>,
     req: Request<hyper::Body>,
