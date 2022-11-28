@@ -86,6 +86,9 @@ pub mod podping_medium_capnp {
 pub mod podping_write_capnp {
     include!("../podping-schemas/built/org/podcastindex/podping/podping_write_capnp.rs");
 }
+pub mod podping_write_error_capnp {
+    include!("../podping-schemas/built/org/podcastindex/podping/podping_write_error_capnp.rs");
+}
 pub mod podping_hive_transaction_capnp {
     include!("../podping-schemas/built/org/podcastindex/podping/hivewriter/podping_hive_transaction_capnp.rs");
 }
@@ -93,6 +96,7 @@ pub mod podping_hive_transaction_capnp {
 use crate::podping_capnp::{podping};
 use crate::plexo_message_capnp::{plexo_message};
 use crate::podping_write_capnp::{podping_write};
+use crate::podping_write_error_capnp::{podping_write_error};
 use crate::podping_hive_transaction_capnp::{podping_hive_transaction};
 
 
@@ -343,7 +347,34 @@ fn receive_messages(requester: &zmq::Socket) -> bool {
                 ::capnp::message::ReaderOptions::new()
             ).unwrap();
             let plexo_message = message_reader.get_root::<plexo_message::Reader>().unwrap();
-            println!("    --Plexo payload: [{:#?}]", plexo_message.get_type_name().unwrap());
+            let plexo_payload_type = plexo_message.get_type_name().unwrap();
+            println!("    --Plexo payload: [{:#?}]", plexo_payload_type);
+
+            //Was this a writer error?
+            if plexo_payload_type == "org.podcastindex.podping.hivewriter.PodpingWriteError.capnp" {
+                //Extract the write error from the plexo message
+                let hivetx_reader = capnp::serialize::read_message(
+                    plexo_message.get_payload().unwrap(),
+                    ::capnp::message::ReaderOptions::new()
+                ).unwrap();
+                let hive_write_error = hivetx_reader.get_root::<podping_write_error::Reader>().unwrap();
+
+                //Does it have a valid podping_write message attached?
+                if hive_write_error.has_podping_write() {
+                    //Extract the podping write
+                    // let podping_write_reader = capnp::serialize::read_message(
+                    //     hive_write_error.get_podping_write().unwrap(),
+                    //     ::capnp::message::ReaderOptions::new()
+                    // ).unwrap();
+                    let podping_write_failure = hive_write_error.get_podping_write().unwrap();
+
+                    let iri_to_remove = podping_write_failure.get_iri().unwrap();
+                    println!("    --Removing: [{:#?}] from queue...", iri_to_remove);
+                    if dbif::delete_ping_from_queue(iri_to_remove.to_string()).is_err() {
+                        eprintln!("Error removing ping: [{}] from queue.", iri_to_remove);
+                    }
+                }
+            }
 
             //Extract the hive_transaction from the plexo message
             let hivetx_reader = capnp::serialize::read_message(
