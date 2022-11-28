@@ -7,7 +7,7 @@ use std::str::FromStr;
 //Globals ----------------------------------------------------------------------------------------------------
 const SQLITE_FILE_AUTH: &str = "/data/auth.db";
 const SQLITE_FILE_QUEUE: &str = "/data/queue.db";
-const PING_BATCH_SIZE: u64 = 50;
+const PING_BATCH_SIZE: u64 = 500;
 
 
 //Structs & Enums --------------------------------------------------------------------------------------------

@@ -11,6 +11,8 @@ use std::env;
 use std::process;
 use futures::stream::StreamExt;
 use rand::Rng;
+use std::time;
+use std::thread;
 
 const AUTH_HEADER_TOKEN: &str = "Blahblah^^12345678";
 const USAGE_TEXT: &str = "stresser [hostname|ip] [url count]";
@@ -69,39 +71,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Sending: [{}] urls.", url_count);
 
     let fetches = futures::stream::iter(
-    paths[..url_count].into_iter().map(|path| {
-        async move {
-            //Generate a random reason/medium
-            let reason = REASONS.get(rand::thread_rng().gen_range(0..2)).unwrap();
-            let medium = MEDIUMS.get(rand::thread_rng().gen_range(0..13)).unwrap();
+        paths[..url_count].into_iter().map(|path| {
+            async move {
+                //Generate a random reason/medium
+                let reason = REASONS.get(rand::thread_rng().gen_range(0..2)).unwrap();
+                let medium = MEDIUMS.get(rand::thread_rng().gen_range(0..13)).unwrap();
 
-            //Build the request url
-            let pp_get_url = format!("http://{}/?url={}&medium={}&reason={}",
-                hostname,
-                path,
-                medium,
-                reason,
-            );
-            println!("Sending: [{}]...", pp_get_url);
+                //Build the request url
+                let pp_get_url = format!("http://{}/?url={}&medium={}&reason={}",
+                                         hostname,
+                                         path,
+                                         medium,
+                                         reason,
+                );
+                println!("Sending: [{}]...", pp_get_url);
 
-            let client = reqwest::Client::new();
-            match client.get(&pp_get_url)
-              .header("Authorization", AUTH_HEADER_TOKEN)
-              .header("User-Agent", "Stresser")
-              .send()
-              .await {
-                Ok(resp) => {
-                    match resp.text().await {
-                        Ok(text) => {
-                            println!("RESPONSE: {} bytes from {}", text, pp_get_url);
+                thread::sleep(time::Duration::from_millis(rand::thread_rng().gen_range(50..300)));
+
+                let client = reqwest::Client::new();
+                match client.get(&pp_get_url)
+                    .header("Authorization", AUTH_HEADER_TOKEN)
+                    .header("User-Agent", "Stresser")
+                    .send()
+                    .await {
+                    Ok(resp) => {
+                        match resp.text().await {
+                            Ok(text) => {
+                                println!("RESPONSE: {} bytes from {}", text, pp_get_url);
+                            }
+                            Err(_) => println!("ERROR reading {}", pp_get_url),
                         }
-                        Err(_) => println!("ERROR reading {}", pp_get_url),
                     }
+                    Err(_) => println!("ERROR downloading {}", pp_get_url),
                 }
-                Err(_) => println!("ERROR downloading {}", pp_get_url),
             }
-        }
-    })
+        })
     ).buffer_unordered(MAX_CONCURRENT).collect::<Vec<()>>();
     fetches.await;
     Ok(())
