@@ -1,6 +1,6 @@
 # Podping.cloud
 
-Podping.cloud is the hosted front-end to the Podping notification system.  It stands in front of the back-end writer(s)
+Podping.cloud is the hosted front-end to the [Podping](https://github.com/Podcastindex-org/podping) notification system.  It stands in front of the back-end writer(s)
 to provide a more friendly HTTP based API.
 
 <br>
