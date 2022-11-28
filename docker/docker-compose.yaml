@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   podping-cloud:
-    image: podcastindexorg/podcasting20-podping.cloud:testing
+    image: podcastindexorg/podcasting20-podping.cloud:v0.2.1-rc2
     init: true
     restart: unless-stopped
     stop_grace_period: 1m
