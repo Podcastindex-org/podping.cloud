@@ -361,19 +361,19 @@ fn receive_messages(requester: &zmq::Socket) -> bool {
 
                 //Does it have a valid podping_write message attached?
                 if hive_write_error.has_podping_write() {
-                    //Extract the podping write
-                    // let podping_write_reader = capnp::serialize::read_message(
-                    //     hive_write_error.get_podping_write().unwrap(),
-                    //     ::capnp::message::ReaderOptions::new()
-                    // ).unwrap();
                     let podping_write_failure = hive_write_error.get_podping_write().unwrap();
 
-                    let iri_to_remove = podping_write_failure.get_iri().unwrap();
-                    println!("    --Removing: [{:#?}] from queue...", iri_to_remove);
-                    if dbif::delete_ping_from_queue(iri_to_remove.to_string()).is_err() {
-                        eprintln!("Error removing ping: [{}] from queue.", iri_to_remove);
+                    //Make sure an IRI exists, and if so, remove it
+                    if podping_write_failure.has_iri() {
+                        let iri_to_remove = podping_write_failure.get_iri().unwrap();
+                        println!("    --Removing: [{:#?}] from queue...", iri_to_remove);
+                        if dbif::delete_ping_from_queue(iri_to_remove.to_string()).is_err() {
+                            eprintln!("Error removing ping: [{}] from queue.", iri_to_remove);
+                        }
                     }
                 }
+
+                return false;
             }
 
             //Extract the hive_transaction from the plexo message
