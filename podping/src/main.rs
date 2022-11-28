@@ -12,6 +12,7 @@ use std::thread;
 use std::time;
 use std::env;
 use std::panic;
+use std::process;
 use capnp::data::Reader;
 use drop_root::set_user_group;
 use hyper::body::Buf;
@@ -112,6 +113,17 @@ async fn main() {
     let version = env!("CARGO_PKG_VERSION");
     println!("Version: {}", version);
     println!("--------------------");
+
+    //Make sure we have databases
+    match dbif::create_databases() {
+        Ok(_) => {
+            println!("Databases ready.");
+        },
+        Err(e) => {
+            eprintln!("Database error: [{:#?}]", e);
+            process::exit(1);
+        }
+    }
 
     //ZMQ socket version
     thread::spawn(move || {
@@ -280,7 +292,7 @@ async fn main() {
     panic::set_hook(Box::new(move |panic_info| {
         // invoke the default handler and exit the process
         orig_hook(panic_info);
-        std::process::exit(1);
+        process::exit(1);
     }));
 
     let some_state = "state".to_string();
