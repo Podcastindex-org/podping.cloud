@@ -11,6 +11,7 @@ use hyper::server::conn::AddrStream;
 use std::thread;
 use std::time;
 use std::env;
+use std::panic;
 use capnp::data::Reader;
 use drop_root::set_user_group;
 use hyper::body::Buf;
@@ -279,7 +280,13 @@ async fn main() {
         //println!("Queue checker thread exited.");
     });
 
-
+    // We want a thread panic on the ZMQ thread to exit the whole process
+    let orig_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |panic_info| {
+        // invoke the default handler and exit the process
+        orig_hook(panic_info);
+        std::process::exit(1);
+    }));
 
     let some_state = "state".to_string();
 
@@ -360,6 +367,10 @@ fn receive_messages(requester: &zmq::Socket) -> bool {
                          hive_transaction.get_hive_tx_id().unwrap()
                 );
                 println!("    --Hive block num: [{:#?}]", hive_transaction.get_hive_block_num());
+
+                if hive_transaction.get_hive_block_num() == 0 {
+                    return false;
+                }
 
                 let podpings_written = hive_transaction.get_podpings().unwrap();
                 for podping_written in podpings_written {
