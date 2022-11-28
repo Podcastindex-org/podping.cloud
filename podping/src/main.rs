@@ -343,6 +343,7 @@ fn receive_messages(requester: &zmq::Socket) -> bool {
                 ::capnp::message::ReaderOptions::new()
             ).unwrap();
             let plexo_message = message_reader.get_root::<plexo_message::Reader>().unwrap();
+            println!("    --Plexo payload: [{:#?}]", plexo_message.get_type_name().unwrap());
 
             //Extract the hive_transaction from the plexo message
             let hivetx_reader = capnp::serialize::read_message(
