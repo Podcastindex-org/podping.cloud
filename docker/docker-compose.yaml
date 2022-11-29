@@ -18,7 +18,7 @@ services:
         ipv4_address: 192.168.69.68
 
   hive-writer:
-    image: docker.io/podcastindexorg/podping-hivewriter:pr-67
+    image: docker.io/podcastindexorg/podping-hivewriter:develop
     command: ["server"]
     init: true
     restart: unless-stopped

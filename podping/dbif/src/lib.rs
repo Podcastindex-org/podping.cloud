@@ -354,7 +354,8 @@ pub fn reset_pings_in_flight() -> Result<bool, Box<dyn Error>> {
                         SET inflight = 0, \
                             createdon = STRFTIME('%s') \
                         WHERE inflight = 1 \
-                          AND createdon < (STRFTIME('%s') - 180)",
+                          AND createdon < (STRFTIME('%s') - 180)\
+                        LIMIT 25",
                        params![])
     {
         Ok(_) => {

@@ -167,11 +167,6 @@ async fn main() {
                 Err(_) => eprintln!("SystemTime before UNIX EPOCH!"),
             }
 
-            //Reset old inflight pings that may have never been sent
-            if dbif::reset_pings_in_flight().is_err() {
-                eprintln!("  Failed to reset old in-flight pings.");
-            }
-
             //We always want to try and receive any waiting socket messages before moving on to sending
             receive_messages(&requester);
 
@@ -301,8 +296,19 @@ async fn main() {
                 }
             }
 
+            //Only sleep to avoid a hard loop in the case that there aren't enough
+            //recv() timeouts happening to simulate decent slowness
             if sent < 5 {
                 thread::sleep(Duration::from_millis(LOOP_TIMER_MILLISECONDS));
+            }
+
+            //Reset old inflight pings that may have never been sent, but only do this
+            //when things are not super busy since that is a sign that the writer may
+            //be full up and we need to allow more time
+            if sent < 25 {
+                if dbif::reset_pings_in_flight().is_err() {
+                    eprintln!("  Failed to reset old in-flight pings.");
+                }
             }
         }
     });
