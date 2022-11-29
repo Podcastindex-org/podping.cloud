@@ -9,7 +9,7 @@ use router::Router;
 use std::sync::Arc;
 use hyper::server::conn::AddrStream;
 use std::thread;
-use std::time;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::env;
 use std::panic;
 use std::process;
@@ -159,6 +159,13 @@ async fn main() {
         //to the socket that the Hive-writer should be listening on
         loop {
             let mut sent = 0;
+            let mut loop_start = 0;
+            match SystemTime::now().duration_since(UNIX_EPOCH) {
+                Ok(n) => {
+                    loop_start = n.as_secs()
+                },
+                Err(_) => eprintln!("SystemTime before UNIX EPOCH!"),
+            }
 
             //Reset old inflight pings that may have never been sent
             if dbif::reset_pings_in_flight().is_err() {
@@ -230,16 +237,16 @@ async fn main() {
                         capnp::serialize::write_message(&mut send_buffer, &message).unwrap();
                         match requester.send(send_buffer, 0) {
                             Ok(_) => {
-                                println!("      IRI sent.");
+                                // println!("      IRI sent.");
                                 //If the write was successful, mark this ping as "in flight"
                                 match dbif::set_ping_as_inflight(&ping) {
                                     Ok(_) => {
-                                        println!("      Marked: [{}|{}|{}|{}] as in flight.",
-                                             ping.url.clone(),
-                                             ping.time,
-                                             ping.reason,
-                                             ping.medium
-                                        );
+                                        // println!("      Marked: [{}|{}|{}|{}] as in flight.",
+                                        //      ping.url.clone(),
+                                        //      ping.time,
+                                        //      ping.reason,
+                                        //      ping.medium
+                                        // );
                                     },
                                     Err(_) => {
                                         eprintln!("      Failed to mark: [{}|{}|{}|{}] as in flight.",
@@ -281,8 +288,21 @@ async fn main() {
                 }
             }
 
+            //Calculate how long this loop iteration took
+            if sent > 0 {
+                match SystemTime::now().duration_since(UNIX_EPOCH) {
+                    Ok(n) => {
+                        println!("-- It took: [{}] seconds to send: [{}] pings to the writer.",
+                                 n.as_secs() - loop_start,
+                                 sent
+                        )
+                    },
+                    Err(_) => eprintln!("SystemTime before UNIX EPOCH!"),
+                }
+            }
+
             if sent < 5 {
-                thread::sleep(time::Duration::from_millis(LOOP_TIMER_MILLISECONDS));
+                thread::sleep(Duration::from_millis(LOOP_TIMER_MILLISECONDS));
             }
         }
     });
