@@ -3,7 +3,7 @@ FROM rust:latest AS builder
 
 USER root
 
-RUN apt-get update && apt-get install -y apt-utils sqlite3 openssl capnproto ibzmq3-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y apt-utils sqlite3 openssl capnproto libzmq3-dev && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt
 ARG GIT_REPO=https://github.com/Podcastindex-org/podping.cloud.git
@@ -19,7 +19,7 @@ FROM debian:bullseye-slim AS runner
 
 USER root
 
-RUN apt-get update && apt-get install -y apt-utils sqlite3 openssl capnproto ibzmq3-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y apt-utils sqlite3 openssl capnproto libzmq3-dev && rm -rf /var/lib/apt/lists/*
 
 RUN chown -R 1000:1000 /opt
 RUN mkdir /data && chown -R 1000:1000 /data
