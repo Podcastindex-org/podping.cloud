@@ -52,6 +52,10 @@ pub enum Medium {
     NewsletterL,
     Blog,
     BlogL,
+    Publisher,
+    PublisherL,
+    Course,
+    CourseL
 }
 
 
@@ -235,7 +239,7 @@ pub fn add_ping_to_queue(ping: &Ping) -> Result<bool, Box<dyn Error>> {
     }
 }
 
-//Change the info for a ping by it's url. Returns Ok(true/false) or an Error
+//Change the info for a ping by its url. Returns Ok(true/false) or an Error
 pub fn update_ping_in_queue(ping: &Ping) -> Result<bool, Box<dyn Error>> {
     let conn = connect_to_database(SQLITE_FILE_QUEUE)?;
 

@@ -5,8 +5,11 @@ authors = ["Dave Jones"]
 edition = "2021"
 build = "build.rs"
 
+[env]
+CXXFLAGS = "-std=c++11"
+
 [build-dependencies]
-capnpc = "0.14"
+capnpc = "0.19.0"
 
 [dependencies]
 futures = { version = "0.3.6", default-features = false, features = ["async-await"] }
@@ -22,6 +25,7 @@ rusqlite = "0.28"
 zmq = "0.10"
 drop-root = "0.1.1"
 percent-encoding = "2.1.0"
-capnp = "0.14"
+capnp = "0.19.6"
 handlebars = "4.3.5"
 dbif = { path = 'dbif'}
+podping-schemas = { git = "https://github.com/Podcastindex-org/podping-schemas-rust.git", tag = "v1.0.0" }
