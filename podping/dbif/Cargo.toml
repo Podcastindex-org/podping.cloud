@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 rusqlite = "0.28.0"
+strum = { version = "0.26.2", features = ["derive"] }

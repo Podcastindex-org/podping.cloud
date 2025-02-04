@@ -18,6 +18,10 @@ use drop_root::set_user_group;
 use hyper::body::Buf;
 use zmq::Message;
 use dbif::{Reason, Medium};
+use podping_schemas::org::podcastindex::podping::{podping_medium_capnp, podping_reason_capnp};
+use podping_schemas::org::podcastindex::podping::hivewriter::podping_hive_transaction_capnp::podping_hive_transaction;
+use podping_schemas::org::podcastindex::podping::podping_write_capnp::podping_write;
+use podping_schemas::org::podcastindex::podping::podping_write_error_capnp::podping_write_error;
 
 
 //Globals --------------------------------------------------------------------------------------------------------------
@@ -75,30 +79,8 @@ impl Context {
 pub mod plexo_message_capnp {
     include!("../plexo-schemas/built/dev/plexo/plexo_message_capnp.rs");
 }
-pub mod podping_capnp {
-    include!("../podping-schemas/built/org/podcastindex/podping/podping_capnp.rs");
-}
-pub mod podping_reason_capnp {
-    include!("../podping-schemas/built/org/podcastindex/podping/podping_reason_capnp.rs");
-}
-pub mod podping_medium_capnp {
-    include!("../podping-schemas/built/org/podcastindex/podping/podping_medium_capnp.rs");
-}
-pub mod podping_write_capnp {
-    include!("../podping-schemas/built/org/podcastindex/podping/podping_write_capnp.rs");
-}
-pub mod podping_write_error_capnp {
-    include!("../podping-schemas/built/org/podcastindex/podping/podping_write_error_capnp.rs");
-}
-pub mod podping_hive_transaction_capnp {
-    include!("../podping-schemas/built/org/podcastindex/podping/hivewriter/podping_hive_transaction_capnp.rs");
-}
 #[allow(unused_imports)]
-use crate::podping_capnp::{podping};
 use crate::plexo_message_capnp::{plexo_message};
-use crate::podping_write_capnp::{podping_write};
-use crate::podping_write_error_capnp::{podping_write_error};
-use crate::podping_hive_transaction_capnp::{podping_hive_transaction};
 
 
 //Main -----------------------------------------------------------------------------------------------------------------
@@ -213,6 +195,10 @@ async fn main() {
                             Medium::NewsletterL => pp_medium = podping_medium_capnp::PodpingMedium::NewsletterL,
                             Medium::Blog => pp_medium = podping_medium_capnp::PodpingMedium::Blog,
                             Medium::BlogL => pp_medium = podping_medium_capnp::PodpingMedium::BlogL,
+                            Medium::Publisher => pp_medium = podping_medium_capnp::PodpingMedium::Publisher,
+                            Medium::PublisherL => pp_medium = podping_medium_capnp::PodpingMedium::PublisherL,
+                            Medium::Course => pp_medium = podping_medium_capnp::PodpingMedium::Course,
+                            Medium::CourseL => pp_medium = podping_medium_capnp::PodpingMedium::CourseL,
                         }
                         podping_write.set_medium(pp_medium);
 
@@ -405,8 +391,8 @@ fn receive_messages(requester: &zmq::Socket) -> bool {
                     if podping_write_failure.has_iri() {
                         let iri_to_remove = podping_write_failure.get_iri().unwrap();
                         println!("    --Removing: [{:#?}] from queue...", iri_to_remove);
-                        if dbif::delete_ping_from_queue(iri_to_remove.to_string()).is_err() {
-                            eprintln!("Error removing ping: [{}] from queue.", iri_to_remove);
+                        if dbif::delete_ping_from_queue(iri_to_remove.to_string().unwrap()).is_err() {
+                            eprintln!("Error removing ping: [{:?}] from queue.", iri_to_remove);
                         }
                     }
                 }
@@ -424,7 +410,7 @@ fn receive_messages(requester: &zmq::Socket) -> bool {
             //If this reply message has podpings in it, remove them from the queue
             if hive_transaction.has_podpings() {
                 println!("    --Hive tx id: [{:#?}]", hive_transaction.get_hive_tx_id().unwrap());
-                println!("    --Hive td details: [https://hive.ausbit.dev/tx/{}]",
+                println!("    --Hive td details: [https://hive.ausbit.dev/tx/{:?}]",
                          hive_transaction.get_hive_tx_id().unwrap()
                 );
                 println!("    --Hive block num: [{:#?}]", hive_transaction.get_hive_block_num());
@@ -439,8 +425,8 @@ fn receive_messages(requester: &zmq::Socket) -> bool {
                     for podping_iri in podping_iris {
                         let iri_to_remove = podping_iri.unwrap();
                         println!("    --Removing: [{:#?}] from queue...", iri_to_remove);
-                        if dbif::delete_ping_from_queue(iri_to_remove.to_string()).is_err() {
-                            eprintln!("Error removing ping: [{}] from queue.", iri_to_remove);
+                        if dbif::delete_ping_from_queue(iri_to_remove.to_string().unwrap()).is_err() {
+                            eprintln!("Error removing ping: [{:?}] from queue.", iri_to_remove);
                         }
                     }
                     println!("    --Removed: [{}] iri's from the queue.", podping_iris.len());

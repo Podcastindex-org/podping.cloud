@@ -1,4 +1,5 @@
 use rusqlite::{params, Connection};
+use strum::{AsRefStr, Display, EnumString};
 use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
@@ -26,36 +27,16 @@ pub struct Publisher {
     pub name: String,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, AsRefStr, Display, EnumString)]
+#[strum(ascii_case_insensitive)]
 pub enum Reason {
     Update,
     Live,
     LiveEnd,
 }
 
-impl FromStr for Reason {
-    type Err = ();
-    fn from_str(input: &str) -> Result<Reason, Self::Err> {
-        match input.to_lowercase().as_str() {
-            "update" => Ok(Reason::Update),
-            "live" => Ok(Reason::Live),
-            "liveend" => Ok(Reason::LiveEnd),
-            _ => Ok(Reason::Update),
-        }
-    }
-}
-
-impl fmt::Display for Reason {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Reason::Update => write!(f, "update"),
-            Reason::Live => write!(f, "live"),
-            Reason::LiveEnd => write!(f, "liveend"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, AsRefStr, Display, EnumString)]
+#[strum(ascii_case_insensitive)]
 pub enum Medium {
     Podcast,
     PodcastL,
@@ -71,51 +52,12 @@ pub enum Medium {
     NewsletterL,
     Blog,
     BlogL,
+    Publisher,
+    PublisherL,
+    Course,
+    CourseL
 }
 
-impl FromStr for Medium {
-    type Err = ();
-    fn from_str(input: &str) -> Result<Medium, Self::Err> {
-        match input.to_lowercase().as_str() {
-            "podcast" => Ok(Medium::Podcast),
-            "podcastl" => Ok(Medium::PodcastL),
-            "music" => Ok(Medium::Music),
-            "musicl" => Ok(Medium::MusicL),
-            "video" => Ok(Medium::Video),
-            "videol" => Ok(Medium::VideoL),
-            "film" => Ok(Medium::Film),
-            "filml" => Ok(Medium::FilmL),
-            "audiobook" => Ok(Medium::Audiobook),
-            "audiobookl" => Ok(Medium::AudiobookL),
-            "newsletter" => Ok(Medium::Newsletter),
-            "newsletterl" => Ok(Medium::NewsletterL),
-            "blog" => Ok(Medium::Blog),
-            "blogl" => Ok(Medium::BlogL),
-            _ => Ok(Medium::Podcast),
-        }
-    }
-}
-
-impl fmt::Display for Medium {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Medium::Podcast => write!(f, "podcast"),
-            Medium::PodcastL => write!(f, "podcastl"),
-            Medium::Music => write!(f, "music"),
-            Medium::MusicL => write!(f, "musicl"),
-            Medium::Video => write!(f, "video"),
-            Medium::VideoL => write!(f, "videol"),
-            Medium::Film => write!(f, "film"),
-            Medium::FilmL => write!(f, "filml"),
-            Medium::Audiobook => write!(f, "audiobook"),
-            Medium::AudiobookL => write!(f, "audiobookl"),
-            Medium::Newsletter => write!(f, "newsletter"),
-            Medium::NewsletterL => write!(f, "newsletterl"),
-            Medium::Blog => write!(f, "blog"),
-            Medium::BlogL => write!(f, "blogl"),
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct Ping {
@@ -297,7 +239,7 @@ pub fn add_ping_to_queue(ping: &Ping) -> Result<bool, Box<dyn Error>> {
     }
 }
 
-//Change the info for a ping by it's url. Returns Ok(true/false) or an Error
+//Change the info for a ping by its url. Returns Ok(true/false) or an Error
 pub fn update_ping_in_queue(ping: &Ping) -> Result<bool, Box<dyn Error>> {
     let conn = connect_to_database(SQLITE_FILE_QUEUE)?;
 
