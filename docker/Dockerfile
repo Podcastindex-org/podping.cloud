@@ -15,11 +15,11 @@ RUN cp target/release/podping .
 
 
 ##: Bundle stage
-FROM debian:bullseye-slim AS runner
+FROM debian:bookworm-slim AS runner
 
 USER root
 
-RUN apt-get update && apt-get install -y apt-utils sqlite3 openssl capnproto libzmq3-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y apt-utils sqlite3 openssl capnproto libzmq3-dev libc6 && rm -rf /var/lib/apt/lists/*
 
 RUN chown -R 1000:1000 /opt
 RUN mkdir /data && chown -R 1000:1000 /data
