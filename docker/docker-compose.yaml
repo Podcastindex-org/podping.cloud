@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   podping-cloud:
-    image: podcastindexorg/podcasting20-podping.cloud:v0.2.1-rc2
+    image: podcastindexorg/podcasting20-podping.cloud:latest
     init: true
     restart: unless-stopped
     stop_grace_period: 1m
@@ -23,7 +23,7 @@ services:
         max-size: "50m"
 
   hive-writer:
-    image: docker.io/podcastindexorg/podping-hivewriter:develop
+    image: docker.io/podcastindexorg/podping-hivewriter:latest
     command: ["server"]
     init: true
     restart: unless-stopped
