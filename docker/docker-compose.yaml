@@ -16,6 +16,11 @@ services:
     networks:
       podping:
         ipv4_address: 192.168.69.68
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
 
   hive-writer:
     image: docker.io/podcastindexorg/podping-hivewriter:develop
@@ -31,6 +36,11 @@ services:
     networks:
       podping:
         ipv4_address: 192.168.69.69
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
 
 networks:
   podping:
