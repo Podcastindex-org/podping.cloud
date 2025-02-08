@@ -1,8 +1,6 @@
 use crate::{Context, Response};
 use hyper::StatusCode;
 use std::collections::HashMap;
-use std::error::Error;
-use std::fmt;
 use std::fs;
 use std::time::{SystemTime};
 use percent_encoding::percent_decode;
@@ -14,16 +12,7 @@ use dbif::{Ping, Reason, Medium};
 
 
 //Structs ----------------------------------------------------------------------------------------------------
-#[derive(Debug)]
-struct HydraError(String);
 
-impl fmt::Display for HydraError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Fatal error: {}", self.0)
-    }
-}
-
-impl Error for HydraError {}
 
 
 

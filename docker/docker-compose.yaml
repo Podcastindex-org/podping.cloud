@@ -29,8 +29,6 @@ services:
     restart: unless-stopped
     stop_grace_period: 1m
     user: "1000:1000"
-    ports:
-      - 9999:9999
     env_file:
       - /opt/podping.cloud/hivewriter.env
     networks:
