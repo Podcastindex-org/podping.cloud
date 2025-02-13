@@ -90,3 +90,11 @@ example of the format for publisher token records.
 ## The Podping Network Idea
 
 ![Framework Overview 1](framework1.png)
+
+## Build Docker Container Image
+
+    ```bash
+    git clone https://github.com/Podcastindex-org/podping.cloud.git
+    cd podping.cloud
+    make podping_container
+    ```
