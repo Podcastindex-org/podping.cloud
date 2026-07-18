@@ -192,7 +192,7 @@ async fn main() {
             // sending. Both sockets should be given a chance
             receive_messages(&zmq_hive);
             if let Some(ref gsock) = zmq_gossip {
-                while receive_messages(gsock) {}
+                drain_gossip_messages(gsock);
             }
 
             //Get the most recent X number of pings from the queue database
@@ -317,7 +317,7 @@ async fn main() {
                         //interleave the receives and sends to speed things up and not have one "block" the other
                         receive_messages(&zmq_hive);
                         if let Some(ref gsock) = zmq_gossip {
-                            while receive_messages(gsock) {}
+                            drain_gossip_messages(gsock);
                         }
                         sent += 1;
                     }
@@ -498,6 +498,13 @@ fn receive_messages(requester: &zmq::Socket) -> bool {
             false
         }
     }
+}
+
+//Drain and discard any replies from the gossip-writer.  Gossip acks must never
+//affect the queue - only the hive-writer's replies are authoritative.
+fn drain_gossip_messages(gsock: &zmq::Socket) {
+    let mut response = Message::new();
+    while gsock.recv(&mut response, 0).is_ok() { }
 }
 
 async fn route(

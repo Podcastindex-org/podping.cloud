@@ -34,6 +34,10 @@ Target: ONE of the 5 production podping.cloud servers.
     "Gossip write failed" lines) →
     `docker compose start gossip-writer` → listener sees notifications
     resume within ~2 minutes.
+    Also drill the Hive retry path: `docker compose stop hive-writer` for
+    ~5 minutes during traffic, then start it again -- every ping received
+    during the outage must eventually land on Hive (the front-end re-sends
+    unacked pings after 180s; gossip acks do not remove them from the queue).
 13. SOAK 48h: watch `docker stats gossip-writer` for memory growth
     (iroh-gossip churn leak) and syslog for panic/abort from iroh-quinn.
 

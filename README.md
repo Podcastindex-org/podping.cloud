@@ -105,7 +105,8 @@ iroh-gossip swarm in addition to the Hive blockchain, via
 - `GOSSIP_WRITER_ZMQ` (default `127.0.0.1:9998`) — `host:port` of the
   gossip-writer's ZMQ socket.
 
-The gossip send is fire-and-forget (50ms timeout, non-blocking): if the
-gossip-writer is slow, down, or absent, Hive writes are completely
-unaffected. To disable, set `GOSSIP_WRITER_ENABLED=false` (or remove the
-gossip-writer service) and restart — no other state changes.
+The gossip send is fire-and-forget and non-blocking, and replies from the
+gossip-writer are drained and ignored: if the gossip-writer is slow, down,
+or absent, Hive writes are completely unaffected. To disable, set
+`GOSSIP_WRITER_ENABLED=false` (or remove the gossip-writer service) and
+restart — no other state changes.
