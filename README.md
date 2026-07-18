@@ -90,3 +90,22 @@ example of the format for publisher token records.
 ## The Podping Network Idea
 
 ![Framework Overview 1](framework1.png)
+
+<br>
+
+## Gossip dual-write (experimental)
+
+podping.cloud can optionally broadcast every podping to a decentralized
+iroh-gossip swarm in addition to the Hive blockchain, via
+[podping-gossipwriter](https://github.com/Podcastindex-org/podping-gossipwriter).
+
+- `GOSSIP_WRITER_ENABLED` (default `false`) — when `true`, the front-end
+  opens a second ZMQ PAIR socket and sends each podping to the
+  gossip-writer as well as the hive-writer.
+- `GOSSIP_WRITER_ZMQ` (default `127.0.0.1:9998`) — `host:port` of the
+  gossip-writer's ZMQ socket.
+
+The gossip send is fire-and-forget (50ms timeout, non-blocking): if the
+gossip-writer is slow, down, or absent, Hive writes are completely
+unaffected. To disable, set `GOSSIP_WRITER_ENABLED=false` (or remove the
+gossip-writer service) and restart — no other state changes.
