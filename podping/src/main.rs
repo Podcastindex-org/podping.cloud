@@ -29,6 +29,8 @@ const ZMQ_SOCKET_ADDR: &str = "127.0.0.1:9999";
 const ZMQ_RECV_TIMEOUT: i32 = 10;
 //const LOOP_TIMER_SECONDS: u64 = 1;
 const LOOP_TIMER_MILLISECONDS: u64 = 500;
+const GOSSIP_ZMQ_ADDR: &str = "127.0.0.1:9998";
+const GOSSIP_ZMQ_SEND_TIMEOUT: i32 = 50; // 50ms, fire-and-forget
 mod handler;
 mod router;
 type Response = hyper::Response<hyper::Body>;
@@ -122,20 +124,57 @@ async fn main() {
             println!(" - Trying localhost default: [{}].", zmq_address);
         }
 
-        //Set up and connect the socket
+        //Create a ZMQ socket context
         let context = zmq::Context::new();
-        let mut requester = context.socket(zmq::PAIR).unwrap();
-        if requester.set_rcvtimeo(ZMQ_RECV_TIMEOUT).is_err() {
+
+        //Create the socket for the hive-writer
+        let mut zmq_hive = context.socket(zmq::PAIR).unwrap();
+        if zmq_hive.set_rcvtimeo(ZMQ_RECV_TIMEOUT).is_err() {
             eprintln!("  Failed to set zmq receive timeout.");
         }
-        if requester.set_linger(0).is_err() {
+        if zmq_hive.set_sndtimeo(1000).is_err() {
+            eprintln!("  Failed to set zmq send timeout.");
+        }
+        if zmq_hive.set_linger(0).is_err() {
             eprintln!("  Failed to set zmq to zero linger.");
         }
-        if requester.connect(&zmq_address).is_err() {
+        if zmq_hive.connect(&zmq_address).is_err() {
             eprintln!("  Failed to connect to the podping writer socket.");
         }
-
         println!("ZMQ socket: [{}] connected.", zmq_address);
+
+        //Create the socket for the gossip-writer (if enabled)
+        let zmq_gossip: Option<zmq::Socket> = {
+            let enabled = std::env::var("GOSSIP_WRITER_ENABLED")
+                .unwrap_or_else(|_| "false".to_string());
+            if enabled.eq_ignore_ascii_case("true") || enabled == "1" {
+                let gossip_addr = std::env::var("GOSSIP_WRITER_ZMQ")
+                    .unwrap_or_else(|_| GOSSIP_ZMQ_ADDR.to_string());
+                let gossip_addr = format!("tcp://{}", gossip_addr);
+                println!("Gossip writer enabled, connecting PAIR socket to [{}]...", gossip_addr);
+                let gsock = context.socket(zmq::PAIR).unwrap();
+                if gsock.set_sndtimeo(GOSSIP_ZMQ_SEND_TIMEOUT).is_err() {
+                    eprintln!("  Failed to set gossip zmq send timeout.");
+                }
+                if gsock.set_rcvtimeo(0).is_err() {
+                    eprintln!("  Failed to set gossip zmq receive timeout.");
+                }
+                if gsock.set_linger(0).is_err() {
+                    eprintln!("  Failed to set gossip zmq to zero linger.");
+                }
+                if gsock.set_sndhwm(10000).is_err() {
+                    eprintln!("  Failed to set gossip zmq send HWM.");
+                }
+                if gsock.connect(&gossip_addr).is_err() {
+                    eprintln!("  Failed to connect gossip PAIR socket.");
+                }
+                println!("Gossip PAIR socket: [{}] connected.", gossip_addr);
+                Some(gsock)
+            } else {
+                println!("Gossip writer disabled (set GOSSIP_WRITER_ENABLED=true to enable).");
+                None
+            }
+        };
 
         //Spawn a queue checker threader.  Every X seconds, get all the pings from the Queue and attempt to write them
         //to the socket that the Hive-writer should be listening on
@@ -149,8 +188,12 @@ async fn main() {
                 Err(_) => eprintln!("SystemTime before UNIX EPOCH!"),
             }
 
-            //We always want to try and receive any waiting socket messages before moving on to sending
-            receive_messages(&requester);
+            //We always want to try and receive any waiting socket messages before moving on to
+            // sending. Both sockets should be given a chance
+            receive_messages(&zmq_hive);
+            if let Some(ref gsock) = zmq_gossip {
+                while receive_messages(gsock) {}
+            }
 
             //Get the most recent X number of pings from the queue database
             let pinglist = dbif::get_pings_from_queue(false);
@@ -213,10 +256,19 @@ async fn main() {
                         let podping_write_reader = Reader::from(write_message_buffer.as_slice());
                         plexo_message.set_payload(podping_write_reader);
 
-                        //Attempt to send the message over the ZMQ socket
+                        //Write the capnp structured message to the send buffer
                         let mut send_buffer = Vec::new();
                         capnp::serialize::write_message(&mut send_buffer, &message).unwrap();
-                        match requester.send(send_buffer, 0) {
+
+                        //Send the message to the gossip-writer (if enabled)
+                        if let Some(ref gsock) = zmq_gossip {
+                            if let Err(e) = gsock.send(send_buffer.as_slice(), zmq::DONTWAIT) {
+                                eprintln!("      Gossip write failed: [{}]", e);
+                            }
+                        }
+
+                        //Send the message to the hive-writer
+                        match zmq_hive.send(send_buffer, 0) {
                             Ok(_) => {
                                 // println!("      IRI sent.");
                                 //If the write was successful, mark this ping as "in flight"
@@ -241,17 +293,20 @@ async fn main() {
                             },
                             Err(e) => {
                                 eprintln!("      {}", e);
-                                if requester.disconnect(&zmq_address).is_err() {
+                                if zmq_hive.disconnect(&zmq_address).is_err() {
                                     eprintln!("      Failed to disconnect zmq socket.");
                                 }
-                                requester = context.socket(zmq::PAIR).unwrap();
-                                if requester.set_rcvtimeo(ZMQ_RECV_TIMEOUT).is_err() {
+                                zmq_hive = context.socket(zmq::PAIR).unwrap();
+                                if zmq_hive.set_rcvtimeo(ZMQ_RECV_TIMEOUT).is_err() {
                                     eprintln!("      Failed to set zmq receive timeout.");
                                 }
-                                if requester.set_linger(0).is_err() {
+                                if zmq_hive.set_sndtimeo(1000).is_err() {
+                                    eprintln!("      Failed to set zmq send timeout.");
+                                }
+                                if zmq_hive.set_linger(0).is_err() {
                                     eprintln!("      Failed to set zmq to zero linger.");
                                 }
-                                if requester.connect(&zmq_address).is_err() {
+                                if zmq_hive.connect(&zmq_address).is_err() {
                                     eprintln!("      Failed to re-connect to the hive-writer socket.");
                                 }
                                 break;
@@ -260,7 +315,10 @@ async fn main() {
 
                         //Again, try to receive any messages waiting on the socket so that we effectively
                         //interleave the receives and sends to speed things up and not have one "block" the other
-                        receive_messages(&requester);
+                        receive_messages(&zmq_hive);
+                        if let Some(ref gsock) = zmq_gossip {
+                            while receive_messages(gsock) {}
+                        }
                         sent += 1;
                     }
                 },
