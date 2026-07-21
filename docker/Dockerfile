@@ -5,12 +5,10 @@ USER root
 
 RUN apt-get update && apt-get install -y apt-utils sqlite3 openssl capnproto libzmq3-dev && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /opt
-ARG GIT_REPO=https://github.com/Podcastindex-org/podping.cloud.git
-ARG GIT_BRANCH=main
-RUN git clone --depth 1 -b ${GIT_BRANCH} ${GIT_REPO}
+WORKDIR /opt/podping.cloud
+COPY podping/ podping/
 WORKDIR /opt/podping.cloud/podping
-RUN cargo build --release
+RUN cargo build --release --locked
 RUN cp target/release/podping .
 
 
