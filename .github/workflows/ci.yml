@@ -27,3 +27,7 @@ jobs:
         run: cargo build --locked
       - name: Docker build
         run: docker build -f docker/Dockerfile -t podping-cloud-ci .
+      - name: Verify binary links in runtime image
+        run: |
+          docker run --rm --entrypoint /bin/sh podping-cloud-ci -c "ldd /opt/podping/podping" | tee ldd.out
+          ! grep "not found" ldd.out
