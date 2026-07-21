@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   podping-cloud:
-    image: podcastindexorg/podcasting20-podping.cloud:2.1.0
+    image: podcastindexorg/podcasting20-podping.cloud:3.0.0
     init: true
     restart: unless-stopped
     stop_grace_period: 1m
@@ -13,6 +13,8 @@ services:
       - /data:/data
     environment:
       ZMQ_SOCKET_ADDR: "192.168.69.69:9999"
+      GOSSIP_WRITER_ENABLED: "true"
+      GOSSIP_WRITER_ZMQ: "192.168.69.70:9998"
     networks:
       podping:
         ipv4_address: 192.168.69.68
@@ -33,6 +35,29 @@ services:
     networks:
       podping:
         ipv4_address: 192.168.69.69
+    logging:
+      driver: "syslog"
+      options:
+        tag: "{{.ImageName}}/{{.Name}}/{{.ID}}"
+
+  gossip-writer:
+    image: podcastindexorg/podping-gossipwriter:0.7.0
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    user: "1000:1000"
+    environment:
+      ZMQ_BIND_ADDR: "tcp://0.0.0.0:9998"
+      IROH_SECRET_FILE: "/data/gossip/iroh.key"
+      IROH_NODE_KEY_FILE: "/data/gossip/iroh_node.key"
+      ARCHIVE_ENABLED: "true"
+      ARCHIVE_PATH: "/data/gossip/archive.db"
+      TRUSTED_MONITORS_FILE: "/data/gossip/trusted_monitors.txt"
+    volumes:
+      - /data/gossip:/data/gossip
+    networks:
+      podping:
+        ipv4_address: 192.168.69.70
     logging:
       driver: "syslog"
       options:
