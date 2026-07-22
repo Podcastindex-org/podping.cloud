@@ -46,6 +46,12 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     user: "1000:1000"
+    # Host-specific settings (e.g. NODE_FRIENDLY_NAME=podping-australia).
+    # Lives outside the deploy dir so it survives image/compose updates;
+    # keys in `environment:` below take precedence over this file.
+    env_file:
+      - path: /opt/podping.cloud/gossipwriter.env
+        required: false
     environment:
       ZMQ_BIND_ADDR: "tcp://0.0.0.0:9998"
       IROH_SECRET_FILE: "/data/gossip/iroh.key"
