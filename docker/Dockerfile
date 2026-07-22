@@ -1,5 +1,5 @@
 ##: Build stage
-FROM rust:latest AS builder
+FROM rust:1-trixie AS builder
 
 USER root
 
@@ -13,7 +13,10 @@ RUN cp target/release/podping .
 
 
 ##: Bundle stage
-FROM debian:bookworm-slim AS runner
+# Must be the same Debian release as the builder image: the binary links
+# against the builder's glibc, and a newer builder glibc than the runner's
+# fails at startup with "version `GLIBC_X.YZ' not found".
+FROM debian:trixie-slim AS runner
 
 USER root
 
