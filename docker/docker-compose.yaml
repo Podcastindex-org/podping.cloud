@@ -41,7 +41,7 @@ services:
         tag: "{{.ImageName}}/{{.Name}}/{{.ID}}"
 
   gossip-writer:
-    image: podcastindexorg/podping-gossipwriter:0.7.0
+    image: podcastindexorg/podping-gossipwriter:0.8.0
     init: true
     restart: unless-stopped
     stop_grace_period: 30s
