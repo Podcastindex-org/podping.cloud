@@ -147,13 +147,29 @@ pub async fn ping(ctx: Context) -> Response {
             }
 
             //Decode the url if it was percent encoded
+            let mut decoded_url: Option<String> = None;
             match percent_decode(url_incoming.as_bytes()).decode_utf8() {
                 Ok(result_url) => {
                     println!("ResultUrl: {}", result_url);
+                    decoded_url = Some(result_url.into_owned());
                 }
                 Err(e) => {
                     eprintln!("ResultUrlError: {:#?}", e);
                 }
+            }
+
+            //Silently drop urls that match a filter pattern.  We still return 200 to the sender.
+            let mut candidates: Vec<&str> = vec![url_incoming.as_str()];
+            if let Some(decoded) = decoded_url.as_deref() {
+                candidates.push(decoded);
+            }
+            if let Some(hit) = crate::filter::global().check(&candidates) {
+                println!("  FILTERED: [{}] matched pattern on line {}: [{}]", url_incoming, hit.line, hit.pattern);
+                println!(" ");
+                return hyper::Response::builder()
+                    .status(StatusCode::OK)
+                    .body(format!("Success!").into())
+                    .unwrap();
             }
 
             //Add the url to the Ping we will be storing

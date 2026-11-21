@@ -85,6 +85,22 @@ Initially, the `auth.db` and `queue.db` will be blank.  You will need to populat
 `auth.db` file to have a funcional system.  See the example files in the `databases` directory in this repo for an 
 example of the format for publisher token records.
 
+### Filtering feed urls
+
+Podpings for feed urls matching a regex in `/data/filters.txt` (override with the `PODPING_FILTER_FILE` env var) are
+silently dropped: they are never queued or sent to the writers, and the sender still gets a `200`.  One regex per line;
+blank lines and lines starting with `#` are ignored.  Patterns are case-insensitive by default (put `(?-i)` in a
+pattern to make it case-sensitive) and are evaluated top down, with the first match winning.  Each pattern is tested
+against both the raw and the percent-decoded url.  The file is re-checked every few seconds and reloaded when it
+changes, so no restart is needed.  If the file is missing, nothing is filtered.
+
+```
+# Drop everything from a spammy host
+^https?://([a-z0-9-]+\.)*spamfeeds\.example/
+# Drop a single feed
+^https://example\.com/podcast/feed\.xml$
+```
+
 <br>
 
 ## The Podping Network Idea

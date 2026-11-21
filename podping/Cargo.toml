@@ -27,5 +27,6 @@ drop-root = "0.1.1"
 percent-encoding = "2.1.0"
 capnp = "0.19.8"
 handlebars = "4.3.5"
+regex = "1"
 dbif = { path = 'dbif'}
 podping-schemas = { git = "https://github.com/Podcastindex-org/podping-schemas-rust.git", tag = "v1.1.0" }

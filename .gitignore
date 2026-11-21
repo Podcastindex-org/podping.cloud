@@ -26,3 +26,4 @@ hive-watcher/err_prop.log
 hive-watcher/proposal-watcher.py
 **.DS_Store
 /podping/working_files/
+/docs/gossip-canary-runbook.html

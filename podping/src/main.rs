@@ -31,6 +31,7 @@ const ZMQ_RECV_TIMEOUT: i32 = 10;
 const LOOP_TIMER_MILLISECONDS: u64 = 500;
 const GOSSIP_ZMQ_ADDR: &str = "127.0.0.1:9998";
 const GOSSIP_ZMQ_SEND_TIMEOUT: i32 = 50; // 50ms, fire-and-forget
+mod filter;
 mod handler;
 mod router;
 type Response = hyper::Response<hyper::Body>;
