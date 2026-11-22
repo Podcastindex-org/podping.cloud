@@ -323,62 +323,106 @@ pub fn delete_ping_from_queue(url: String) -> Result<bool, Box<dyn Error>> {
     Ok(true)
 }
 
+//Number of leading characters of a hybrid authorization header that are matched against stored tokens
+const HYBRID_PREFIX_LEN: usize = 22;
+
 //Returns the name of the publisher that corresponds with this authorization header or an Error
 pub fn check_auth(authstring: &str) -> Result<String, Box<dyn Error>> {
     let conn = connect_to_database(SQLITE_FILE_AUTH)?;
-    let mut tokens: Vec<Publisher> = Vec::new();
-
-    let mut stmt = conn.prepare("SELECT name \
-                                   FROM publishers \
-                                  WHERE authval LIKE :authstring \
-                                  LIMIT 1")?;
-    let rows = stmt.query_map(&[(":authstring", authstring)], |row| {
-        Ok(Publisher {
-            name: row.get(0)?
-        })
-    }).unwrap();
-
-    for pubrow in rows {
-        let publisher: Publisher = pubrow.unwrap();
-        //println!("{}", publisher.name.clone());
-        tokens.push(publisher);
-    }
-
-    if tokens.len() == 0 {
-        return Err(Box::new(HydraError(format!("No publisher match found for: [{}].", authstring).into())));
-    }
-
-    Ok(tokens[0].name.clone())
+    find_publisher(&conn, authstring)
 }
 
 //Returns the name of the publisher that corresponds with this hybrid authorization header or an Error
 pub fn check_auth_hybrid(authstring: &str) -> Result<String, Box<dyn Error>> {
     let conn = connect_to_database(SQLITE_FILE_AUTH)?;
-    let mut tokens: Vec<Publisher> = Vec::new();
+    find_publisher_hybrid(&conn, authstring)
+}
 
-    let authstringparm = &authstring[0..22];
+//Exact (ASCII case-insensitive) match of the whole header against a stored token.  This is a plain
+//comparison, not LIKE, so wildcard characters in the header are not interpreted.
+fn find_publisher(conn: &Connection, authstring: &str) -> Result<String, Box<dyn Error>> {
+    let mut stmt = conn.prepare("SELECT name \
+                                   FROM publishers \
+                                  WHERE authval = :authstring COLLATE NOCASE \
+                                  LIMIT 1")?;
+    let mut rows = stmt.query(&[(":authstring", authstring)])?;
+    match rows.next()? {
+        Some(row) => Ok(row.get(0)?),
+        None => Err(Box::new(HydraError("No publisher match found for the given token.".into()))),
+    }
+}
 
-    println!("{}", authstringparm);
+//Matches the first HYBRID_PREFIX_LEN characters of the header against the start of a stored token.
+//Headers shorter than that are rejected instead of panicking.
+fn find_publisher_hybrid(conn: &Connection, authstring: &str) -> Result<String, Box<dyn Error>> {
+    let prefix: String = authstring.chars().take(HYBRID_PREFIX_LEN).collect();
+    if prefix.chars().count() < HYBRID_PREFIX_LEN {
+        return Err(Box::new(HydraError(format!("Hybrid token must be at least {} characters.", HYBRID_PREFIX_LEN).into())));
+    }
 
     let mut stmt = conn.prepare("SELECT name \
                                    FROM publishers \
-                                  WHERE authval LIKE :authstring||'%' \
+                                  WHERE substr(authval, 1, :len) = :prefix COLLATE NOCASE \
                                   LIMIT 1")?;
-    let rows = stmt.query_map(&[(":authstring", authstringparm)], |row| {
-        Ok(Publisher {
-            name: row.get(0)?
-        })
-    }).unwrap();
+    let mut rows = stmt.query(rusqlite::named_params! { ":len": HYBRID_PREFIX_LEN as i64, ":prefix": prefix })?;
+    match rows.next()? {
+        Some(row) => Ok(row.get(0)?),
+        None => Err(Box::new(HydraError("No hybrid publisher match found for the given token.".into()))),
+    }
+}
 
-    for pubrow in rows {
-        let publisher: Publisher = pubrow.unwrap();
-        //println!("{}", publisher.name.clone());
-        tokens.push(publisher);
+
+//Tests ----------------------------------------------------------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TOKEN: &str = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789";
+
+    fn test_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute("CREATE TABLE publishers (name text, authval text primary key)", []).unwrap();
+        conn.execute("INSERT INTO publishers (name, authval) VALUES ('Pub One', ?1)", [TOKEN]).unwrap();
+        conn
     }
 
-    if tokens.len() == 0 {
-        return Err(Box::new(HydraError(format!("No hybrid publisher match found for: [{}].", authstringparm).into())));
+    #[test]
+    fn exact_token_matches() {
+        assert_eq!(find_publisher(&test_db(), TOKEN).unwrap(), "Pub One");
     }
 
-    Ok(tokens[0].name.clone())
+    #[test]
+    fn exact_match_is_ascii_case_insensitive_like_before() {
+        assert_eq!(find_publisher(&test_db(), &TOKEN.to_lowercase()).unwrap(), "Pub One");
+    }
+
+    #[test]
+    fn wildcards_do_not_bypass_exact_check() {
+        let conn = test_db();
+        for bad in ["%", "%%", "_", "AbCd%", &format!("{}_", &TOKEN[..TOKEN.len() - 1]), ""] {
+            assert!(find_publisher(&conn, bad).is_err(), "should reject {:?}", bad);
+        }
+    }
+
+    #[test]
+    fn hybrid_matches_on_prefix() {
+        let header = format!("{}SOMETHINGELSE", &TOKEN[..HYBRID_PREFIX_LEN]);
+        assert_eq!(find_publisher_hybrid(&test_db(), &header).unwrap(), "Pub One");
+    }
+
+    #[test]
+    fn hybrid_rejects_short_headers_without_panicking() {
+        let conn = test_db();
+        for bad in ["", "%", "short", &TOKEN[..HYBRID_PREFIX_LEN - 1], "ééééééééééé"] {
+            assert!(find_publisher_hybrid(&conn, bad).is_err(), "should reject {:?}", bad);
+        }
+    }
+
+    #[test]
+    fn hybrid_wildcards_do_not_bypass() {
+        let conn = test_db();
+        for bad in ["%".repeat(HYBRID_PREFIX_LEN), "_".repeat(HYBRID_PREFIX_LEN), format!("AbCd{}", "%".repeat(HYBRID_PREFIX_LEN))] {
+            assert!(find_publisher_hybrid(&conn, &bad).is_err(), "should reject {:?}", bad);
+        }
+    }
 }
