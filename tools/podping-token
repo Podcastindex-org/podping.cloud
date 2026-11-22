@@ -1,0 +1,226 @@
+#!/usr/bin/env bash
+#
+# Manage podping.cloud publisher tokens across all production servers.
+#
+#   podping-token add [name]          Generate a token and add the publisher to every server
+#   podping-token retry <name> <tok>  Push an existing token to servers that are missing it
+#   podping-token list                Show publishers per server and flag any drift between them
+#   podping-token revoke <name>       Remove a publisher from every server
+#
+# Servers are read from tools/servers.txt (one ssh target like user@host per line, # comments ok).
+# Override with PODPING_SERVERS_FILE.  Each server must run the podping-cloud compose service; the
+# sqlite3 binary inside that container is used, so the host itself doesn't need sqlite3.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVERS_FILE="${PODPING_SERVERS_FILE:-$SCRIPT_DIR/servers.txt}"
+SSH="${PODPING_SSH:-ssh}"
+TOKEN_LEN=44
+
+# Runs on each server: find the podping-cloud container and feed stdin to its sqlite3.
+REMOTE_CMD='cid=$(docker ps -q --filter label=com.docker.compose.service=podping-cloud | head -n 1); if [ -z "$cid" ]; then echo "podping-cloud container not running" >&2; exit 3; fi; exec docker exec -i "$cid" sqlite3 -bail -batch -noheader -separator "	" /data/auth.db'
+
+die() { echo "error: $*" >&2; exit 1; }
+
+usage() { sed -n '3,12p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+
+load_servers() {
+    [[ -f "$SERVERS_FILE" ]] || die "no server list at $SERVERS_FILE (copy servers.example.txt and edit it)"
+    SERVERS=()
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%%#*}"
+        line="${line//[[:space:]]/}"
+        [[ -n "$line" ]] && SERVERS+=("$line")
+    done < "$SERVERS_FILE"
+    (( ${#SERVERS[@]} > 0 )) || die "no servers listed in $SERVERS_FILE"
+}
+
+# SQL string literal with single quotes doubled
+sql_quote() { local s="${1//\'/\'\'}"; printf "'%s'" "$s"; }
+
+# remote_sql <host> <sql>  -> prints sqlite output, returns non-zero on ssh/container/sql failure
+remote_sql() {
+    printf '%s\n' "$2" | "$SSH" -o BatchMode=yes -o ConnectTimeout=10 "$1" "$REMOTE_CMD"
+}
+
+generate_token() {
+    local tok
+    tok="$(set +o pipefail; LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$TOKEN_LEN")"
+    [[ ${#tok} -eq $TOKEN_LEN ]] || die "token generation failed"
+    printf '%s' "$tok"
+}
+
+validate_name() {
+    [[ -n "$1" ]] || die "publisher name can't be empty"
+    [[ "$1" != *[[:cntrl:]]* ]] || die "publisher name can't contain control characters, tabs or newlines"
+}
+
+confirm() {
+    local reply
+    read -r -p "$1 [y/N] " reply
+    [[ "$reply" == [yY] || "$reply" == [yY][eE][sS] ]]
+}
+
+trim() { local s="$1"; s="${s#"${s%%[![:space:]]*}"}"; s="${s%"${s##*[![:space:]]}"}"; printf '%s' "$s"; }
+
+# Insert (name, token) unless the token already exists, then print how many rows hold exactly this pair.
+insert_sql() {
+    local qn qt; qn="$(sql_quote "$1")"; qt="$(sql_quote "$2")"
+    printf "INSERT INTO publishers (name, authval) SELECT %s, %s WHERE NOT EXISTS (SELECT 1 FROM publishers WHERE authval = %s COLLATE NOCASE);\nSELECT count(*) FROM publishers WHERE name = %s AND authval = %s;" \
+        "$qn" "$qt" "$qt" "$qn" "$qt"
+}
+
+push_to_all() {
+    local name="$1" token="$2" failed=() conflicts=() out host
+    for host in "${SERVERS[@]}"; do
+        if ! out="$(remote_sql "$host" "$(insert_sql "$name" "$token")" 2>&1)"; then
+            echo "  ✗ $host: ${out:-no output}"
+            failed+=("$host")
+        elif [[ "$out" == "1" ]]; then
+            echo "  ✓ $host"
+        else
+            echo "  ✗ $host: this token already belongs to a different publisher name, left unchanged"
+            conflicts+=("$host")
+        fi
+    done
+    if (( ${#failed[@]} > 0 )); then
+        echo
+        echo "Failed on ${#failed[@]} server(s): ${failed[*]}"
+        echo "Once they're reachable, run:"
+        echo "  $0 retry $(printf '%q' "$name") $(printf '%q' "$token")"
+    fi
+    if (( ${#conflicts[@]} > 0 )); then
+        echo
+        echo "Token conflict on: ${conflicts[*]} — check 'list' to see which publisher owns it."
+    fi
+    (( ${#failed[@]} == 0 && ${#conflicts[@]} == 0 ))
+}
+
+cmd_add() {
+    local name="${1:-}"
+    [[ -n "$name" ]] || read -r -p "Publisher name: " name
+    name="$(trim "$name")"
+    validate_name "$name"
+    load_servers
+
+    local token qn qt host out problems=0
+    token="$(generate_token)"
+    qn="$(sql_quote "$name")"; qt="$(sql_quote "$token")"
+
+    echo "Checking ${#SERVERS[@]} server(s)..."
+    for host in "${SERVERS[@]}"; do
+        if ! out="$(remote_sql "$host" "SELECT (SELECT count(*) FROM publishers WHERE name = $qn COLLATE NOCASE), (SELECT count(*) FROM publishers WHERE authval = $qt COLLATE NOCASE);" 2>&1)"; then
+            echo "  ✗ $host: ${out:-unreachable}"; problems=1; continue
+        fi
+        case "$out" in
+            $'0\t0') echo "  ✓ $host" ;;
+            $'0\t'*) echo "  ✗ $host: generated token collides with an existing one (just run add again)"; problems=1 ;;
+            *)       echo "  ✗ $host: a publisher named '$name' already exists"; problems=1 ;;
+        esac
+    done
+    (( problems == 0 )) || die "pre-flight failed, nothing was changed"
+
+    echo
+    confirm "Add publisher '$name' to all ${#SERVERS[@]} server(s)?" || die "aborted, nothing was changed"
+    echo
+    local rc=0
+    push_to_all "$name" "$token" || rc=1
+    echo
+    echo "Publisher: $name"
+    echo "Token:     $token"
+    return $rc
+}
+
+cmd_retry() {
+    (( $# == 2 )) || usage 1
+    local name token
+    name="$(trim "$1")"; token="$2"
+    validate_name "$name"
+    [[ -n "$token" && "$token" != *[[:space:][:cntrl:]]* ]] || die "token can't be empty or contain whitespace"
+    load_servers
+    echo "Pushing '$name' to ${#SERVERS[@]} server(s)..."
+    push_to_all "$name" "$token"
+}
+
+cmd_list() {
+    load_servers
+    local tmp host out failed=() reached=()
+    tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' RETURN
+
+    for host in "${SERVERS[@]}"; do
+        if out="$(remote_sql "$host" "SELECT name, authval FROM publishers ORDER BY name COLLATE NOCASE;" 2>&1)"; then
+            printf '%s\n' "$out" | sed '/^$/d' | sort -u > "$tmp/$host"
+            reached+=("$host")
+            echo "== $host ($(wc -l < "$tmp/$host") publishers)"
+            awk -F'\t' '{ printf "  %-40s %s…\n", $1, substr($2, 1, 6) }' "$tmp/$host"
+        else
+            echo "== $host: ✗ ${out:-unreachable}"
+            failed+=("$host")
+        fi
+    done
+
+    local rc=0
+    (( ${#failed[@]} == 0 )) || rc=1
+    (( ${#reached[@]} > 1 )) || return $rc
+    echo
+    local all="$tmp/.all" drift=0 row
+    cat "${reached[@]/#/$tmp/}" | sort -u > "$all"
+    while IFS= read -r row; do
+        local missing=()
+        for host in "${reached[@]}"; do
+            grep -qxF -- "$row" "$tmp/$host" || missing+=("$host")
+        done
+        if (( ${#missing[@]} > 0 )); then
+            drift=1
+            printf '  DRIFT: %s (%s…) missing on: %s\n' "${row%%$'\t'*}" "$(cut -c1-6 <<< "${row#*$'\t'}")" "${missing[*]}"
+        fi
+    done < "$all"
+    (( drift )) || echo "All ${#reached[@]} reachable server(s) have identical publisher lists."
+    (( ${#failed[@]} == 0 )) || echo "Not checked (unreachable): ${failed[*]}"
+    return $rc
+}
+
+cmd_revoke() {
+    (( $# == 1 )) || usage 1
+    local name qn host out total=0 failed=()
+    name="$(trim "$1")"
+    validate_name "$name"
+    load_servers
+    qn="$(sql_quote "$name")"
+
+    echo "Looking up '$name' on ${#SERVERS[@]} server(s)..."
+    for host in "${SERVERS[@]}"; do
+        if out="$(remote_sql "$host" "SELECT count(*) FROM publishers WHERE name = $qn;" 2>&1)"; then
+            echo "  $host: $out row(s)"; total=$(( total + out ))
+        else
+            echo "  ✗ $host: ${out:-unreachable}"; failed+=("$host")
+        fi
+    done
+    (( total > 0 )) || die "no publisher named exactly '$name' found (names are case-sensitive here; check 'list')"
+    echo
+    confirm "Delete '$name' from every server listed above?" || die "aborted, nothing was changed"
+    echo
+    for host in "${SERVERS[@]}"; do
+        if out="$(remote_sql "$host" "DELETE FROM publishers WHERE name = $qn; SELECT changes();" 2>&1)"; then
+            echo "  ✓ $host: removed $out row(s)"
+        else
+            echo "  ✗ $host: ${out:-unreachable}"
+            [[ " ${failed[*]} " == *" $host "* ]] || failed+=("$host")
+        fi
+    done
+    if (( ${#failed[@]} > 0 )); then
+        echo
+        echo "Not revoked on: ${failed[*]} — run revoke again once they're reachable."
+        return 1
+    fi
+}
+
+case "${1:-}" in
+    add)    shift; cmd_add "$@" ;;
+    retry)  shift; cmd_retry "$@" ;;
+    list)   shift; cmd_list "$@" ;;
+    revoke) shift; cmd_revoke "$@" ;;
+    -h|--help|help|"") usage 0 ;;
+    *) usage 1 ;;
+esac

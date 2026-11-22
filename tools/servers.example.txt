@@ -1,0 +1,4 @@
+# Copy to servers.txt (gitignored) and list one ssh target per line.
+# Each server must be running the podping-cloud docker compose service.
+user@podping-australia.example.com
+user@podping-us-east.example.com
