@@ -5,11 +5,12 @@
 #   podping-token add [name]          Generate a token and add the publisher to every server
 #   podping-token retry <name> <tok>  Push an existing token to servers that are missing it
 #   podping-token list                Show publishers per server and flag any drift between them
+#   podping-token rotate <name> [tok] Replace a publisher's token on every server (old one stops working)
 #   podping-token revoke <name>       Remove a publisher from every server
 #
 # Servers are read from tools/servers.txt (one ssh target like user@host per line, # comments ok).
-# Override with PODPING_SERVERS_FILE.  Each server must run the podping-cloud compose service; the
-# sqlite3 binary inside that container is used, so the host itself doesn't need sqlite3.
+# Override with PODPING_SERVERS_FILE.  The host's sqlite3 is used when installed; otherwise the one
+# inside the running podping-cloud compose container (which needs docker access for the ssh user).
 
 set -euo pipefail
 
@@ -18,12 +19,13 @@ SERVERS_FILE="${PODPING_SERVERS_FILE:-$SCRIPT_DIR/servers.txt}"
 SSH="${PODPING_SSH:-ssh}"
 TOKEN_LEN=44
 
-# Runs on each server: find the podping-cloud container and feed stdin to its sqlite3.
-REMOTE_CMD='cid=$(docker ps -q --filter label=com.docker.compose.service=podping-cloud | head -n 1); if [ -z "$cid" ]; then echo "podping-cloud container not running" >&2; exit 3; fi; exec docker exec -i "$cid" sqlite3 -bail -batch -noheader -separator "	" /data/auth.db'
+# Runs on each server and feeds stdin to sqlite3 on /data/auth.db.  Uses the host's sqlite3 when it's
+# installed (no docker privileges needed), otherwise the one inside the podping-cloud container.
+REMOTE_CMD='if command -v sqlite3 >/dev/null 2>&1; then exec sqlite3 -bail -batch -noheader -separator "	" -cmd ".timeout 5000" /data/auth.db; fi; if ! out=$(docker ps -q --filter label=com.docker.compose.service=podping-cloud 2>&1); then echo "sqlite3 not installed on host, and docker failed: $out" >&2; exit 3; fi; cid=$(printf "%s\n" "$out" | head -n 1); if [ -z "$cid" ]; then echo "sqlite3 not installed on host, and the podping-cloud container is not running" >&2; exit 3; fi; exec docker exec -i "$cid" sqlite3 -bail -batch -noheader -separator "	" -cmd ".timeout 5000" /data/auth.db'
 
 die() { echo "error: $*" >&2; exit 1; }
 
-usage() { sed -n '3,12p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '3,13p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
 load_servers() {
     [[ -f "$SERVERS_FILE" ]] || die "no server list at $SERVERS_FILE (copy servers.example.txt and edit it)"
@@ -177,8 +179,75 @@ cmd_list() {
         fi
     done < "$all"
     (( drift )) || echo "All ${#reached[@]} reachable server(s) have identical publisher lists."
-    (( ${#failed[@]} == 0 )) || echo "Not checked (unreachable): ${failed[*]}"
+    (( ${#failed[@]} == 0 )) || echo "Not checked: ${failed[*]}"
     return $rc
+}
+
+# rotate <name> [token]: swap the publisher's single token for a new one in place, keeping the name.
+# Passing a token finishes a rotation that only reached some servers; servers that already have it are skipped.
+cmd_rotate() {
+    (( $# == 1 || $# == 2 )) || usage 1
+    local name token qn qt host out targets=() problems=0
+    name="$(trim "$1")"
+    validate_name "$name"
+    if (( $# == 2 )); then
+        token="$2"
+        [[ -n "$token" && "$token" != *[[:space:][:cntrl:]]* ]] || die "token can't be empty or contain whitespace"
+    else
+        token="$(generate_token)"
+    fi
+    load_servers
+    qn="$(sql_quote "$name")"; qt="$(sql_quote "$token")"
+
+    echo "Checking ${#SERVERS[@]} server(s)..."
+    for host in "${SERVERS[@]}"; do
+        if ! out="$(remote_sql "$host" "SELECT (SELECT count(*) FROM publishers WHERE name = $qn), (SELECT count(*) FROM publishers WHERE name = $qn AND authval = $qt), (SELECT count(*) FROM publishers WHERE authval = $qt COLLATE NOCASE AND name <> $qn);" 2>&1)"; then
+            echo "  ✗ $host: ${out:-unreachable}"; problems=1; continue
+        fi
+        local n done collide
+        IFS=$'\t' read -r n done collide <<< "$out"
+        if (( collide > 0 )); then
+            echo "  ✗ $host: the new token already belongs to a different publisher"; problems=1
+        elif (( done == 1 && n == 1 )); then
+            echo "  ✓ $host: already has the new token, skipping"
+        elif (( n == 0 )); then
+            echo "  ✗ $host: no publisher named exactly '$name' (names are case-sensitive here; check 'list')"; problems=1
+        elif (( n > 1 )); then
+            echo "  ✗ $host: '$name' has $n tokens; rotate needs exactly one (use revoke, then add)"; problems=1
+        else
+            echo "  ✓ $host"; targets+=("$host")
+        fi
+    done
+    (( problems == 0 )) || die "pre-flight failed, nothing was changed"
+    if (( ${#targets[@]} == 0 )); then
+        echo; echo "Every server already has the new token, nothing to do."
+        return 0
+    fi
+
+    echo
+    confirm "Rotate the token for '$name' on ${#targets[@]} server(s)? The old token stops working immediately." \
+        || die "aborted, nothing was changed"
+    echo
+    local failed=()
+    for host in "${targets[@]}"; do
+        if ! out="$(remote_sql "$host" "UPDATE publishers SET authval = $qt WHERE name = $qn AND NOT EXISTS (SELECT 1 FROM publishers WHERE authval = $qt COLLATE NOCASE); SELECT count(*) FROM publishers WHERE name = $qn AND authval = $qt;" 2>&1)"; then
+            echo "  ✗ $host: ${out:-no output}"; failed+=("$host")
+        elif [[ "$out" == "1" ]]; then
+            echo "  ✓ $host"
+        else
+            echo "  ✗ $host: token not updated (changed since the pre-flight?)"; failed+=("$host")
+        fi
+    done
+    if (( ${#failed[@]} > 0 )); then
+        echo
+        echo "Failed on ${#failed[@]} server(s): ${failed[*]} (they still have the old token)"
+        echo "Once they're reachable, finish with:"
+        echo "  $0 rotate $(printf '%q' "$name") $(printf '%q' "$token")"
+    fi
+    echo
+    echo "Publisher: $name"
+    echo "Token:     $token"
+    (( ${#failed[@]} == 0 ))
 }
 
 cmd_revoke() {
@@ -220,6 +289,7 @@ case "${1:-}" in
     add)    shift; cmd_add "$@" ;;
     retry)  shift; cmd_retry "$@" ;;
     list)   shift; cmd_list "$@" ;;
+    rotate) shift; cmd_rotate "$@" ;;
     revoke) shift; cmd_revoke "$@" ;;
     -h|--help|help|"") usage 0 ;;
     *) usage 1 ;;
