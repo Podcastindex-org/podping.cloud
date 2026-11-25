@@ -110,6 +110,14 @@ async fn main() {
         }
     }
 
+    //Seed the url filter file with the defaults if there isn't one yet
+    let filter_path = filter::configured_path();
+    match filter::ensure_default_file(&filter_path) {
+        Ok(true) => println!("Created default filter file: [{}]", filter_path),
+        Ok(false) => {},
+        Err(e) => eprintln!("Couldn't create default filter file [{}], continuing without it: {}", filter_path, e),
+    }
+
     //ZMQ socket version
     thread::spawn(move || {
 

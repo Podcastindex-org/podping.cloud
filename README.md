@@ -92,13 +92,19 @@ silently dropped: they are never queued or sent to the writers, and the sender s
 blank lines and lines starting with `#` are ignored.  Patterns are case-insensitive by default (put `(?-i)` in a
 pattern to make it case-sensitive) and are evaluated top down, with the first match winning.  Each pattern is tested
 against both the raw and the percent-decoded url.  The file is re-checked every few seconds and reloaded when it
-changes, so no restart is needed.  If the file is missing, nothing is filtered.
+changes, so no restart is needed.
+
+If the file doesn't exist when podping starts, it is created with the defaults from
+[podping/databases/filters.txt](podping/databases/filters.txt), which drop feeds hosted on loopback addresses
+(`localhost`, `127.x.x.x`, `0.0.0.0`, `[::1]`) and on `example.com` or any of its subdomains.  An existing file is
+never overwritten.  To turn filtering off, comment out the patterns but keep the file (deleting it disables filtering
+until the next restart, when the defaults are written back).
 
 ```
 # Drop everything from a spammy host
 ^https?://([a-z0-9-]+\.)*spamfeeds\.example/
 # Drop a single feed
-^https://example\.com/podcast/feed\.xml$
+^https://podcasts\.example\.net/show/feed\.xml$
 ```
 
 <br>

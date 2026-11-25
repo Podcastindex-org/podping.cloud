@@ -1,0 +1,15 @@
+# podping.cloud feed url filters
+#
+# Podpings for feed urls matching any regex below are silently dropped: never queued or sent to the writers,
+# while the sender still gets a 200.  One regex per line, evaluated top down, first match wins.  Blank lines and
+# lines starting with # are ignored.  Case-insensitive by default; put (?-i) in a pattern to make it case-sensitive.
+# Each pattern is tested against both the raw and the percent-decoded url.
+#
+# This file is reloaded automatically a few seconds after it changes.  If it doesn't exist when podping starts,
+# it is created with these defaults.  To turn filtering off, comment out or delete the patterns (keep the file).
+
+# Loopback / unroutable hosts: localhost, 127.x.x.x, 0.0.0.0 and [::1]
+^https?://([^/@]*@)?(localhost|127(\.\d{1,3}){3}|0\.0\.0\.0|\[::1\])(:\d+)?([/?#]|$)
+
+# example.com and any subdomain of it
+^https?://([^/@]*@)?([a-z0-9-]+\.)*example\.com\.?(:\d+)?([/?#]|$)
